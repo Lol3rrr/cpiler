@@ -1,5 +1,10 @@
 use std::ops::Range;
 
+// TODO
+// Potentially switch the source String to an Arc<String> and then whenever
+// you construct a subspan you dont clone the String itself but rather only the
+// Arc which should be faster and more efficient
+
 /// A Span describes a Part of some overall String, most likely source Code
 #[derive(Debug, PartialEq, Clone)]
 pub struct Span {

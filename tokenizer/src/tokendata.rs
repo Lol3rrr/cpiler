@@ -34,8 +34,8 @@ pub enum TokenData {
 impl Display for TokenData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Self::Keyword(k) => todo!("Format Keyword"),
-            Self::Assign(a) => todo!("Format Assignment"),
+            Self::Keyword(k) => write!(f, "{}", k),
+            Self::Assign(a) => write!(f, "{}", a),
             Self::Semicolon => write!(f, ";"),
             Self::Comma => write!(f, ","),
             Self::QuestionMark => write!(f, "?"),
@@ -49,7 +49,7 @@ impl Display for TokenData {
             Self::CloseBracket => write!(f, "]"),
             Self::Comment { content } => write!(f, "//{}", content),
             Self::PreProcessorDirective { raw } => write!(f, "#{}", raw),
-            Self::Operator(op) => todo!("Format Operator"),
+            Self::Operator(op) => write!(f, "{}", op),
             Self::Literal { content } => write!(f, "{}", content),
             Self::StringLiteral { content } => write!(f, "\"{}\"", content),
             Self::CompilerDirective { content } => write!(f, "#{}", content),
@@ -72,6 +72,24 @@ pub enum Assignment {
     BitwiseXor,
 }
 
+impl Display for Assignment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Assign => write!(f, "="),
+            Self::Add => write!(f, "+="),
+            Self::Sub => write!(f, "-="),
+            Self::Multiply => write!(f, "*="),
+            Self::Divide => write!(f, "/="),
+            Self::Modulo => write!(f, "%="),
+            Self::ShiftLeft => write!(f, "<<="),
+            Self::ShiftRight => write!(f, ">>="),
+            Self::BitwiseAnd => write!(f, "&="),
+            Self::BitwiseOr => write!(f, "|="),
+            Self::BitwiseXor => write!(f, "^="),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keyword {
     DataType(DataType),
@@ -92,6 +110,29 @@ pub enum Keyword {
     Volatile,
 }
 
+impl Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DataType(dt) => write!(f, "{}", dt),
+            Self::ControlFlow(cf) => write!(f, "{}", cf),
+            Self::Auto => todo!("Format auto"),
+            Self::Const => write!(f, "const"),
+            Self::Default_ => todo!("Format default_"),
+            Self::Bool_ => todo!("Format bool_"),
+            Self::Complex_ => todo!("Format complex_"),
+            Self::Extern => todo!("Format extern"),
+            Self::Imaginary_ => todo!("Format imaginary"),
+            Self::Inline => todo!("Format inline"),
+            Self::Register => todo!("Format register"),
+            Self::Restrict => todo!("Format restrict"),
+            Self::SizeOf => write!(f, "sizeof"),
+            Self::Static => write!(f, "static"),
+            Self::TypeDef => write!(f, "typedef"),
+            Self::Volatile => write!(f, "volatile"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum DataType {
     Void,
@@ -108,6 +149,25 @@ pub enum DataType {
     Signed,
 }
 
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Void => write!(f, "void"),
+            Self::Short => write!(f, "short"),
+            Self::Char => write!(f, "char"),
+            Self::Int => write!(f, "int"),
+            Self::Long => write!(f, "long"),
+            Self::Float => write!(f, "float"),
+            Self::Double => write!(f, "double"),
+            Self::Enum => write!(f, "enum"),
+            Self::Struct => write!(f, "struct"),
+            Self::Union => write!(f, "union"),
+            Self::Unsigned => write!(f, "unsigned"),
+            Self::Signed => write!(f, "signed"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ControlFlow {
     If,
@@ -121,6 +181,24 @@ pub enum ControlFlow {
     Break,
     Continue,
     Return,
+}
+
+impl Display for ControlFlow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::If => write!(f, "if"),
+            Self::Else => write!(f, "else"),
+            Self::Switch => write!(f, "switch"),
+            Self::Case => write!(f, "case"),
+            Self::While => write!(f, "while"),
+            Self::For => write!(f, "for"),
+            Self::Do => write!(f, "do"),
+            Self::Goto => write!(f, "goto"),
+            Self::Break => write!(f, "break"),
+            Self::Continue => write!(f, "continue"),
+            Self::Return => write!(f, "return"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -173,6 +251,37 @@ pub enum Operator {
     Arrow,
     /// .
     Dot,
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Add => write!(f, "+"),
+            Self::Increment => write!(f, "++"),
+            Self::Sub => write!(f, "-"),
+            Self::Decrement => write!(f, "--"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+            Self::Modulo => write!(f, "%"),
+            Self::LogicalNot => write!(f, "!"),
+            Self::LogicalAnd => write!(f, "&&"),
+            Self::LogicalOr => write!(f, "||"),
+            Self::BitwiseNot => write!(f, "~"),
+            Self::BitwiseXor => write!(f, "^"),
+            Self::BitwiseOr => write!(f, "|"),
+            Self::BitwiseAnd => write!(f, "&"),
+            Self::ShiftLeft => write!(f, "<<"),
+            Self::ShiftRight => write!(f, ">>"),
+            Self::Equal => write!(f, "=="),
+            Self::NotEqual => write!(f, "!="),
+            Self::Less => write!(f, "<"),
+            Self::Greater => write!(f, ">"),
+            Self::GreaterEqual => write!(f, ">="),
+            Self::LessEqual => write!(f, "<="),
+            Self::Arrow => write!(f, "->"),
+            Self::Dot => write!(f, "."),
+        }
+    }
 }
 
 impl<'r, 'a> From<&'r SpanRef<'a>> for TokenData {
