@@ -72,6 +72,19 @@ pub enum ExpressionOperator {
     Multiply,
     Divide,
     Modulo,
+    LogicalAnd,
+    LogicalOr,
+    BitwiseXor,
+    BitwiseAnd,
+    BitwiseOr,
+    ShiftLeft,
+    ShiftRight,
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    GreaterEqual,
+    LessEqual,
 }
 
 #[derive(Debug)]
@@ -89,11 +102,11 @@ enum RpnOp {
 impl RpnOp {
     fn precedence(&self) -> usize {
         match self {
-            Self::Expression(ExpressionOperator::Add) => 2,
-            Self::Expression(ExpressionOperator::Sub) => 2,
-            Self::Expression(ExpressionOperator::Multiply) => 3,
-            Self::Expression(ExpressionOperator::Divide) => 3,
-            Self::Expression(ExpressionOperator::Modulo) => 3,
+            Self::SingleOp(SingleOperation::ArrayAccess(_))
+            | Self::SingleOp(SingleOperation::Arrow)
+            | Self::SingleOp(SingleOperation::Dot)
+            | Self::SingleOp(SingleOperation::SuffixIncrement)
+            | Self::SingleOp(SingleOperation::SuffixDecrement) => 15,
             Self::SingleOp(SingleOperation::Positive)
             | Self::SingleOp(SingleOperation::Negative)
             | Self::SingleOp(SingleOperation::LogicalNot)
@@ -103,22 +116,48 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::Cast(_))
             | Self::SingleOp(SingleOperation::Dereference)
             | Self::SingleOp(SingleOperation::AddressOf)
-            | Self::SingleOp(SingleOperation::Sizeof) => 4,
-            Self::SingleOp(SingleOperation::ArrayAccess(_))
-            | Self::SingleOp(SingleOperation::Arrow)
-            | Self::SingleOp(SingleOperation::Dot)
-            | Self::SingleOp(SingleOperation::SuffixIncrement)
-            | Self::SingleOp(SingleOperation::SuffixDecrement) => 5,
+            | Self::SingleOp(SingleOperation::Sizeof) => 14,
+            Self::Expression(ExpressionOperator::Multiply)
+            | Self::Expression(ExpressionOperator::Divide)
+            | Self::Expression(ExpressionOperator::Modulo) => 13,
+            Self::Expression(ExpressionOperator::Add)
+            | Self::Expression(ExpressionOperator::Sub) => 12,
+            Self::Expression(ExpressionOperator::ShiftLeft)
+            | Self::Expression(ExpressionOperator::ShiftRight) => 11,
+            Self::Expression(ExpressionOperator::Less)
+            | Self::Expression(ExpressionOperator::Greater)
+            | Self::Expression(ExpressionOperator::LessEqual)
+            | Self::Expression(ExpressionOperator::GreaterEqual) => 10,
+            Self::Expression(ExpressionOperator::Equal)
+            | Self::Expression(ExpressionOperator::NotEqual) => 9,
+            Self::Expression(ExpressionOperator::BitwiseAnd) => 8,
+            Self::Expression(ExpressionOperator::BitwiseXor) => 7,
+            Self::Expression(ExpressionOperator::BitwiseOr) => 6,
+            Self::Expression(ExpressionOperator::LogicalAnd) => 5,
+            Self::Expression(ExpressionOperator::LogicalOr) => 4,
         }
     }
 
     fn assosication(&self) -> Assosication {
         match self {
-            Self::Expression(ExpressionOperator::Add) => Assosication::Left,
-            Self::Expression(ExpressionOperator::Sub) => Assosication::Left,
-            Self::Expression(ExpressionOperator::Multiply) => Assosication::Left,
-            Self::Expression(ExpressionOperator::Divide) => Assosication::Left,
-            Self::Expression(ExpressionOperator::Modulo) => Assosication::Left,
+            Self::Expression(ExpressionOperator::Add)
+            | Self::Expression(ExpressionOperator::Sub)
+            | Self::Expression(ExpressionOperator::Multiply)
+            | Self::Expression(ExpressionOperator::Divide)
+            | Self::Expression(ExpressionOperator::Modulo)
+            | Self::Expression(ExpressionOperator::LogicalAnd)
+            | Self::Expression(ExpressionOperator::LogicalOr)
+            | Self::Expression(ExpressionOperator::BitwiseXor)
+            | Self::Expression(ExpressionOperator::BitwiseAnd)
+            | Self::Expression(ExpressionOperator::BitwiseOr)
+            | Self::Expression(ExpressionOperator::ShiftLeft)
+            | Self::Expression(ExpressionOperator::ShiftRight)
+            | Self::Expression(ExpressionOperator::Equal)
+            | Self::Expression(ExpressionOperator::NotEqual)
+            | Self::Expression(ExpressionOperator::Less)
+            | Self::Expression(ExpressionOperator::Greater)
+            | Self::Expression(ExpressionOperator::GreaterEqual)
+            | Self::Expression(ExpressionOperator::LessEqual) => Assosication::Left,
             Self::SingleOp(SingleOperation::Positive)
             | Self::SingleOp(SingleOperation::Negative)
             | Self::SingleOp(SingleOperation::LogicalNot)
@@ -134,6 +173,49 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::Dot)
             | Self::SingleOp(SingleOperation::SuffixIncrement)
             | Self::SingleOp(SingleOperation::SuffixDecrement) => Assosication::Left,
+        }
+    }
+
+    pub fn from_op(op: &Operator, previous_data: Option<TokenData>) -> Self {
+        match (op, previous_data) {
+            (Operator::Add, Some(TokenData::Operator(_))) | (Operator::Add, None) => {
+                RpnOp::SingleOp(SingleOperation::Positive)
+            }
+            (Operator::Add, _) => RpnOp::Expression(ExpressionOperator::Add),
+            (Operator::Increment, _) => {
+                todo!("Handle increment");
+            }
+            (Operator::Sub, Some(TokenData::Operator(_))) | (Operator::Sub, None) => {
+                RpnOp::SingleOp(SingleOperation::Negative)
+            }
+            (Operator::Sub, _) => RpnOp::Expression(ExpressionOperator::Sub),
+            (Operator::Decrement, _) => {
+                todo!("Handle decrement");
+            }
+            (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
+            (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
+            (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),
+            (Operator::LogicalNot, _) => RpnOp::SingleOp(SingleOperation::LogicalNot),
+            (Operator::LogicalAnd, _) => RpnOp::Expression(ExpressionOperator::LogicalAnd),
+            (Operator::LogicalOr, _) => RpnOp::Expression(ExpressionOperator::LogicalOr),
+            (Operator::BitwiseNot, _) => RpnOp::SingleOp(SingleOperation::BitwiseNot),
+            (Operator::BitwiseXor, _) => RpnOp::Expression(ExpressionOperator::BitwiseXor),
+            (Operator::BitwiseOr, _) => RpnOp::Expression(ExpressionOperator::BitwiseOr),
+            (Operator::BitwiseAnd, _) => RpnOp::Expression(ExpressionOperator::BitwiseAnd),
+            (Operator::ShiftLeft, _) => RpnOp::Expression(ExpressionOperator::ShiftLeft),
+            (Operator::ShiftRight, _) => RpnOp::Expression(ExpressionOperator::ShiftRight),
+            (Operator::Equal, _) => RpnOp::Expression(ExpressionOperator::Equal),
+            (Operator::NotEqual, _) => RpnOp::Expression(ExpressionOperator::NotEqual),
+            (Operator::Less, _) => RpnOp::Expression(ExpressionOperator::Less),
+            (Operator::Greater, _) => RpnOp::Expression(ExpressionOperator::Greater),
+            (Operator::GreaterEqual, _) => RpnOp::Expression(ExpressionOperator::GreaterEqual),
+            (Operator::LessEqual, _) => RpnOp::Expression(ExpressionOperator::LessEqual),
+            (Operator::Arrow, _) => {
+                todo!("Handle Arrow");
+            }
+            (Operator::Dot, _) => {
+                todo!("Handle dot");
+            }
         }
     }
 }
@@ -204,23 +286,7 @@ impl Expression {
                     output.push(RPN::Expression(entry));
                 }
                 TokenData::Operator(op) => {
-                    let exp_op = match (op, last_token_data) {
-                        (Operator::Add, _) => RpnOp::Expression(ExpressionOperator::Add),
-                        (Operator::Sub, Some(TokenData::Operator(_))) | (Operator::Sub, None) => {
-                            RpnOp::SingleOp(SingleOperation::Negative)
-                        }
-                        (Operator::Sub, _) => RpnOp::Expression(ExpressionOperator::Sub),
-                        (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
-                        (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
-                        (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),
-                        (Operator::LogicalNot, _) => RpnOp::SingleOp(SingleOperation::LogicalNot),
-                        (Operator::Dot, _) => {
-                            todo!("Handle dot");
-                        }
-                        (op, _) => {
-                            todo!("Handle unknown Op: {:?}", op);
-                        }
-                    };
+                    let exp_op = RpnOp::from_op(op, last_token_data);
 
                     let new_prec = exp_op.precedence();
                     let new_assoc = exp_op.assosication();
@@ -284,8 +350,6 @@ impl Expression {
         while let Some(op) = op_stack.pop() {
             output.push(RPN::Operation(op));
         }
-
-        dbg!(&output);
 
         let mut final_stack: Vec<Expression> = Vec::new();
         for entry in output {

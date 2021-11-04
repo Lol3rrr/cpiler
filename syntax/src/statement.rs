@@ -1,9 +1,12 @@
 use std::iter::Peekable;
 
 use general::SpanData;
-use tokenizer::{ControlFlow, Keyword, Token, TokenData};
+use tokenizer::{Assignment, ControlFlow, Keyword, Token, TokenData};
 
-use crate::{expression::Expression, FunctionArgument, Identifier, Scope, SyntaxError, TypeToken};
+use crate::{
+    expression::Expression, ExpressionOperator, FunctionArgument, Identifier, Scope, SyntaxError,
+    TypeToken,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
@@ -27,6 +30,19 @@ pub enum Statement {
     VariableDeclarationAssignment {
         ty: TypeToken,
         name: Identifier,
+        value: Expression,
+    },
+    VariableAssignment {
+        name: Identifier,
+        value: Expression,
+    },
+    ArrayVariableAssignment {
+        name: Identifier,
+        index: Expression,
+        value: Expression,
+    },
+    VariableDerefAssignment {
+        target: Expression,
         value: Expression,
     },
     Return(Expression),
@@ -137,6 +153,13 @@ impl Statement {
                         todo!("Variable Declaration");
                     }
                     TokenData::Assign(assign_type) => {
+                        match assign_type {
+                            Assignment::Assign => {}
+                            other => {
+                                panic!("Expected a normal Assignment('=') but got '{}'", other)
+                            }
+                        };
+
                         let _ = tokens.next();
 
                         let exp = Expression::parse(tokens)?;
@@ -175,6 +198,49 @@ impl Statement {
                 };
 
                 Ok(Self::Return(exp))
+            }
+            TokenData::Literal { .. } => {
+                let name = Identifier::parse(tokens)?;
+
+                let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let assign_type = match next_token.data {
+                    TokenData::Assign(as_type) => as_type,
+                    other => panic!("Expected '=' but got '{}'", other),
+                };
+
+                let base_exp = Expression::parse(tokens)?;
+
+                let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                match next_token.data {
+                    TokenData::Semicolon => {}
+                    other => panic!("Expected ';' but got '{:?}'", other),
+                };
+
+                let combine_op = match assign_type {
+                    Assignment::Assign => None,
+                    Assignment::Add => Some(ExpressionOperator::Add),
+                    Assignment::Sub => Some(ExpressionOperator::Sub),
+                    Assignment::Multiply => Some(ExpressionOperator::Multiply),
+                    Assignment::Divide => Some(ExpressionOperator::Divide),
+                    Assignment::Modulo => Some(ExpressionOperator::Modulo),
+                    Assignment::ShiftLeft => Some(ExpressionOperator::ShiftLeft),
+                    Assignment::ShiftRight => Some(ExpressionOperator::ShiftRight),
+                    Assignment::BitwiseOr => Some(ExpressionOperator::BitwiseOr),
+                    Assignment::BitwiseAnd => Some(ExpressionOperator::BitwiseAnd),
+                    Assignment::BitwiseXor => Some(ExpressionOperator::BitwiseXor),
+                };
+                let exp = match combine_op {
+                    Some(op) => Expression::Operation {
+                        left: Box::new(Expression::Identifier {
+                            ident: name.clone(),
+                        }),
+                        operation: op,
+                        right: Box::new(base_exp),
+                    },
+                    None => base_exp,
+                };
+
+                Ok(Self::VariableAssignment { name, value: exp })
             }
             unknown => {
                 dbg!(unknown);
@@ -288,6 +354,59 @@ mod tests {
                     }),
                 ),
             ],
+        });
+
+        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn variable_assignment() {
+        let input_content = "test = 13;";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::VariableAssignment {
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 0..4),
+                data: "test".to_string(),
+            }),
+            value: Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "13", 7..9),
+                    data: "13".to_string(),
+                },
+            },
+        });
+
+        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn variable_array_assignment() {
+        let input_content = "test[0] = 13;";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::ArrayVariableAssignment {
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 0..4),
+                data: "test".to_string(),
+            }),
+            index: Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "0", 5..6),
+                    data: "0".to_string(),
+                },
+            },
+            value: Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "13", 10..12),
+                    data: "13".to_string(),
+                },
+            },
         });
 
         let result = Statement::parse(&mut input_tokens.into_iter().peekable());
