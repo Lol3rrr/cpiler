@@ -5,11 +5,11 @@
 use std::iter::Peekable;
 
 use general::SpanData;
-use tokenizer::{Operator, Token, TokenData};
+use tokenizer::{Assignment, Operator, Token, TokenData};
 
 use crate::{Identifier, SyntaxError, TypeToken};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier {
         ident: Identifier,
@@ -46,7 +46,7 @@ pub enum Expression {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SingleOperation {
     Positive,
     Negative,
@@ -63,9 +63,10 @@ pub enum SingleOperation {
     Dot,
     SuffixIncrement,
     SuffixDecrement,
+    FuntionCall(Vec<Expression>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExpressionOperator {
     Add,
     Sub,
@@ -87,6 +88,26 @@ pub enum ExpressionOperator {
     LessEqual,
 }
 
+impl TryFrom<Assignment> for ExpressionOperator {
+    type Error = ();
+
+    fn try_from(value: Assignment) -> Result<Self, Self::Error> {
+        match value {
+            Assignment::Assign => Err(()),
+            Assignment::Add => Ok(ExpressionOperator::Add),
+            Assignment::Sub => Ok(ExpressionOperator::Sub),
+            Assignment::Multiply => Ok(ExpressionOperator::Multiply),
+            Assignment::Divide => Ok(ExpressionOperator::Divide),
+            Assignment::Modulo => Ok(ExpressionOperator::Modulo),
+            Assignment::ShiftLeft => Ok(ExpressionOperator::ShiftLeft),
+            Assignment::ShiftRight => Ok(ExpressionOperator::ShiftRight),
+            Assignment::BitwiseOr => Ok(ExpressionOperator::BitwiseOr),
+            Assignment::BitwiseAnd => Ok(ExpressionOperator::BitwiseAnd),
+            Assignment::BitwiseXor => Ok(ExpressionOperator::BitwiseXor),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Assosication {
     Left,
@@ -103,6 +124,7 @@ impl RpnOp {
     fn precedence(&self) -> usize {
         match self {
             Self::SingleOp(SingleOperation::ArrayAccess(_))
+            | Self::SingleOp(SingleOperation::FuntionCall(_))
             | Self::SingleOp(SingleOperation::Arrow)
             | Self::SingleOp(SingleOperation::Dot)
             | Self::SingleOp(SingleOperation::SuffixIncrement)
@@ -169,6 +191,7 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::AddressOf)
             | Self::SingleOp(SingleOperation::Sizeof) => Assosication::Right,
             Self::SingleOp(SingleOperation::ArrayAccess(_))
+            | Self::SingleOp(SingleOperation::FuntionCall(_))
             | Self::SingleOp(SingleOperation::Arrow)
             | Self::SingleOp(SingleOperation::Dot)
             | Self::SingleOp(SingleOperation::SuffixIncrement)
@@ -253,6 +276,42 @@ impl Expression {
         }
     }
 
+    fn parse_exp_list<I>(
+        tokens: &mut Peekable<I>,
+        end_tok: TokenData,
+    ) -> Result<Vec<Self>, SyntaxError>
+    where
+        I: Iterator<Item = Token>,
+    {
+        let mut result = Vec::new();
+
+        while let Some(peeked) = tokens.peek() {
+            if &peeked.data == &end_tok {
+                break;
+            }
+
+            let tmp_exp = Self::parse(tokens)?;
+            result.push(tmp_exp);
+
+            let comma_ending_token = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+            match &comma_ending_token.data {
+                TokenData::Comma => {
+                    let _ = tokens.next();
+                }
+                other if other == &end_tok => {}
+                _ => {
+                    let tok = tokens.next().expect("We already peeked it");
+                    return Err(SyntaxError::UnexpectedToken {
+                        expected: None,
+                        got: tok.span,
+                    });
+                }
+            };
+        }
+
+        Ok(result)
+    }
+
     fn parse_expressions<I>(tokens: &mut Peekable<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
@@ -265,14 +324,18 @@ impl Expression {
 
         while let Some(peeked) = tokens.peek() {
             match &peeked.data {
+                TokenData::Comma => break,
                 TokenData::Semicolon => break,
                 TokenData::CloseParen => break,
                 TokenData::CloseBrace => break,
+                TokenData::CloseBracket => break,
                 _ => {}
             };
 
             let current = tokens.next().unwrap();
             let new_last_data = current.data.clone();
+
+            dbg!(&current.data);
 
             match &current.data {
                 TokenData::Literal { .. } => {
@@ -319,18 +382,39 @@ impl Expression {
                     op_stack.push(exp_op);
                 }
                 TokenData::OpenParen => {
-                    let exp = Self::parse(tokens)?;
+                    match last_token_data {
+                        Some(TokenData::Literal { .. }) => {
+                            dbg!("Got Function Call");
 
-                    let peeked = tokens.peek();
-                    dbg!(peeked);
+                            let params = Self::parse_exp_list(tokens, TokenData::CloseParen)?;
 
-                    output.push(RPN::Expression(exp));
+                            let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                            match closing_token.data {
+                                TokenData::CloseParen => {}
+                                other => panic!("Expected ')' but got '{:?}'", other),
+                            };
+
+                            let tmp_op = RpnOp::SingleOp(SingleOperation::FuntionCall(params));
+                            output.push(RPN::Operation(tmp_op));
+                        }
+                        _ => {
+                            let exp = Self::parse(tokens)?;
+
+                            let peeked = tokens.peek();
+                            dbg!(peeked);
+
+                            output.push(RPN::Expression(exp));
+                        }
+                    };
                 }
-                TokenData::OpenBrace => {
+                TokenData::OpenBracket => {
                     let exp = Self::parse(tokens)?;
 
-                    let peeked = tokens.peek();
-                    dbg!(peeked);
+                    let ending_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    match ending_token.data {
+                        TokenData::CloseBracket => {}
+                        other => panic!("Expected ']' but got '{:?}'", other),
+                    };
 
                     output.push(RPN::Operation(RpnOp::SingleOp(
                         SingleOperation::ArrayAccess(Box::new(exp)),
@@ -562,6 +646,119 @@ mod tests {
 
         let result = Expression::parse(&mut input_tokens.into_iter().peekable());
 
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn array_access() {
+        let input_content = "test[0]";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Expression::SingleOperation {
+            base: Box::new(Expression::Identifier {
+                ident: Identifier(SpanData {
+                    span: Span::from_parts("test", "test", 0..4),
+                    data: "test".to_string(),
+                }),
+            }),
+            operation: SingleOperation::ArrayAccess(Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "0", 5..6),
+                    data: "0".to_string(),
+                },
+            })),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn empty_function_call() {
+        let input_content = "test()";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Expression::SingleOperation {
+            base: Box::new(Expression::Identifier {
+                ident: Identifier(SpanData {
+                    span: Span::from_parts("test", "test", 0..4),
+                    data: "test".to_string(),
+                }),
+            }),
+            operation: SingleOperation::FuntionCall(vec![]),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn one_arg_function_call() {
+        let input_content = "test(0)";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Expression::SingleOperation {
+            base: Box::new(Expression::Identifier {
+                ident: Identifier(SpanData {
+                    span: Span::from_parts("test", "test", 0..4),
+                    data: "test".to_string(),
+                }),
+            }),
+            operation: SingleOperation::FuntionCall(vec![Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "0", 5..6),
+                    data: "0".to_string(),
+                },
+            }]),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn two_args_function_call() {
+        let input_content = "test(0,1)";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Expression::SingleOperation {
+            base: Box::new(Expression::Identifier {
+                ident: Identifier(SpanData {
+                    span: Span::from_parts("test", "test", 0..4),
+                    data: "test".to_string(),
+                }),
+            }),
+            operation: SingleOperation::FuntionCall(vec![
+                Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "0", 5..6),
+                        data: "0".to_string(),
+                    },
+                },
+                Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "1", 7..8),
+                        data: "1".to_string(),
+                    },
+                },
+            ]),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
         assert_eq!(expected, result);
     }
 }

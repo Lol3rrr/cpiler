@@ -5,7 +5,10 @@ use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
 use crate::{Identifier, SyntaxError};
 
-#[derive(Debug, PartialEq)]
+// TODO
+// Add Array type
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum TypeToken {
     /// A Pointer to some other Type
     Pointer(Box<Self>),

@@ -4,8 +4,8 @@ use general::SpanData;
 use tokenizer::{Assignment, ControlFlow, Keyword, Token, TokenData};
 
 use crate::{
-    expression::Expression, ExpressionOperator, FunctionArgument, Identifier, Scope, SyntaxError,
-    TypeToken,
+    expression::Expression, ExpressionOperator, FunctionArgument, Identifier, Scope,
+    SingleOperation, SyntaxError, TypeToken,
 };
 
 #[derive(Debug, PartialEq)]
@@ -203,44 +203,78 @@ impl Statement {
                 let name = Identifier::parse(tokens)?;
 
                 let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                let assign_type = match next_token.data {
-                    TokenData::Assign(as_type) => as_type,
-                    other => panic!("Expected '=' but got '{}'", other),
-                };
-
-                let base_exp = Expression::parse(tokens)?;
-
-                let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
                 match next_token.data {
-                    TokenData::Semicolon => {}
-                    other => panic!("Expected ';' but got '{:?}'", other),
-                };
+                    TokenData::Assign(assign_type) => {
+                        let base_exp = Expression::parse(tokens)?;
 
-                let combine_op = match assign_type {
-                    Assignment::Assign => None,
-                    Assignment::Add => Some(ExpressionOperator::Add),
-                    Assignment::Sub => Some(ExpressionOperator::Sub),
-                    Assignment::Multiply => Some(ExpressionOperator::Multiply),
-                    Assignment::Divide => Some(ExpressionOperator::Divide),
-                    Assignment::Modulo => Some(ExpressionOperator::Modulo),
-                    Assignment::ShiftLeft => Some(ExpressionOperator::ShiftLeft),
-                    Assignment::ShiftRight => Some(ExpressionOperator::ShiftRight),
-                    Assignment::BitwiseOr => Some(ExpressionOperator::BitwiseOr),
-                    Assignment::BitwiseAnd => Some(ExpressionOperator::BitwiseAnd),
-                    Assignment::BitwiseXor => Some(ExpressionOperator::BitwiseXor),
-                };
-                let exp = match combine_op {
-                    Some(op) => Expression::Operation {
-                        left: Box::new(Expression::Identifier {
-                            ident: name.clone(),
-                        }),
-                        operation: op,
-                        right: Box::new(base_exp),
-                    },
-                    None => base_exp,
-                };
+                        let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        match next_token.data {
+                            TokenData::Semicolon => {}
+                            other => panic!("Expected ';' but got '{:?}'", other),
+                        };
 
-                Ok(Self::VariableAssignment { name, value: exp })
+                        let combine_op = ExpressionOperator::try_from(assign_type);
+                        let exp = match combine_op {
+                            Ok(op) => Expression::Operation {
+                                left: Box::new(Expression::Identifier {
+                                    ident: name.clone(),
+                                }),
+                                operation: op,
+                                right: Box::new(base_exp),
+                            },
+                            Err(_) => base_exp,
+                        };
+
+                        Ok(Self::VariableAssignment { name, value: exp })
+                    }
+                    TokenData::OpenBracket => {
+                        let index_exp = Expression::parse(tokens)?;
+
+                        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        match next_tok.data {
+                            TokenData::CloseBracket => {}
+                            other => panic!("Expected ']' but got '{:?}'", other),
+                        };
+
+                        let assign_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let assign_type = match assign_token.data {
+                            TokenData::Assign(a) => a,
+                            other => panic!("Expected '=' or similiar but got '{:?}'", other),
+                        };
+
+                        let base_exp = Expression::parse(tokens)?;
+                        let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        match semi_colon_token.data {
+                            TokenData::Semicolon => {}
+                            other => panic!("Expected ';' but got '{:?}'", other),
+                        };
+
+                        let combine_op = ExpressionOperator::try_from(assign_type);
+
+                        let value_exp = match combine_op {
+                            Ok(op) => Expression::Operation {
+                                left: Box::new(Expression::SingleOperation {
+                                    base: Box::new(Expression::Identifier {
+                                        ident: name.clone(),
+                                    }),
+                                    operation: SingleOperation::ArrayAccess(Box::new(
+                                        index_exp.clone(),
+                                    )),
+                                }),
+                                operation: op,
+                                right: Box::new(base_exp),
+                            },
+                            Err(_) => base_exp,
+                        };
+
+                        Ok(Self::ArrayVariableAssignment {
+                            name,
+                            index: index_exp,
+                            value: value_exp,
+                        })
+                    }
+                    other => panic!("Expected '=' but got '{:?}'", other),
+                }
             }
             unknown => {
                 dbg!(unknown);
