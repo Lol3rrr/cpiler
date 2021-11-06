@@ -1,7 +1,6 @@
 use std::iter::Peekable;
 
-use general::SpanData;
-use tokenizer::{Assignment, ControlFlow, Keyword, Token, TokenData};
+use tokenizer::{ControlFlow, Keyword, Token, TokenData};
 
 use crate::{
     expression::Expression, ExpressionOperator, FunctionArgument, Identifier, Scope,
@@ -163,7 +162,7 @@ impl Statement {
 
 #[cfg(test)]
 mod tests {
-    use general::Span;
+    use general::{Span, SpanData};
     use tokenizer::DataType;
 
     use super::*;
@@ -320,6 +319,81 @@ mod tests {
                 span: Span::from_parts("test", "test", 4..8),
                 data: "test".to_string(),
             }),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Statement::parse(&mut iter);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn declare_array_with_one_value() {
+        let input_content = "int test[] = {1};";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::VariableDeclarationAssignment {
+            ty: TypeToken::ArrayType {
+                base: Box::new(TypeToken::Primitive(SpanData {
+                    span: Span::from_parts("test", "int", 0..3),
+                    data: DataType::Int,
+                })),
+                size: None,
+            },
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 4..8),
+                data: "test".to_string(),
+            }),
+            value: Expression::ArrayLiteral {
+                parts: vec![Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "1", 14..15),
+                        data: "1".to_string(),
+                    },
+                }],
+            },
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Statement::parse(&mut iter);
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn declare_array_with_two_values() {
+        let input_content = "int test[] = {1, 2};";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::VariableDeclarationAssignment {
+            ty: TypeToken::ArrayType {
+                base: Box::new(TypeToken::Primitive(SpanData {
+                    span: Span::from_parts("test", "int", 0..3),
+                    data: DataType::Int,
+                })),
+                size: None,
+            },
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 4..8),
+                data: "test".to_string(),
+            }),
+            value: Expression::ArrayLiteral {
+                parts: vec![
+                    Expression::Literal {
+                        content: SpanData {
+                            span: Span::from_parts("test", "1", 14..15),
+                            data: "1".to_string(),
+                        },
+                    },
+                    Expression::Literal {
+                        content: SpanData {
+                            span: Span::from_parts("test", "2", 17..18),
+                            data: "2".to_string(),
+                        },
+                    },
+                ],
+            },
         });
 
         let mut iter = input_tokens.into_iter().peekable();

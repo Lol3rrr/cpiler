@@ -48,6 +48,40 @@ where
 
     let name = Identifier::parse(tokens)?;
 
+    let array_peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+    let f_type = match &array_peeked.data {
+        TokenData::OpenBracket => {
+            let _ = tokens.next();
+
+            let tmp_peeked = tokens.peek();
+            match tmp_peeked {
+                Some(tok) if &tok.data == &TokenData::CloseBracket => {
+                    let _ = tokens.next();
+
+                    TypeToken::ArrayType {
+                        base: Box::new(ty_tokens),
+                        size: None,
+                    }
+                }
+                _ => {
+                    let size_exp = Expression::parse(tokens)?;
+
+                    let close_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    match close_token.data {
+                        TokenData::CloseBracket => {}
+                        other => panic!("Expected ']' but got '{:?}'", other),
+                    };
+
+                    TypeToken::ArrayType {
+                        base: Box::new(ty_tokens),
+                        size: Some(Box::new(size_exp)),
+                    }
+                }
+            }
+        }
+        _ => ty_tokens,
+    };
+
     let peeked = tokens.peek().unwrap();
 
     match &peeked.data {
@@ -92,7 +126,7 @@ where
 
                     Ok(Statement::FunctionDefinition {
                         name,
-                        r_type: ty_tokens,
+                        r_type: f_type,
                         arguments,
                         body: inner_scope,
                     })
@@ -103,46 +137,7 @@ where
                 other => panic!("Expected a {{ or ; but got: {:?}", other),
             }
         }
-        TokenData::OpenBracket => {
-            let _ = tokens.next();
-
-            let tmp_peeked = tokens.peek();
-            match tmp_peeked {
-                Some(tok) if &tok.data == &TokenData::CloseBracket => {
-                    return Ok(Statement::VariableDeclaration {
-                        name,
-                        ty: TypeToken::ArrayType {
-                            base: Box::new(ty_tokens),
-                            size: None,
-                        },
-                    });
-                }
-                _ => {}
-            };
-
-            let size_exp = Expression::parse(tokens)?;
-
-            let close_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-            match close_token.data {
-                TokenData::CloseBracket => {}
-                other => panic!("Expected ']' but got '{:?}'", other),
-            };
-
-            let assign_or_end_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-            match assign_or_end_token.data {
-                TokenData::Semicolon => Ok(Statement::VariableDeclaration {
-                    name,
-                    ty: TypeToken::ArrayType {
-                        base: Box::new(ty_tokens),
-                        size: Some(Box::new(size_exp)),
-                    },
-                }),
-                other => panic!("UnexpectedToken '{:?}'", other),
-            }
-        }
-        TokenData::Semicolon => {
-            todo!("Variable Declaration");
-        }
+        TokenData::Semicolon => Ok(Statement::VariableDeclaration { name, ty: f_type }),
         TokenData::Assign(assign_type) => {
             match assign_type {
                 Assignment::Assign => {}
@@ -167,7 +162,7 @@ where
             };
 
             Ok(Statement::VariableDeclarationAssignment {
-                ty: ty_tokens,
+                ty: f_type,
                 name,
                 value: exp,
             })
