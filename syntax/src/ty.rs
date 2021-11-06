@@ -3,10 +3,7 @@ use std::iter::Peekable;
 use general::SpanData;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
-use crate::{Identifier, SyntaxError};
-
-// TODO
-// Add Array type
+use crate::{Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeToken {
@@ -34,6 +31,11 @@ pub enum TypeToken {
     EnumType {
         /// The Name of the Enum
         name: Identifier,
+    },
+    /// An Array with constant Size
+    ArrayType {
+        base: Box<Self>,
+        size: Option<Box<Expression>>,
     },
 }
 

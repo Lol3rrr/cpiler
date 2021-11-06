@@ -8,6 +8,8 @@ use crate::{
     SingleOperation, SyntaxError, TypeToken,
 };
 
+mod starting_type;
+
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     SubScope(Scope),
@@ -26,6 +28,10 @@ pub enum Statement {
         name: Identifier,
         /// The members of the Struct
         members: Vec<(TypeToken, Identifier)>,
+    },
+    VariableDeclaration {
+        ty: TypeToken,
+        name: Identifier,
     },
     VariableDeclarationAssignment {
         ty: TypeToken,
@@ -56,136 +62,7 @@ impl Statement {
         let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
 
         match &peeked.data {
-            TokenData::Keyword(Keyword::DataType(_)) => {
-                let ty_tokens = TypeToken::parse(tokens)?;
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
-                let ty_tokens = match (ty_tokens, &peeked.data) {
-                    (TypeToken::StructType { name }, TokenData::OpenBrace) => {
-                        let _ = tokens.next();
-
-                        let mut members = Vec::new();
-                        while let Some(peeked) = tokens.peek() {
-                            match &peeked.data {
-                                TokenData::CloseBrace => break,
-                                _ => {}
-                            };
-
-                            let field_ty = TypeToken::parse(tokens)?;
-                            let field_ident = Identifier::parse(tokens)?;
-
-                            let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                            match next_tok.data {
-                                TokenData::Semicolon => {}
-                                _ => {
-                                    return Err(SyntaxError::UnexpectedToken {
-                                        expected: Some(vec![";".to_string()]),
-                                        got: next_tok.span,
-                                    })
-                                }
-                            };
-
-                            members.push((field_ty, field_ident));
-                        }
-
-                        return Ok(Self::StructDefinition { name, members });
-                    }
-                    (t, _) => t,
-                };
-
-                let name = Identifier::parse(tokens)?;
-
-                let peeked = tokens.peek().unwrap();
-
-                match &peeked.data {
-                    TokenData::OpenParen => {
-                        let _ = tokens.next();
-
-                        let mut arguments: Vec<FunctionArgument> = Vec::new();
-                        while let Some(tmp_tok) = tokens.peek() {
-                            // TODO
-                            dbg!(&tmp_tok);
-                            match &tmp_tok.data {
-                                TokenData::CloseParen => {
-                                    let _ = tokens.next();
-                                    break;
-                                }
-                                _ => {}
-                            };
-
-                            let ty = TypeToken::parse(tokens)?;
-
-                            let name_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                            let name = match name_token.data {
-                                TokenData::Literal { content } => Identifier(SpanData {
-                                    span: name_token.span,
-                                    data: content,
-                                }),
-                                _ => {
-                                    return Err(SyntaxError::UnexpectedToken {
-                                        expected: Some(vec!["Identifier".to_string()]),
-                                        got: name_token.span,
-                                    })
-                                }
-                            };
-
-                            arguments.push(FunctionArgument { name, ty });
-                        }
-
-                        let next_tok = tokens.next().unwrap();
-                        match &next_tok.data {
-                            TokenData::OpenBrace => {
-                                let inner_scope = Scope::parse(tokens);
-
-                                Ok(Self::FunctionDefinition {
-                                    name,
-                                    r_type: ty_tokens,
-                                    arguments,
-                                    body: inner_scope,
-                                })
-                            }
-                            TokenData::Semicolon => {
-                                todo!("Parse Declaration");
-                            }
-                            other => panic!("Expected a {{ or ; but got: {:?}", other),
-                        }
-                    }
-                    TokenData::Semicolon => {
-                        todo!("Variable Declaration");
-                    }
-                    TokenData::Assign(assign_type) => {
-                        match assign_type {
-                            Assignment::Assign => {}
-                            other => {
-                                panic!("Expected a normal Assignment('=') but got '{}'", other)
-                            }
-                        };
-
-                        let _ = tokens.next();
-
-                        let exp = Expression::parse(tokens)?;
-
-                        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                        match next_tok.data {
-                            TokenData::Semicolon => {}
-                            _ => {
-                                return Err(SyntaxError::UnexpectedToken {
-                                    expected: Some(vec![";".to_owned()]),
-                                    got: next_tok.span,
-                                })
-                            }
-                        };
-
-                        Ok(Self::VariableDeclarationAssignment {
-                            ty: ty_tokens,
-                            name,
-                            value: exp,
-                        })
-                    }
-                    tok_data => {
-                        panic!("Unexpected Token: {:?}", tok_data);
-                    }
-                }
-            }
+            TokenData::Keyword(Keyword::DataType(_)) => starting_type::parse(tokens),
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Return)) => {
                 let _ = tokens.next();
 
@@ -391,6 +268,62 @@ mod tests {
         });
 
         let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn declare_array_known_size() {
+        let input_content = "int test[3];";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::VariableDeclaration {
+            ty: TypeToken::ArrayType {
+                base: Box::new(TypeToken::Primitive(SpanData {
+                    span: Span::from_parts("test", "int", 0..3),
+                    data: DataType::Int,
+                })),
+                size: Some(Box::new(Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "3", 9..10),
+                        data: "3".to_string(),
+                    },
+                })),
+            },
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 4..8),
+                data: "test".to_string(),
+            }),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Statement::parse(&mut iter);
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn declare_array_unknown_size() {
+        let input_content = "int test[];";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_tokens = tokenizer::tokenize(input_span);
+
+        let expected = Ok(Statement::VariableDeclaration {
+            ty: TypeToken::ArrayType {
+                base: Box::new(TypeToken::Primitive(SpanData {
+                    span: Span::from_parts("test", "int", 0..3),
+                    data: DataType::Int,
+                })),
+                size: None,
+            },
+            name: Identifier(SpanData {
+                span: Span::from_parts("test", "test", 4..8),
+                data: "test".to_string(),
+            }),
+        });
+
+        let mut iter = input_tokens.into_iter().peekable();
+        let result = Statement::parse(&mut iter);
 
         assert_eq!(expected, result);
     }
