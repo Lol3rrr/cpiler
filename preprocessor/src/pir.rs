@@ -2,7 +2,7 @@ use tokenizer::TokenData;
 
 use crate::directive;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PIR {
     Token(tokenizer::Token),
     Directive((tokenizer::Token, directive::Directive)),

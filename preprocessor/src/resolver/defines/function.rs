@@ -3,8 +3,10 @@ use std::{collections::HashMap, ops::Deref};
 use general::Span;
 use tokenizer::{Token, TokenData};
 
-use super::RegisteredDefine;
-use crate::{steps::define::expand, PIR};
+use super::{DefineManager, RegisteredDefine};
+use crate::PIR;
+
+use super::expand;
 
 pub fn parse_call_args<I>(iter: &mut I) -> Option<Vec<Vec<Token>>>
 where
@@ -89,7 +91,7 @@ impl Into<Token> for MacroToken {
 // - Tokens originating from parameters are expanded.
 // - The resulting tokens are expanded as normal.
 pub fn expand_function_macro(
-    macros: &HashMap<String, RegisteredDefine>,
+    macros: &DefineManager,
     call_args: HashMap<String, Vec<Token>>,
     macro_content: &[Token],
 ) -> Vec<Token> {
@@ -222,7 +224,7 @@ where
     result
 }
 
-fn expand_params<I, IT>(input: I, macros: &HashMap<String, RegisteredDefine>) -> Vec<Token>
+fn expand_params<I, IT>(input: I, macros: &DefineManager) -> Vec<Token>
 where
     I: IntoIterator<Item = MacroToken, IntoIter = IT>,
     IT: Iterator<Item = MacroToken>,
@@ -233,23 +235,30 @@ where
     while let Some(tmp) = prev_iter.next() {
         match tmp {
             MacroToken::Replaced(t) => {
-                if let Some(macro_def) = expand::get_defined(&t, macros) {
-                    let mut tmp_iter = prev_iter
-                        .by_ref()
-                        .map(|t| PIR::Token((*t).clone()))
-                        .peekable();
+                match &t.data {
+                    TokenData::Literal { content } if macros.is_defined(&content) => {
+                        let macro_def = macros
+                            .get_defined(&content)
+                            .expect("We just checked that a macro for this name exists");
 
-                    match expand::expand(&mut tmp_iter, macro_def, macros) {
-                        Some(resulting) => {
-                            result.extend(resulting);
-                        }
-                        None => {
-                            result.push(t);
-                        }
-                    };
-                } else {
-                    result.push(t);
-                }
+                        let mut tmp_iter = prev_iter
+                            .by_ref()
+                            .map(|t| PIR::Token((*t).clone()))
+                            .peekable();
+
+                        match expand(&mut tmp_iter, macro_def, macros) {
+                            Some(resulting) => {
+                                result.extend(resulting);
+                            }
+                            None => {
+                                result.push(t);
+                            }
+                        };
+                    }
+                    _ => {
+                        result.push(t);
+                    }
+                };
             }
             t => {
                 result.push((*t).clone());
@@ -260,7 +269,7 @@ where
     result
 }
 
-fn expand_all<I, IT>(input: I, macros: &HashMap<String, RegisteredDefine>) -> Vec<Token>
+fn expand_all<I, IT>(input: I, macros: &DefineManager) -> Vec<Token>
 where
     I: IntoIterator<Item = Token, IntoIter = IT>,
     IT: Iterator<Item = Token>,
@@ -269,20 +278,27 @@ where
 
     let mut prev_iter = input.into_iter();
     while let Some(current) = prev_iter.next() {
-        if let Some(macro_def) = expand::get_defined(&current, &macros) {
-            let mut tmp_iter = prev_iter.by_ref().map(|t| PIR::Token(t)).peekable();
+        match &current.data {
+            TokenData::Literal { content } if macros.is_defined(&content) => {
+                let macro_def = macros
+                    .get_defined(&content)
+                    .expect("We just checked that a Macro for this Name exists");
 
-            match expand::expand(&mut tmp_iter, macro_def, macros) {
-                Some(resulting) => {
-                    result.extend(resulting);
-                }
-                None => {
-                    result.push(current);
-                }
-            };
-        } else {
-            result.push(current);
-        }
+                let mut tmp_iter = prev_iter.by_ref().map(|t| PIR::Token(t)).peekable();
+
+                match expand(&mut tmp_iter, macro_def, macros) {
+                    Some(resulting) => {
+                        result.extend(resulting);
+                    }
+                    None => {
+                        result.push(current);
+                    }
+                };
+            }
+            _ => {
+                result.push(current);
+            }
+        };
     }
 
     result

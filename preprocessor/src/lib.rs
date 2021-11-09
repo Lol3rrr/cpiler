@@ -4,7 +4,7 @@ use tokenizer::{tokenize, Token};
 mod directive;
 pub mod loader;
 
-mod steps;
+mod resolver;
 
 mod pir;
 use pir::{into_pir, PIR};
@@ -43,12 +43,10 @@ where
     let root_tokens = tokenize(root);
     let root_pir = into_pir(root_tokens);
 
-    let included = steps::handle_include(loader, root_pir).unwrap();
+    let mut defines = resolver::DefineManager::new();
+    let processed = resolver::resolve(root_pir, loader, &mut defines);
 
-    let defined = steps::handle_define(included).unwrap();
-
-    let result = defined
-        .into_iter()
+    let result = processed
         .map(|p| match p {
             PIR::Token(t) => t,
             PIR::Directive(d) => panic!("Unresolved Compiler Directive: {:?}", d),

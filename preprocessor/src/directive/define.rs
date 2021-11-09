@@ -71,7 +71,12 @@ where
     C: Into<SpanRef<'s>>,
 {
     let content_span = content.into();
-    let (head, body) = split_head_body(&content_span).ok_or(ParseDefine::InvalidHeadFormat)?;
+    let (head, body) = split_head_body(&content_span).unwrap_or_else(|| {
+        let size = content_span.content().len();
+        let head = content_span.sub_span(0..size).unwrap();
+        let body = content_span.sub_span(size..size).unwrap();
+        (head, body)
+    });
 
     if head.content().contains('(') {
         let (name, arguments) =
@@ -118,6 +123,20 @@ mod tests {
             name: "TEST".to_string(),
             arguments: Vec::new(),
             body: Span::from_parts("tmp", "(13)", 7..11),
+        });
+
+        let result = parse_define(&content);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn valid_empty_define() {
+        let content = Span::from_parts("tmp", "TEST", 0..4);
+
+        let expected = Ok(DefineDirective::Block {
+            name: "TEST".to_string(),
+            body: Span::from_parts("tmp", "", 4..4),
         });
 
         let result = parse_define(&content);
