@@ -1,29 +1,15 @@
-use general::Span;
+use std::{path::PathBuf, str::FromStr};
+
 use tokenizer::{tokenize, Token};
 
 mod directive;
 pub mod loader;
+pub use loader::Loader;
 
 mod resolver;
 
 mod pir;
 use pir::{into_pir, PIR};
-
-pub trait Loader {
-    type LoadError: std::error::Error;
-
-    /// Loads the File at the given Path relative to the current Directory/Root
-    fn load_file(&self, path: &str) -> Result<Span, Self::LoadError>;
-
-    fn load_as_pir(&self, path: &str) -> Result<Vec<PIR>, Self::LoadError> {
-        let span = self.load_file(path)?;
-
-        let tokens = tokenizer::tokenize(span);
-
-        let pir = into_pir(tokens);
-        Ok(pir.collect())
-    }
-}
 
 #[derive(Debug)]
 pub enum ProcessError<L> {
@@ -35,7 +21,13 @@ pub fn preprocess<L>(loader: &L, start: &str) -> Result<Vec<Token>, ProcessError
 where
     L: Loader,
 {
-    let root = match loader.load_file(start) {
+    let start_path = PathBuf::from_str(start).unwrap();
+    let start_load_directive = loader::LoadDirective {
+        local_root: Some(PathBuf::from_str("").unwrap()),
+        relative_path: start_path,
+    };
+
+    let root = match loader.load_file(start_load_directive) {
         Ok(r) => r,
         Err(e) => return Err(ProcessError::Loading(e)),
     };
