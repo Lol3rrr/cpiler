@@ -30,6 +30,33 @@ fn ifdef_conditional() {
 }
 
 #[test]
+fn ifndef_conditional() {
+    let file_name = "./tests/files/conditional_compilation/ifndef.c";
+    let loader = FileLoader::new();
+
+    let expected = vec![
+        Token {
+            span: Span::from_parts(file_name, "int", 12..15),
+            data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
+        },
+        Token {
+            span: Span::from_parts(file_name, "first", 16..21),
+            data: TokenData::Literal {
+                content: "first".to_string(),
+            },
+        },
+        Token {
+            span: Span::from_parts(file_name, ";", 21..22),
+            data: TokenData::Semicolon,
+        },
+    ];
+
+    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+
+    assert_eq!(expected, result);
+}
+
+#[test]
 fn nested_ifdefs() {
     let file_name = "./tests/files/conditional_compilation/nested_ifdefs.c";
     let loader = FileLoader::new();

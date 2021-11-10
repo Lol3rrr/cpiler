@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{iter::Peekable, path::PathBuf, str::FromStr};
 
 use crate::{directive::Directive, loader::LoadDirective, pir::PIR, Loader};
 
@@ -76,55 +76,21 @@ where
                         defines.remove_defined(&name);
                     }
                     Directive::If { condition } => {
-                        // TODO
-                        // Evaluate the Expression and in case it is false, skip the
-                        // everything until the corresponding endif or else
-
                         let condition = conditionals::parse_conditional(condition).unwrap();
 
-                        dbg!(&condition);
-                        let is_true = condition.evaluate(&defines).unwrap();
-
-                        if is_true {
-                            let inner_iter =
-                                conditionals::InnerConditionalIterator::new(&mut new_iter);
-
-                            let inner_items = resolve(inner_iter, loader, defines);
-                            result.extend(inner_items);
-
-                            dbg!(new_iter.peek());
-                        } else {
-                            dbg!("Is False");
-                        }
+                        let cond = condition.evaluate(&defines).unwrap();
+                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
+                        result.extend(tmp);
                     }
                     Directive::IfDef { name } => {
-                        dbg!(&name);
-
-                        if defines.is_defined(&name) {
-                            let inner_iter =
-                                conditionals::InnerConditionalIterator::new(&mut new_iter);
-
-                            let inner_items = resolve(inner_iter, loader, defines);
-                            result.extend(inner_items);
-
-                            dbg!(new_iter.peek());
-                        } else {
-                            while let Some(peeked) = new_iter.peek() {
-                                let directive = match &peeked {
-                                    PIR::Directive((_, dir)) => dir,
-                                    _ => {
-                                        new_iter.next();
-                                        continue;
-                                    }
-                                };
-
-                                match directive {
-                                    Directive::Endif => break,
-                                    Directive::Else => break,
-                                    _ => {}
-                                };
-                            }
-                        }
+                        let cond = defines.is_defined(&name);
+                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
+                        result.extend(tmp);
+                    }
+                    Directive::IfNDef { name } => {
+                        let cond = !defines.is_defined(&name);
+                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
+                        result.extend(tmp);
                     }
                     other => {
                         dbg!(other);
@@ -135,11 +101,40 @@ where
     }
     dbg!(&result);
 
-    //let included = steps::handle_include(loader, old_pir).unwrap();
-
-    //let defined = steps::handle_define(included).unwrap();
-
-    //let mut result: Vec<PIR> = defined;
-
     result.into_iter()
+}
+
+fn evaluate_conditional<I, L>(
+    iter: &mut Peekable<I>,
+    loader: &L,
+    defines: &mut DefineManager,
+    cond: bool,
+) -> Vec<PIR>
+where
+    I: Iterator<Item = PIR>,
+    L: Loader,
+{
+    if cond {
+        let inner_iter = conditionals::InnerConditionalIterator::new(iter);
+
+        resolve(inner_iter, loader, defines).collect()
+    } else {
+        while let Some(peeked) = iter.peek() {
+            let directive = match &peeked {
+                PIR::Directive((_, dir)) => dir,
+                _ => {
+                    iter.next();
+                    continue;
+                }
+            };
+
+            match directive {
+                Directive::Endif => break,
+                Directive::Else => break,
+                _ => {}
+            };
+        }
+
+        Vec::new()
+    }
 }

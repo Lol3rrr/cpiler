@@ -26,6 +26,9 @@ pub enum Directive {
     IfDef {
         name: String,
     },
+    IfNDef {
+        name: String,
+    },
     Else,
     Endif,
 }
@@ -113,6 +116,9 @@ impl Directive {
                 condition: body.into(),
             }),
             ("ifdef", Some(body)) => Ok(Directive::IfDef {
+                name: body.content().to_owned(),
+            }),
+            ("ifndef", Some(body)) => Ok(Directive::IfNDef {
                 name: body.content().to_owned(),
             }),
             ("else", None) => Ok(Directive::Else),

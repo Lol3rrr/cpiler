@@ -40,12 +40,14 @@ pub mod files {
     }
 
     impl FileLoader {
+        /// Creates a new unconfigured FileLoader Instance
         pub fn new() -> Self {
             Self {
                 lib_roots: Vec::new(),
             }
         }
 
+        /// Adds a new Library Root to the List of Places to search through when including a File
         pub fn add_lib_root(&mut self, path: PathBuf) {
             self.lib_roots.push(path);
         }
