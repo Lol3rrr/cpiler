@@ -41,22 +41,23 @@ where
             PIR::Directive((span, dir)) => {
                 match dir {
                     Directive::Include { path, local } => {
-                        if local {
+                        let local_root = if local {
                             let mut local_root = PathBuf::from_str(span.span.source()).unwrap();
                             local_root.pop();
-
-                            let load_directive = LoadDirective {
-                                local_root: Some(local_root),
-                                relative_path: PathBuf::from_str(&path).unwrap(),
-                            };
-                            let raw_included = loader.load_as_pir(load_directive).unwrap();
-
-                            let full = resolve(raw_included.into_iter(), loader, defines);
-
-                            result.extend(full);
+                            Some(local_root)
                         } else {
-                            todo!("Include non local file");
-                        }
+                            None
+                        };
+
+                        let load_directive = LoadDirective {
+                            local_root,
+                            relative_path: PathBuf::from_str(&path).unwrap(),
+                        };
+                        let raw_included = loader.load_as_pir(load_directive).unwrap();
+
+                        let full = resolve(raw_included.into_iter(), loader, defines);
+
+                        result.extend(full);
                     }
                     Directive::DefineBlock { name, body } => {
                         let tokenized = tokenizer::tokenize(body).collect();
@@ -81,7 +82,7 @@ where
                         result.extend(tmp);
                     }
                     other => {
-                        todo!("Unknown: {:?}", other);
+                        todo!("Unexpcted: {:?}", other);
                     }
                 };
             }
