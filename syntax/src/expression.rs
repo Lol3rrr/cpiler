@@ -321,7 +321,7 @@ mod tests {
 
         let expected = Err(SyntaxError::UnexpectedEOF);
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -339,7 +339,7 @@ mod tests {
             },
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -357,7 +357,7 @@ mod tests {
             },
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -384,7 +384,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -419,7 +419,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -440,7 +440,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -469,7 +469,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.into_iter().peekable());
+        let result = Expression::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -495,7 +495,7 @@ mod tests {
             })),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Expression::parse(&mut iter);
 
         assert_eq!(None, iter.next());
@@ -518,7 +518,7 @@ mod tests {
             operation: SingleOperation::FuntionCall(vec![]),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Expression::parse(&mut iter);
 
         assert_eq!(None, iter.next());
@@ -545,7 +545,7 @@ mod tests {
             }]),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Expression::parse(&mut iter);
 
         assert_eq!(None, iter.next());
@@ -580,7 +580,7 @@ mod tests {
             ]),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Expression::parse(&mut iter);
 
         assert_eq!(None, iter.next());
@@ -595,7 +595,7 @@ mod tests {
 
         let expected = Ok(Expression::ArrayLiteral { parts: Vec::new() });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Expression::parse(&mut iter);
 
         assert_eq!(None, iter.next());

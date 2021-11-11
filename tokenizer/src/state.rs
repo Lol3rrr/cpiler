@@ -6,6 +6,7 @@ pub struct TokenizeState {
 }
 
 /// The current Context in which the Text is being parsed, like normal Code, Comments, etc.
+#[derive(Debug)]
 pub enum Environment {
     /// The Normal Code context
     Code,

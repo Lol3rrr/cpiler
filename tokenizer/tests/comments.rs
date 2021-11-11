@@ -71,7 +71,7 @@ fn comments_program() {
         },
     ];
 
-    let tokenized = tokenize(content);
+    let tokenized: Vec<_> = tokenize(content).collect();
 
     assert_eq!(expected, tokenized);
 }

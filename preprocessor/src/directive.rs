@@ -3,6 +3,15 @@ use general::{Span, SpanRef};
 mod define;
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum ConditionalDirective {
+    If { condition: Span },
+    IfDef { name: String },
+    IfNDef { name: String },
+    Else,
+    ElseIf { condition: Span },
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Directive {
     Include {
         local: bool,
@@ -20,17 +29,8 @@ pub enum Directive {
     Undefine {
         name: String,
     },
-    If {
-        condition: Span,
-    },
-    IfDef {
-        name: String,
-    },
-    IfNDef {
-        name: String,
-    },
-    Else,
-    Endif,
+    Conditional(ConditionalDirective),
+    EndIf,
 }
 
 #[derive(Debug, PartialEq)]
@@ -112,17 +112,20 @@ impl Directive {
             ("undef", Some(body)) => Ok(Directive::Undefine {
                 name: body.content().to_owned(),
             }),
-            ("if", Some(body)) => Ok(Directive::If {
+            ("if", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::If {
                 condition: body.into(),
-            }),
-            ("ifdef", Some(body)) => Ok(Directive::IfDef {
+            })),
+            ("ifdef", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::IfDef {
                 name: body.content().to_owned(),
-            }),
-            ("ifndef", Some(body)) => Ok(Directive::IfNDef {
+            })),
+            ("ifndef", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::IfNDef {
                 name: body.content().to_owned(),
-            }),
-            ("else", None) => Ok(Directive::Else),
-            ("endif", None) => Ok(Directive::Endif),
+            })),
+            ("else", None) => Ok(Directive::Conditional(ConditionalDirective::Else)),
+            ("elif", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::ElseIf {
+                condition: body.into(),
+            })),
+            ("endif", None) => Ok(Directive::EndIf),
             (name, body) => Err(ParseDirectiveError::UnknownDirective {
                 raw: name.to_owned(),
             }),

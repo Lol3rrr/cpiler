@@ -188,7 +188,7 @@ mod tests {
             },
         });
 
-        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+        let result = Statement::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -223,7 +223,7 @@ mod tests {
             },
         });
 
-        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+        let result = Statement::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -266,7 +266,7 @@ mod tests {
             ],
         });
 
-        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+        let result = Statement::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -296,7 +296,7 @@ mod tests {
             }),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Statement::parse(&mut iter);
 
         assert_eq!(expected, result);
@@ -321,7 +321,7 @@ mod tests {
             }),
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Statement::parse(&mut iter);
 
         assert_eq!(expected, result);
@@ -355,7 +355,7 @@ mod tests {
             },
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Statement::parse(&mut iter);
 
         assert_eq!(expected, result);
@@ -396,7 +396,7 @@ mod tests {
             },
         });
 
-        let mut iter = input_tokens.into_iter().peekable();
+        let mut iter = input_tokens.peekable();
         let result = Statement::parse(&mut iter);
 
         assert_eq!(expected, result);
@@ -421,7 +421,7 @@ mod tests {
             },
         });
 
-        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+        let result = Statement::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }
@@ -450,7 +450,7 @@ mod tests {
             },
         });
 
-        let result = Statement::parse(&mut input_tokens.into_iter().peekable());
+        let result = Statement::parse(&mut input_tokens.peekable());
 
         assert_eq!(expected, result);
     }

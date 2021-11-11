@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref};
 use general::Span;
 use tokenizer::{Token, TokenData};
 
-use super::{DefineManager, RegisteredDefine};
+use super::DefineManager;
 use crate::PIR;
 
 use super::expand;

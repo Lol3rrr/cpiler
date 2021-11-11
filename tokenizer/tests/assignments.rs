@@ -53,7 +53,7 @@ fn assignments() {
         },
     ];
 
-    let result = tokenizer::tokenize(input_span);
+    let result: Vec<_> = tokenizer::tokenize(input_span).collect();
 
     dbg!(&result);
 

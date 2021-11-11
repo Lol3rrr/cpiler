@@ -109,3 +109,57 @@ fn defined_condition() {
 
     assert_eq!(expected, result);
 }
+
+#[test]
+fn condition_else() {
+    let file_name = "./tests/files/conditional_compilation/condition_else.c";
+    let loader = FileLoader::new();
+
+    let expected = vec![
+        Token {
+            span: Span::from_parts(file_name, "int", 27..30),
+            data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
+        },
+        Token {
+            span: Span::from_parts(file_name, "second", 31..37),
+            data: TokenData::Literal {
+                content: "second".to_string(),
+            },
+        },
+        Token {
+            span: Span::from_parts(file_name, ";", 37..38),
+            data: TokenData::Semicolon,
+        },
+    ];
+
+    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn condition_ifelse_true() {
+    let file_name = "./tests/files/conditional_compilation/condition_else_if_true.c";
+    let loader = FileLoader::new();
+
+    let expected = vec![
+        Token {
+            span: Span::from_parts(file_name, "int", 34..37),
+            data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
+        },
+        Token {
+            span: Span::from_parts(file_name, "second", 38..44),
+            data: TokenData::Literal {
+                content: "second".to_string(),
+            },
+        },
+        Token {
+            span: Span::from_parts(file_name, ";", 44..45),
+            data: TokenData::Semicolon,
+        },
+    ];
+
+    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+
+    assert_eq!(expected, result);
+}

@@ -5,6 +5,9 @@ use std::ops::Range;
 // you construct a subspan you dont clone the String itself but rather only the
 // Arc which should be faster and more efficient
 
+mod char_iter;
+pub use char_iter::CharIndexIter;
+
 /// A Span describes a Part of some overall String, most likely source Code
 #[derive(Debug, PartialEq, Clone)]
 pub struct Span {

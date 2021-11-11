@@ -59,7 +59,7 @@ where
                         }
                     }
                     Directive::DefineBlock { name, body } => {
-                        let tokenized = tokenizer::tokenize(body);
+                        let tokenized = tokenizer::tokenize(body).collect();
 
                         defines.add_block(name, tokenized);
                     }
@@ -68,32 +68,20 @@ where
                         arguments,
                         body,
                     } => {
-                        let tokenized = tokenizer::tokenize(body);
+                        let tokenized = tokenizer::tokenize(body).collect();
 
                         defines.add_function(name, arguments, tokenized);
                     }
                     Directive::Undefine { name } => {
                         defines.remove_defined(&name);
                     }
-                    Directive::If { condition } => {
-                        let condition = conditionals::parse_conditional(condition).unwrap();
-
-                        let cond = condition.evaluate(&defines).unwrap();
-                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
-                        result.extend(tmp);
-                    }
-                    Directive::IfDef { name } => {
-                        let cond = defines.is_defined(&name);
-                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
-                        result.extend(tmp);
-                    }
-                    Directive::IfNDef { name } => {
-                        let cond = !defines.is_defined(&name);
-                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, cond);
+                    Directive::Conditional(cond) => {
+                        let condition: conditionals::Conditional = cond.try_into().unwrap();
+                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, condition);
                         result.extend(tmp);
                     }
                     other => {
-                        dbg!(other);
+                        todo!("Unknown: {:?}", other);
                     }
                 };
             }
@@ -108,33 +96,46 @@ fn evaluate_conditional<I, L>(
     iter: &mut Peekable<I>,
     loader: &L,
     defines: &mut DefineManager,
-    cond: bool,
+    cond: conditionals::Conditional,
 ) -> Vec<PIR>
 where
     I: Iterator<Item = PIR>,
     L: Loader,
 {
-    if cond {
+    if cond.evaluate(&defines).unwrap() {
         let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
         resolve(inner_iter, loader, defines).collect()
     } else {
-        while let Some(peeked) = iter.peek() {
-            let directive = match &peeked {
+        let mut load_inner = false;
+        while let Some(peeked) = iter.next() {
+            let directive = match peeked {
                 PIR::Directive((_, dir)) => dir,
                 _ => {
-                    iter.next();
                     continue;
                 }
             };
 
             match directive {
-                Directive::Endif => break,
-                Directive::Else => break,
+                Directive::EndIf => break,
+                Directive::Conditional(cond) => {
+                    let condition: conditionals::Conditional = cond.try_into().unwrap();
+
+                    if condition.evaluate(&defines).unwrap() {
+                        load_inner = true;
+                        break;
+                    }
+                }
                 _ => {}
             };
         }
 
-        Vec::new()
+        if load_inner {
+            let inner_iter = conditionals::InnerConditionalIterator::new(iter);
+
+            resolve(inner_iter, loader, defines).collect()
+        } else {
+            Vec::new()
+        }
     }
 }

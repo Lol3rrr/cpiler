@@ -1,62 +1,11 @@
-use std::iter::Peekable;
-
 use general::{shunting_yard, Span};
 
-use crate::{directive::Directive, pir::PIR};
+use crate::directive::ConditionalDirective;
 
 use super::DefineManager;
 
-pub struct InnerConditionalIterator {
-    inner: std::vec::IntoIter<PIR>,
-}
-
-impl InnerConditionalIterator {
-    pub fn new<I>(base: &mut Peekable<I>) -> Self
-    where
-        I: Iterator<Item = PIR>,
-    {
-        let mut inner_part = Vec::new();
-
-        let mut level = 0;
-        while let Some(pir) = base.next() {
-            match &pir {
-                PIR::Directive((_, Directive::If { .. }))
-                | PIR::Directive((_, Directive::IfDef { .. })) => {
-                    level += 1;
-                }
-                PIR::Directive((_, Directive::Endif)) if level > 0 => {
-                    level -= 1;
-                }
-                PIR::Directive((_, Directive::Else)) if level == 0 => {
-                    while let Some(tmp) = base.next() {
-                        match tmp {
-                            PIR::Directive((_, Directive::Endif)) => break,
-                            _ => {}
-                        }
-                    }
-                }
-                PIR::Directive((_, Directive::Endif)) if level == 0 => break,
-                _ => {
-                    inner_part.push(pir);
-                }
-            };
-        }
-
-        dbg!(&inner_part);
-
-        Self {
-            inner: inner_part.into_iter(),
-        }
-    }
-}
-
-impl Iterator for InnerConditionalIterator {
-    type Item = PIR;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
+mod iter;
+pub use iter::InnerConditionalIterator;
 
 #[derive(Debug, PartialEq)]
 pub enum Conditional {
@@ -267,21 +216,21 @@ pub fn parse_conditional(raw: Span) -> Option<Conditional> {
 
 impl Conditional {
     fn intern_evaluate(self, defines: &DefineManager) -> Result<i64, ()> {
-        dbg!(&self);
-
         match self {
-            Self::Literal { value } => {
-                dbg!(&value);
-                todo!()
-            }
+            Self::Literal { value } => value.parse().map_err(|e| ()),
             Self::Name { name } => {
                 dbg!(&name);
                 todo!()
             }
             Self::UnaryOp { op, base } => match op {
                 ConditionalUnaryOp::Not => {
-                    dbg!(&base);
-                    todo!("Unary Not Operator");
+                    let base_val = base.intern_evaluate(defines)?;
+
+                    if base_val != 0 {
+                        Ok(0)
+                    } else {
+                        Ok(1)
+                    }
                 }
                 ConditionalUnaryOp::Defined => {
                     let name = match *base {
@@ -301,14 +250,98 @@ impl Conditional {
                 }
             },
             Self::BinaryOp { op, left, right } => {
-                dbg!(&op, &left, &right);
-                todo!()
+                let left_val = left.intern_evaluate(defines)?;
+                let right_val = right.intern_evaluate(defines)?;
+
+                match op {
+                    ConditionalBinaryOp::Less => {
+                        if left_val < right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::Greater => {
+                        if left_val > right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::LessEqual => {
+                        if left_val <= right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::GreaterEqual => {
+                        if left_val < right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::Equal => {
+                        if left_val == right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::NotEqual => {
+                        if left_val != right_val {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::Or => {
+                        if left_val != 0 || right_val != 0 {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                    ConditionalBinaryOp::And => {
+                        if left_val != 0 && right_val != 0 {
+                            Ok(1)
+                        } else {
+                            Ok(0)
+                        }
+                    }
+                }
             }
         }
     }
 
     pub fn evaluate(self, defines: &DefineManager) -> Result<bool, ()> {
         self.intern_evaluate(defines).map(|v| v != 0)
+    }
+}
+
+impl TryFrom<ConditionalDirective> for Conditional {
+    type Error = ();
+
+    fn try_from(value: ConditionalDirective) -> Result<Self, Self::Error> {
+        match value {
+            ConditionalDirective::If { condition } => parse_conditional(condition).ok_or(()),
+            ConditionalDirective::IfDef { name } => Ok(Self::UnaryOp {
+                op: ConditionalUnaryOp::Defined,
+                base: Box::new(Self::Name { name }),
+            }),
+            ConditionalDirective::IfNDef { name } => Ok(Self::UnaryOp {
+                op: ConditionalUnaryOp::Not,
+                base: Box::new(Self::UnaryOp {
+                    op: ConditionalUnaryOp::Defined,
+                    base: Box::new(Self::Name { name }),
+                }),
+            }),
+            ConditionalDirective::Else => Ok(Self::Literal {
+                value: "1".to_string(),
+            }),
+            ConditionalDirective::ElseIf { condition } => parse_conditional(condition).ok_or(()),
+        }
     }
 }
 

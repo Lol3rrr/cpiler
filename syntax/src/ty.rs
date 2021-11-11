@@ -110,7 +110,7 @@ mod tests {
             data: DataType::Int,
         }));
 
-        let result = TypeToken::parse(&mut tokenized.into_iter().peekable());
+        let result = TypeToken::parse(&mut tokenized.peekable());
 
         assert_eq!(expected, result);
     }
@@ -128,7 +128,7 @@ mod tests {
             },
         ))));
 
-        let result = TypeToken::parse(&mut tokenized.into_iter().peekable());
+        let result = TypeToken::parse(&mut tokenized.peekable());
 
         assert_eq!(expected, result);
     }
@@ -146,7 +146,7 @@ mod tests {
             }),
         )))));
 
-        let result = TypeToken::parse(&mut tokenized.into_iter().peekable());
+        let result = TypeToken::parse(&mut tokenized.peekable());
 
         assert_eq!(expected, result);
     }
@@ -168,7 +168,7 @@ mod tests {
             })),
         });
 
-        let result = TypeToken::parse(&mut tokenized.into_iter().peekable());
+        let result = TypeToken::parse(&mut tokenized.peekable());
 
         assert_eq!(expected, result);
     }
@@ -186,7 +186,7 @@ mod tests {
             }),
         });
 
-        let result = TypeToken::parse(&mut tokenized.into_iter().peekable());
+        let result = TypeToken::parse(&mut tokenized.peekable());
 
         assert_eq!(expected, result);
     }
