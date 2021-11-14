@@ -1,6 +1,6 @@
 use std::{iter::Peekable, path::PathBuf, str::FromStr};
 
-use crate::{directive::Directive, loader::LoadDirective, pir::PIR, Loader};
+use crate::{directive::Directive, loader::LoadDirective, pir::PIR, state::State, Loader};
 
 mod defines;
 pub use defines::DefineManager;
@@ -8,7 +8,9 @@ use tokenizer::TokenData;
 
 mod conditionals;
 
-pub fn resolve<I, L>(pir: I, loader: &L, defines: &mut DefineManager) -> std::vec::IntoIter<PIR>
+mod extensions;
+
+pub fn resolve<I, L>(pir: I, loader: &L, state: &mut State) -> std::vec::IntoIter<PIR>
 where
     I: Iterator<Item = PIR>,
     L: Loader,
@@ -19,12 +21,13 @@ where
         match current {
             PIR::Token(tok) => {
                 match &tok.data {
-                    TokenData::Literal { content } if defines.is_defined(&content) => {
-                        let m_def = defines
+                    TokenData::Literal { content } if state.defines.is_defined(&content) => {
+                        let m_def = state
+                            .defines
                             .get_defined(&content)
                             .expect("We previously checked that this Key is defined");
 
-                        match defines::expand(&mut new_iter, &m_def, &defines) {
+                        match defines::expand(&mut new_iter, &m_def, &state.defines) {
                             Some(replacements) => {
                                 result.extend(replacements.into_iter().map(|t| PIR::Token(t)));
                             }
@@ -53,16 +56,16 @@ where
                             local_root,
                             relative_path: PathBuf::from_str(&path).unwrap(),
                         };
-                        let raw_included = loader.load_as_pir(load_directive).unwrap();
+                        let raw_included = loader.load_as_pir(load_directive, state).unwrap();
 
-                        let full = resolve(raw_included.into_iter(), loader, defines);
+                        let full = resolve(raw_included.into_iter(), loader, state);
 
                         result.extend(full);
                     }
                     Directive::DefineBlock { name, body } => {
                         let tokenized = tokenizer::tokenize(body).collect();
 
-                        defines.add_block(name, tokenized);
+                        state.defines.add_block(name, tokenized);
                     }
                     Directive::DefineFunction {
                         name,
@@ -71,15 +74,29 @@ where
                     } => {
                         let tokenized = tokenizer::tokenize(body).collect();
 
-                        defines.add_function(name, arguments, tokenized);
+                        state.defines.add_function(name, arguments, tokenized);
                     }
                     Directive::Undefine { name } => {
-                        defines.remove_defined(&name);
+                        state.defines.remove_defined(&name);
                     }
                     Directive::Conditional(cond) => {
                         let condition: conditionals::Conditional = cond.try_into().unwrap();
-                        let tmp = evaluate_conditional(&mut new_iter, loader, defines, condition);
+                        let tmp = evaluate_conditional(&mut new_iter, loader, state, condition);
                         result.extend(tmp);
+                    }
+                    Directive::Pragma { content } => {
+                        let span_content = content.content();
+
+                        if span_content.starts_with("GCC") {
+                            extensions::gcc::pragma(content);
+                        } else {
+                            dbg!(&content);
+                            todo!()
+                        }
+                    }
+                    Directive::Extensions(extensions) => {
+                        dbg!(&extensions);
+                        todo!("Extensions are currently not support")
                     }
                     other => {
                         todo!("Unexpcted: {:?}", other);
@@ -96,17 +113,18 @@ where
 fn evaluate_conditional<I, L>(
     iter: &mut Peekable<I>,
     loader: &L,
-    defines: &mut DefineManager,
+    state: &mut State,
     cond: conditionals::Conditional,
 ) -> Vec<PIR>
 where
     I: Iterator<Item = PIR>,
     L: Loader,
 {
-    if cond.evaluate(&defines).unwrap() {
+    dbg!(&cond);
+    if cond.evaluate(&state.defines).unwrap() {
         let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-        resolve(inner_iter, loader, defines).collect()
+        resolve(inner_iter, loader, state).collect()
     } else {
         let mut load_inner = false;
         while let Some(peeked) = iter.next() {
@@ -122,7 +140,7 @@ where
                 Directive::Conditional(cond) => {
                     let condition: conditionals::Conditional = cond.try_into().unwrap();
 
-                    if condition.evaluate(&defines).unwrap() {
+                    if condition.evaluate(&state.defines).unwrap() {
                         load_inner = true;
                         break;
                     }
@@ -134,7 +152,7 @@ where
         if load_inner {
             let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-            resolve(inner_iter, loader, defines).collect()
+            resolve(inner_iter, loader, state).collect()
         } else {
             Vec::new()
         }

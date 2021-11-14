@@ -17,6 +17,7 @@ pub enum RegisteredDefine {
     },
 }
 
+#[derive(Debug)]
 pub struct DefineManager {
     inner: HashMap<String, RegisteredDefine>,
 }

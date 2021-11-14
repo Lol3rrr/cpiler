@@ -21,12 +21,12 @@ fn simple() {
                 }),
                 arguments: vec![],
                 body: Scope {
-                    statements: vec![Statement::Return(Expression::Literal {
+                    statements: vec![Statement::Return(Some(Expression::Literal {
                         content: SpanData {
                             span: Span::from_parts("test", "0", 20..21),
                             data: "0".to_string(),
                         },
-                    })],
+                    }))],
                 },
             }],
         },

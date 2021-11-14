@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 general = { path = "../general" }
 tokenizer = { path = "../tokenizer" }
+
+itertools = { version = "0.10" }

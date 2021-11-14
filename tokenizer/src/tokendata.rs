@@ -19,15 +19,25 @@ pub enum TokenData {
     Hashtag,
     OpenParen,
     CloseParen,
+    /// {
     OpenBrace,
+    /// }
     CloseBrace,
     OpenBracket,
     CloseBracket,
-    Comment { content: String },
+    Comment {
+        content: String,
+    },
     Operator(Operator),
-    Literal { content: String },
-    StringLiteral { content: String },
-    CompilerDirective { content: String },
+    Literal {
+        content: String,
+    },
+    StringLiteral {
+        content: String,
+    },
+    CompilerDirective {
+        content: String,
+    },
 }
 
 impl Display for TokenData {
@@ -333,6 +343,8 @@ impl<'r, 'a> From<&'r SpanRef<'a>> for TokenData {
             "break" => Self::Keyword(Keyword::ControlFlow(ControlFlow::Break)),
             "continue" => Self::Keyword(Keyword::ControlFlow(ControlFlow::Continue)),
             "return" => Self::Keyword(Keyword::ControlFlow(ControlFlow::Return)),
+
+            "typedef" => Self::Keyword(Keyword::TypeDef),
 
             "+" => Self::Operator(Operator::Add),
             "++" => Self::Operator(Operator::Increment),

@@ -2,10 +2,9 @@
 // * https://www.tutorialspoint.com/cprogramming/c_operators_precedence.htm
 // * https://en.cppreference.com/w/c/language/operator_precedence
 
-use std::iter::Peekable;
-
 use general::SpanData;
-use tokenizer::{Assignment, Token, TokenData};
+use itertools::PeekNth;
+use tokenizer::{Assignment, Operator, Token, TokenData};
 
 use crate::{Identifier, SyntaxError, TypeToken};
 
@@ -48,6 +47,15 @@ pub enum Expression {
         operation: ExpressionOperator,
         /// The Right side of the Operation
         right: Box<Self>,
+    },
+    Conditional {
+        condition: Box<Self>,
+        first: Box<Self>,
+        second: Box<Self>,
+    },
+    StructAccess {
+        base: Box<Self>,
+        field: Identifier,
     },
 }
 
@@ -141,7 +149,7 @@ impl Expression {
     }
 
     fn parse_exp_list<I>(
-        tokens: &mut Peekable<I>,
+        tokens: &mut PeekNth<I>,
         end_tok: TokenData,
     ) -> Result<Vec<Self>, SyntaxError>
     where
@@ -176,28 +184,25 @@ impl Expression {
         Ok(result)
     }
 
-    fn parse_expressions<I>(tokens: &mut Peekable<I>) -> Result<Self, SyntaxError>
+    fn parse_expressions<I, F>(
+        tokens: &mut PeekNth<I>,
+        is_terminator: F,
+    ) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
+        F: Fn(&TokenData) -> bool,
     {
         // This basically builds up the Expression using Reverse Polish Notation with the
         // shunting-yard-algorithm
         let mut state = parse_state::ParseState::new();
 
         while let Some(peeked) = tokens.peek() {
-            match &peeked.data {
-                TokenData::Comma => break,
-                TokenData::Semicolon => break,
-                TokenData::CloseParen => break,
-                TokenData::CloseBrace => break,
-                TokenData::CloseBracket => break,
-                _ => {}
-            };
+            if is_terminator(&peeked.data) {
+                break;
+            }
 
             let current = tokens.next().unwrap();
             let new_last_data = current.data.clone();
-
-            dbg!(&current.data);
 
             match &current.data {
                 TokenData::Literal { .. } => {
@@ -211,7 +216,21 @@ impl Expression {
                     state.add_expression(entry);
                 }
                 TokenData::Operator(op) => {
-                    state.add_operator(op);
+                    match op {
+                        Operator::BitwiseAnd => {
+                            match state.get_cloned_last_token_data() {
+                                Some(TokenData::Operator(_)) | None => {
+                                    state.add_single_op(SingleOperation::AddressOf);
+                                }
+                                _ => {
+                                    state.add_operator(&Operator::BitwiseAnd);
+                                }
+                            };
+                        }
+                        other => {
+                            state.add_operator(other);
+                        }
+                    };
                 }
                 TokenData::OpenParen => {
                     match state.get_cloned_last_token_data() {
@@ -231,8 +250,16 @@ impl Expression {
                         _ => {
                             let exp = Self::parse(tokens)?;
 
-                            let peeked = tokens.peek();
-                            dbg!(peeked);
+                            let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                            match closing_token.data {
+                                TokenData::CloseParen => {}
+                                _ => {
+                                    return Err(SyntaxError::UnexpectedToken {
+                                        expected: Some(vec![")".to_string()]),
+                                        got: closing_token.span,
+                                    })
+                                }
+                            };
 
                             state.add_expression(exp);
                         }
@@ -284,6 +311,28 @@ impl Expression {
 
                     state.add_expression(Expression::ArrayLiteral { parts: items });
                 }
+                TokenData::QuestionMark => {
+                    let first = Self::parse(tokens)?;
+                    dbg!(&first);
+
+                    let seperator_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    match seperator_token.data {
+                        TokenData::Colon => {}
+                        _ => {
+                            return Err(SyntaxError::UnexpectedToken {
+                                expected: Some(vec![":".to_string()]),
+                                got: seperator_token.span,
+                            })
+                        }
+                    };
+
+                    let second = Self::parse(tokens)?;
+                    dbg!(&second);
+
+                    state.add_conditional();
+                    state.add_expression(first);
+                    state.add_expression(second);
+                }
                 _ => {
                     return Err(SyntaxError::UnexpectedToken {
                         expected: None,
@@ -299,17 +348,26 @@ impl Expression {
         Ok(result)
     }
 
-    pub fn parse<I>(tokens: &mut Peekable<I>) -> Result<Self, SyntaxError>
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {
-        Self::parse_expressions(tokens)
+        Self::parse_expressions(tokens, |data| match data {
+            TokenData::Comma
+            | TokenData::Semicolon
+            | TokenData::CloseParen
+            | TokenData::CloseBrace
+            | TokenData::CloseBracket
+            | TokenData::Colon => true,
+            _ => false,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use general::Span;
+    use itertools::peek_nth;
 
     use super::*;
 
@@ -317,11 +375,11 @@ mod tests {
     fn empty() {
         let input_content = "";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Err(SyntaxError::UnexpectedEOF);
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -330,7 +388,7 @@ mod tests {
     fn one_literal() {
         let input_content = "123";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Literal {
             content: SpanData {
@@ -339,7 +397,7 @@ mod tests {
             },
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -348,7 +406,7 @@ mod tests {
     fn string_literal() {
         let input_content = "\"123\"";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::StringLiteral {
             content: SpanData {
@@ -357,7 +415,7 @@ mod tests {
             },
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -366,7 +424,7 @@ mod tests {
     fn add_two_literals() {
         let input_content = "123 + 234";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             left: Box::new(Expression::Literal {
@@ -384,7 +442,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -392,7 +450,7 @@ mod tests {
     fn add_three_literals() {
         let input_content = "123 + 234 + 345";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             left: Box::new(Expression::Operation {
@@ -419,7 +477,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -428,7 +486,7 @@ mod tests {
     fn logical_not() {
         let input_content = "!123";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             operation: SingleOperation::LogicalNot,
@@ -440,7 +498,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -448,7 +506,7 @@ mod tests {
     fn logical_not_and_add() {
         let input_content = "!123 + 234";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             left: Box::new(Expression::SingleOperation {
@@ -469,7 +527,7 @@ mod tests {
             }),
         });
 
-        let result = Expression::parse(&mut input_tokens.peekable());
+        let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
     }
@@ -478,7 +536,7 @@ mod tests {
     fn array_access() {
         let input_content = "test[0]";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
@@ -495,10 +553,9 @@ mod tests {
             })),
         });
 
-        let mut iter = input_tokens.peekable();
-        let result = Expression::parse(&mut iter);
+        let result = Expression::parse(&mut input_tokens);
 
-        assert_eq!(None, iter.next());
+        assert_eq!(None, input_tokens.next());
         assert_eq!(expected, result);
     }
 
@@ -506,7 +563,7 @@ mod tests {
     fn empty_function_call() {
         let input_content = "test()";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
@@ -518,17 +575,16 @@ mod tests {
             operation: SingleOperation::FuntionCall(vec![]),
         });
 
-        let mut iter = input_tokens.peekable();
-        let result = Expression::parse(&mut iter);
+        let result = Expression::parse(&mut input_tokens);
 
-        assert_eq!(None, iter.next());
+        assert_eq!(None, input_tokens.next());
         assert_eq!(expected, result);
     }
     #[test]
     fn one_arg_function_call() {
         let input_content = "test(0)";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
@@ -545,17 +601,16 @@ mod tests {
             }]),
         });
 
-        let mut iter = input_tokens.peekable();
-        let result = Expression::parse(&mut iter);
+        let result = Expression::parse(&mut input_tokens);
 
-        assert_eq!(None, iter.next());
+        assert_eq!(None, input_tokens.next());
         assert_eq!(expected, result);
     }
     #[test]
     fn two_args_function_call() {
         let input_content = "test(0,1)";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
@@ -580,10 +635,9 @@ mod tests {
             ]),
         });
 
-        let mut iter = input_tokens.peekable();
-        let result = Expression::parse(&mut iter);
+        let result = Expression::parse(&mut input_tokens);
 
-        assert_eq!(None, iter.next());
+        assert_eq!(None, input_tokens.next());
         assert_eq!(expected, result);
     }
 
@@ -591,14 +645,109 @@ mod tests {
     fn array_literal_empty() {
         let input_content = "{}";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let input_tokens = tokenizer::tokenize(input_span);
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::ArrayLiteral { parts: Vec::new() });
 
-        let mut iter = input_tokens.peekable();
-        let result = Expression::parse(&mut iter);
+        let result = Expression::parse(&mut input_tokens);
 
-        assert_eq!(None, iter.next());
+        assert_eq!(None, input_tokens.next());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn function_call_2_args() {
+        let input_content = "test(2, 3)";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Ok(Expression::SingleOperation {
+            base: Box::new(Expression::Identifier {
+                ident: Identifier(SpanData {
+                    span: Span::from_parts("test", "test", 0..4),
+                    data: "test".to_string(),
+                }),
+            }),
+            operation: SingleOperation::FuntionCall(vec![
+                Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "2", 5..6),
+                        data: "2".to_string(),
+                    },
+                },
+                Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "3", 8..9),
+                        data: "3".to_string(),
+                    },
+                },
+            ]),
+        });
+
+        let result = Expression::parse(&mut input_tokens);
+
+        assert_eq!(None, input_tokens.next());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn conditional_simple() {
+        let input_content = "1 ? 2 : 3";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Ok(Expression::Conditional {
+            condition: Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "1", 0..1),
+                    data: "1".to_string(),
+                },
+            }),
+            first: Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "2", 4..5),
+                    data: "2".to_string(),
+                },
+            }),
+            second: Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "3", 8..9),
+                    data: "3".to_string(),
+                },
+            }),
+        });
+
+        let result = Expression::parse(&mut input_tokens);
+
+        assert_eq!(None, input_tokens.next());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn parens() {
+        let input_content = "(1 + 2)";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Ok(Expression::Operation {
+            operation: ExpressionOperator::Add,
+            left: Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "1", 1..2),
+                    data: "1".to_string(),
+                },
+            }),
+            right: Box::new(Expression::Literal {
+                content: SpanData {
+                    span: Span::from_parts("test", "2", 5..6),
+                    data: "2".to_string(),
+                },
+            }),
+        });
+
+        let result = Expression::parse(&mut input_tokens);
+
+        assert_eq!(None, input_tokens.next());
         assert_eq!(expected, result);
     }
 }

@@ -1,5 +1,4 @@
-use std::iter::Peekable;
-
+use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
 use crate::Statement;
@@ -10,7 +9,9 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn parse<I>(tokens: &mut Peekable<I>) -> Self
+    /// Assumes that the Opening Curly Brace is not in the Iterator anymore.
+    /// Will consume the Closing Curly Brace
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Self
     where
         I: Iterator<Item = Token>,
     {
@@ -25,7 +26,9 @@ impl Scope {
                 _ => {}
             };
 
-            let statement = Statement::parse(tokens).unwrap();
+            let statement = Statement::parse(tokens, &Statement::default_terminaton()).unwrap();
+
+            dbg!(&statement);
 
             statements.push(statement);
         }

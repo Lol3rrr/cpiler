@@ -55,6 +55,8 @@ enum Part {
     Name(String),
     Value(String),
     Operator(ConditionalOp),
+    OpenParen,
+    ClosingParen,
 }
 
 fn to_parts<'o, 's>(raw: &'s Span) -> impl Iterator<Item = Part> + 'o
@@ -82,20 +84,25 @@ where
             | ('=', Some('='))
             | ('&', Some('&'))
             | ('|', Some('|')) => {
-                let (i, _) = char_in_iter.next().expect("We just peeked the next one");
                 if let Some(s) = raw.sub_span(last_end..i) {
                     raw_parts.push(s);
                 }
 
                 last_end = i;
+                let _ = char_in_iter.next();
 
-                if let Some(s) = raw.sub_span(last_end..i + 1) {
+                let next_index = match char_in_iter.peek() {
+                    Some((ti, _)) => *ti,
+                    None => raw.content().len(),
+                };
+
+                if let Some(s) = raw.sub_span(last_end..next_index) {
                     raw_parts.push(s);
                 }
 
-                last_end = i + 1;
+                last_end = next_index;
             }
-            ('<', _) | ('>', _) | ('!', _) => {
+            ('<', _) | ('>', _) | ('!', _) | ('(', _) | (')', _) => {
                 if let Some(s) = raw.sub_span(last_end..i) {
                     raw_parts.push(s);
                 }
@@ -129,6 +136,8 @@ where
             "!" => Part::Operator(ConditionalOp::Unary(ConditionalUnaryOp::Not)),
             "&&" => Part::Operator(ConditionalOp::Binary(ConditionalBinaryOp::And)),
             "||" => Part::Operator(ConditionalOp::Binary(ConditionalBinaryOp::Or)),
+            "(" => Part::OpenParen,
+            ")" => Part::ClosingParen,
             "defined" => Part::Operator(ConditionalOp::Unary(ConditionalUnaryOp::Defined)),
             other => {
                 if s.content().chars().find(|c| !c.is_digit(10)).is_some() {
@@ -208,7 +217,9 @@ pub fn parse_conditional(raw: Span) -> Option<Conditional> {
     let parts = to_parts(&raw).map(|p| match p {
         Part::Name(n) => shunting_yard::Inputs::Value(Conditional::Name { name: n }),
         Part::Value(v) => shunting_yard::Inputs::Value(Conditional::Literal { value: v }),
-        Part::Operator(op) => shunting_yard::Inputs::Op(op),
+        Part::Operator(op) => shunting_yard::Inputs::Op(shunting_yard::OpItem::Op(op)),
+        Part::OpenParen => shunting_yard::Inputs::Op(shunting_yard::OpItem::OpenParen),
+        Part::ClosingParen => shunting_yard::Inputs::Op(shunting_yard::OpItem::CloseParen),
     });
 
     shunting_yard::parse(parts).ok()
@@ -217,7 +228,7 @@ pub fn parse_conditional(raw: Span) -> Option<Conditional> {
 impl Conditional {
     fn intern_evaluate(self, defines: &DefineManager) -> Result<i64, ()> {
         match self {
-            Self::Literal { value } => value.parse().map_err(|e| ()),
+            Self::Literal { value } => value.parse().map_err(|_| ()),
             Self::Name { name } => {
                 dbg!(&name);
                 todo!()

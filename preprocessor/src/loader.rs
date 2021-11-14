@@ -2,8 +2,12 @@ use std::path::PathBuf;
 
 use general::Span;
 
-use crate::pir::{into_pir, PIR};
+use crate::{
+    pir::{into_pir, PIR},
+    state::State,
+};
 
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub struct LoadDirective {
     pub local_root: Option<PathBuf>,
     pub relative_path: PathBuf,
@@ -15,8 +19,14 @@ pub trait Loader {
     /// Loads the File at the given Path relative to the current Directory/Root
     fn load_file(&self, path: LoadDirective) -> Result<Span, Self::LoadError>;
 
-    fn load_as_pir(&self, path: LoadDirective) -> Result<Vec<PIR>, Self::LoadError> {
+    fn load_as_pir(
+        &self,
+        path: LoadDirective,
+        state: &mut State,
+    ) -> Result<Vec<PIR>, Self::LoadError> {
         let span = self.load_file(path)?;
+
+        state.add_included_file(span.source().to_string());
 
         let tokens = tokenizer::tokenize(span);
 
@@ -27,7 +37,7 @@ pub trait Loader {
 
 pub mod files {
 
-    use std::path::PathBuf;
+    use std::{fmt::Display, path::PathBuf};
 
     use general::Span;
 
@@ -53,13 +63,24 @@ pub mod files {
         }
     }
 
+    #[derive(Debug)]
+    pub struct FileLoadError {
+        target: LoadDirective,
+    }
+    impl Display for FileLoadError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "File-Loading-Error [target = {:?}]", self.target)
+        }
+    }
+    impl std::error::Error for FileLoadError {}
+
     impl Loader for FileLoader {
-        type LoadError = std::io::Error;
+        type LoadError = FileLoadError;
 
         fn load_file(&self, path: LoadDirective) -> Result<general::Span, Self::LoadError> {
             let roots = {
-                let initial = match path.local_root {
-                    Some(root) => vec![root],
+                let initial = match &path.local_root {
+                    Some(root) => vec![root.clone()],
                     None => vec![],
                 };
 
@@ -84,10 +105,7 @@ pub mod files {
                 return Ok(res_span);
             }
 
-            Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Could not find the File in any of the Roots",
-            ))
+            Err(FileLoadError { target: path })
         }
     }
 }

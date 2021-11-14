@@ -1,6 +1,7 @@
 use std::iter::Peekable;
 
 use general::{Span, SpanData};
+use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
 use crate::SyntaxError;
@@ -9,7 +10,7 @@ use crate::SyntaxError;
 pub struct Identifier(pub SpanData<String>);
 
 impl Identifier {
-    pub fn parse<I>(tokens: &mut Peekable<I>) -> Result<Self, SyntaxError>
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {

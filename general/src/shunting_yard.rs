@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub trait Operator {
     type Value;
 
@@ -17,48 +19,89 @@ pub enum OpAssosication {
 
 #[derive(Debug, PartialEq)]
 pub enum Inputs<O, V> {
-    Op(O),
+    Op(OpItem<O>),
     Value(V),
 }
 
+#[derive(Debug)]
 enum Intermediate<O, V> {
     Value(V),
     Operator(O),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum OpItem<O> {
+    OpenParen,
+    CloseParen,
+    Op(O),
 }
 
 pub fn parse<I, II, O>(inputs: II) -> Result<O::Value, ()>
 where
     II: IntoIterator<IntoIter = I, Item = Inputs<O, O::Value>>,
     I: Iterator<Item = Inputs<O, O::Value>>,
-    O: Operator,
+    O: Operator + Debug,
+    O::Value: Debug,
 {
     let input = inputs.into_iter();
 
-    let mut output = Vec::new();
-    let mut op_stack: Vec<O> = Vec::new();
+    let mut output: Vec<Intermediate<O, O::Value>> = Vec::new();
+    let mut op_stack: Vec<OpItem<O>> = Vec::new();
 
     for tmp in input {
         match tmp {
-            Inputs::Op(op) => {
-                let c_prio = op.priority();
-
-                while let Some(latest_op) = op_stack.last() {
-                    let last_prio = latest_op.priority();
-                    let last_asso = latest_op.assosication();
-
-                    if last_prio > c_prio
-                        || (last_prio == c_prio && last_asso == OpAssosication::Left)
-                    {
-                        let latest = op_stack.pop().unwrap();
-                        output.push(Intermediate::Operator(latest));
-
-                        continue;
+            Inputs::Op(op_item) => {
+                match op_item {
+                    OpItem::OpenParen => {
+                        op_stack.push(OpItem::OpenParen);
                     }
+                    OpItem::CloseParen => {
+                        while let Some(op_item) = op_stack.pop() {
+                            match op_item {
+                                OpItem::Op(op) => {
+                                    dbg!(&op);
+                                    output.push(Intermediate::Operator(op));
+                                }
+                                OpItem::OpenParen => break,
+                                OpItem::CloseParen => unreachable!(
+                                    "There should never be a Closing Paren on the Op-Stack"
+                                ),
+                            };
+                        }
+                    }
+                    OpItem::Op(op) => {
+                        let c_prio = op.priority();
+                        let c_asso = op.assosication();
 
-                    break;
-                }
+                        while let Some(latest_op_item) = op_stack.pop() {
+                            match latest_op_item {
+                                OpItem::OpenParen => {
+                                    op_stack.push(OpItem::OpenParen);
+                                }
+                                OpItem::CloseParen => unreachable!(
+                                    "There should never be a Closing Paren on the Op-Stack"
+                                ),
+                                OpItem::Op(latest_op) => {
+                                    let last_prio = latest_op.priority();
 
-                op_stack.push(op);
+                                    if last_prio > c_prio
+                                        || (last_prio == c_prio && c_asso == OpAssosication::Left)
+                                    {
+                                        output.push(Intermediate::Operator(latest_op));
+
+                                        continue;
+                                    } else {
+                                        op_stack.push(OpItem::Op(latest_op));
+                                    }
+
+                                    break;
+                                }
+                            };
+                        }
+
+                        op_stack.push(OpItem::Op(op));
+                    }
+                };
             }
             Inputs::Value(value) => {
                 output.push(Intermediate::Value(value));
@@ -66,8 +109,13 @@ where
         }
     }
 
-    for op in op_stack {
-        output.push(Intermediate::Operator(op));
+    while let Some(op_item) = op_stack.pop() {
+        match op_item {
+            OpItem::Op(op) => {
+                output.push(Intermediate::Operator(op));
+            }
+            other => panic!("Unexpected Op-Item"),
+        };
     }
 
     let mut result: Vec<O::Value> = Vec::new();

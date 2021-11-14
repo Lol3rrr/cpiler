@@ -9,9 +9,17 @@ enum Assosication {
 }
 
 #[derive(Debug)]
+enum ConnectionOp {
+    Dot,
+    Arrow,
+}
+
+#[derive(Debug)]
 enum RpnOp {
     Expression(ExpressionOperator),
     SingleOp(SingleOperation),
+    ConnectionOp(ConnectionOp),
+    Conditional,
 }
 
 impl RpnOp {
@@ -22,7 +30,9 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::Arrow)
             | Self::SingleOp(SingleOperation::Dot)
             | Self::SingleOp(SingleOperation::SuffixIncrement)
-            | Self::SingleOp(SingleOperation::SuffixDecrement) => 15,
+            | Self::SingleOp(SingleOperation::SuffixDecrement)
+            | Self::ConnectionOp(ConnectionOp::Dot)
+            | Self::ConnectionOp(ConnectionOp::Arrow) => 15,
             Self::SingleOp(SingleOperation::Positive)
             | Self::SingleOp(SingleOperation::Negative)
             | Self::SingleOp(SingleOperation::LogicalNot)
@@ -51,6 +61,7 @@ impl RpnOp {
             Self::Expression(ExpressionOperator::BitwiseOr) => 6,
             Self::Expression(ExpressionOperator::LogicalAnd) => 5,
             Self::Expression(ExpressionOperator::LogicalOr) => 4,
+            Self::Conditional => 3,
         }
     }
 
@@ -89,7 +100,10 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::Arrow)
             | Self::SingleOp(SingleOperation::Dot)
             | Self::SingleOp(SingleOperation::SuffixIncrement)
-            | Self::SingleOp(SingleOperation::SuffixDecrement) => Assosication::Left,
+            | Self::SingleOp(SingleOperation::SuffixDecrement)
+            | Self::ConnectionOp(ConnectionOp::Dot)
+            | Self::ConnectionOp(ConnectionOp::Arrow) => Assosication::Left,
+            Self::Conditional => Assosication::Right,
         }
     }
 
@@ -99,9 +113,10 @@ impl RpnOp {
                 RpnOp::SingleOp(SingleOperation::Positive)
             }
             (Operator::Add, _) => RpnOp::Expression(ExpressionOperator::Add),
-            (Operator::Increment, _) => {
-                todo!("Handle increment");
+            (Operator::Increment, Some(TokenData::Literal { .. })) => {
+                RpnOp::SingleOp(SingleOperation::SuffixIncrement)
             }
+            (Operator::Increment, _) => RpnOp::SingleOp(SingleOperation::PrefixIncrement),
             (Operator::Sub, Some(TokenData::Operator(_))) | (Operator::Sub, None) => {
                 RpnOp::SingleOp(SingleOperation::Negative)
             }
@@ -130,9 +145,7 @@ impl RpnOp {
             (Operator::Arrow, _) => {
                 todo!("Handle Arrow");
             }
-            (Operator::Dot, _) => {
-                todo!("Handle dot");
-            }
+            (Operator::Dot, _) => RpnOp::ConnectionOp(ConnectionOp::Dot),
         }
     }
 }
@@ -162,13 +175,9 @@ impl ParseState {
         self.output.push(RPN::Expression(exp));
     }
 
-    pub fn add_operator(&mut self, op: &Operator) {
-        let last_token_data = self.last_token_data.clone();
-
-        let exp_op = RpnOp::from_op(op, last_token_data);
-
-        let new_prec = exp_op.precedence();
-        let new_assoc = exp_op.assosication();
+    fn add_op(&mut self, op: RpnOp) {
+        let new_prec = op.precedence();
+        let new_assoc = op.assosication();
 
         loop {
             match self.op_stack.last() {
@@ -195,11 +204,22 @@ impl ParseState {
             break;
         }
 
-        self.op_stack.push(exp_op);
+        self.op_stack.push(op);
+    }
+
+    pub fn add_operator(&mut self, op: &Operator) {
+        let last_token_data = self.last_token_data.clone();
+
+        let exp_op = RpnOp::from_op(op, last_token_data);
+        self.add_op(exp_op);
     }
 
     pub fn add_single_op(&mut self, op: SingleOperation) {
-        self.output.push(RPN::Operation(RpnOp::SingleOp(op)));
+        self.add_op(RpnOp::SingleOp(op));
+    }
+
+    pub fn add_conditional(&mut self) {
+        self.add_op(RpnOp::Conditional);
     }
 
     pub fn get_cloned_last_token_data(&self) -> Option<TokenData> {
@@ -240,6 +260,37 @@ impl ParseState {
                                 left: Box::new(left),
                                 operation: op,
                                 right: Box::new(right),
+                            };
+
+                            final_stack.push(result);
+                        }
+                        RpnOp::ConnectionOp(con_op) => {
+                            let right = final_stack.pop().unwrap();
+                            let left = final_stack.pop().unwrap();
+
+                            dbg!(&left, &right, &con_op);
+
+                            let field_ident = match right {
+                                Expression::Identifier { ident } => ident,
+                                other => panic!("Expected Identifier but got: {:?}", other),
+                            };
+
+                            let result = Expression::StructAccess {
+                                base: Box::new(left),
+                                field: field_ident,
+                            };
+
+                            final_stack.push(result);
+                        }
+                        RpnOp::Conditional => {
+                            let false_exp = final_stack.pop().unwrap();
+                            let true_exp = final_stack.pop().unwrap();
+                            let cond = final_stack.pop().unwrap();
+
+                            let result = Expression::Conditional {
+                                condition: Box::new(cond),
+                                first: Box::new(true_exp),
+                                second: Box::new(false_exp),
                             };
 
                             final_stack.push(result);

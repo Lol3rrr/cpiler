@@ -1,6 +1,7 @@
 use std::iter::Peekable;
 
 use general::SpanData;
+use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
 use crate::{Expression, Identifier, SyntaxError};
@@ -40,55 +41,114 @@ pub enum TypeToken {
 }
 
 impl TypeToken {
-    pub fn parse<I>(tokens: &mut Peekable<I>) -> Result<Self, SyntaxError>
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {
         let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-
-        match next_tok.data {
+        let mut base = match next_tok.data {
             TokenData::Keyword(Keyword::DataType(DataType::Struct)) => {
                 let name = Identifier::parse(tokens)?;
 
-                Ok(TypeToken::StructType { name })
+                TypeToken::StructType { name }
             }
             TokenData::Keyword(Keyword::DataType(DataType::Enum)) => {
                 let name = Identifier::parse(tokens)?;
 
-                Ok(TypeToken::EnumType { name })
+                TypeToken::EnumType { name }
             }
             TokenData::Keyword(Keyword::DataType(dt)) => {
                 let base = dt;
 
-                let mut base = Self::Primitive(SpanData {
+                Self::Primitive(SpanData {
                     span: next_tok.span,
                     data: base,
-                });
+                })
+            }
+            TokenData::Literal { content } => {
+                let name = Identifier::from_literal(next_tok.span, content)?;
+                Self::TypeDefed { name }
+            }
+            _ => {
+                return Err(SyntaxError::UnexpectedToken {
+                    expected: Some(vec!["Identifier".to_string()]),
+                    got: next_tok.span,
+                })
+            }
+        };
 
-                while let Some(peeked) = tokens.peek() {
-                    dbg!(&peeked);
-                    match &peeked.data {
-                        TokenData::Operator(Operator::Multiply) => {
-                            let _ = tokens.next();
-                            base = Self::Pointer(Box::new(base));
-                        }
-                        TokenData::Keyword(Keyword::DataType(_)) => {
-                            let mod_base = Self::parse(tokens)?;
+        while let Some(peeked) = tokens.peek() {
+            match &peeked.data {
+                TokenData::Operator(Operator::Multiply) => {
+                    let _ = tokens.next();
+                    base = Self::Pointer(Box::new(base));
+                }
+                TokenData::Keyword(Keyword::DataType(_)) => {
+                    let mod_base = Self::parse(tokens)?;
 
-                            base = Self::Composition {
-                                modifier: Box::new(base),
-                                base: Box::new(mod_base),
-                            };
-                        }
-                        _ => return Ok(base),
+                    base = Self::Composition {
+                        modifier: Box::new(base),
+                        base: Box::new(mod_base),
                     };
                 }
-                Ok(base)
-            }
-            _ => Err(SyntaxError::UnexpectedToken {
-                expected: Some(vec!["Identifier".to_string()]),
-                got: next_tok.span,
-            }),
+                _ => return Ok(base),
+            };
+        }
+
+        Ok(base)
+    }
+
+    /// This should be used to parse combinations of form "type identifier", as
+    /// this will handle it correctly for you while also accounting for certain
+    /// Problems like Arrays and the like
+    pub fn parse_type_identifier<I>(
+        tokens: &mut PeekNth<I>,
+    ) -> Result<(Self, Identifier), SyntaxError>
+    where
+        I: Iterator<Item = Token>,
+    {
+        let mut base = Self::parse(tokens)?;
+        dbg!(&base);
+
+        let ident = Identifier::parse(tokens)?;
+        dbg!(&ident);
+
+        loop {
+            let peeked = match tokens.peek() {
+                Some(p) => p,
+                None => return Ok((base, ident)),
+            };
+
+            match &peeked.data {
+                TokenData::OpenBracket => {
+                    let _ = tokens.next();
+                }
+                _ => return Ok((base, ident)),
+            };
+
+            let size_exp = match tokens.peek() {
+                Some(_) => {
+                    let exp = Expression::parse(tokens)?;
+                    Some(Box::new(exp))
+                }
+                None => None,
+            };
+
+            let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            match next_tok.data {
+                TokenData::CloseBracket => {}
+                _ => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        expected: None,
+                        got: next_tok.span,
+                    })
+                }
+            };
+
+            base = Self::ArrayType {
+                base: Box::new(base),
+                size: size_exp,
+            };
         }
     }
 }
@@ -96,6 +156,7 @@ impl TypeToken {
 #[cfg(test)]
 mod tests {
     use general::Span;
+    use itertools::peek_nth;
 
     use super::*;
 
@@ -103,14 +164,14 @@ mod tests {
     fn primitive_type() {
         let input_content = "int";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let tokenized = tokenizer::tokenize(input_span);
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Primitive(SpanData {
             span: Span::from_parts("test", "int", 0..3),
             data: DataType::Int,
         }));
 
-        let result = TypeToken::parse(&mut tokenized.peekable());
+        let result = TypeToken::parse(&mut tokenized);
 
         assert_eq!(expected, result);
     }
@@ -119,7 +180,7 @@ mod tests {
     fn pointer() {
         let input_content = "int*";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let tokenized = tokenizer::tokenize(input_span);
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Primitive(
             SpanData {
@@ -128,7 +189,7 @@ mod tests {
             },
         ))));
 
-        let result = TypeToken::parse(&mut tokenized.peekable());
+        let result = TypeToken::parse(&mut tokenized);
 
         assert_eq!(expected, result);
     }
@@ -137,7 +198,7 @@ mod tests {
     fn nested_pointer() {
         let input_content = "int**";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let tokenized = tokenizer::tokenize(input_span);
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Pointer(Box::new(
             TypeToken::Primitive(SpanData {
@@ -146,7 +207,7 @@ mod tests {
             }),
         )))));
 
-        let result = TypeToken::parse(&mut tokenized.peekable());
+        let result = TypeToken::parse(&mut tokenized);
 
         assert_eq!(expected, result);
     }
@@ -155,7 +216,7 @@ mod tests {
     fn modified_type() {
         let input_content = "unsigned int";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let tokenized = tokenizer::tokenize(input_span);
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Composition {
             modifier: Box::new(TypeToken::Primitive(SpanData {
@@ -168,7 +229,7 @@ mod tests {
             })),
         });
 
-        let result = TypeToken::parse(&mut tokenized.peekable());
+        let result = TypeToken::parse(&mut tokenized);
 
         assert_eq!(expected, result);
     }
@@ -177,7 +238,7 @@ mod tests {
     fn simple_struct() {
         let input_content = "struct testing";
         let input_span = Span::from_parts("test", input_content, 0..input_content.len());
-        let tokenized = tokenizer::tokenize(input_span);
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::StructType {
             name: Identifier(SpanData {
@@ -186,7 +247,64 @@ mod tests {
             }),
         });
 
-        let result = TypeToken::parse(&mut tokenized.peekable());
+        let result = TypeToken::parse(&mut tokenized);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn type_name_combination_primitive() {
+        let input_content = "int testing;";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Ok((
+            TypeToken::Primitive(SpanData {
+                span: Span::from_parts("test", "int", 0..3),
+                data: DataType::Int,
+            }),
+            Identifier(SpanData {
+                span: Span::from_parts("test", "testing", 4..11),
+                data: "testing".to_string(),
+            }),
+        ));
+
+        let result = TypeToken::parse_type_identifier(&mut tokenized);
+
+        assert!(tokenized.next().is_some());
+        assert_eq!(None, tokenized.next());
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn type_name_combination_primitive_array_known_size() {
+        let input_content = "int testing[13];";
+        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Ok((
+            TypeToken::ArrayType {
+                base: Box::new(TypeToken::Primitive(SpanData {
+                    span: Span::from_parts("test", "int", 0..3),
+                    data: DataType::Int,
+                })),
+                size: Some(Box::new(Expression::Literal {
+                    content: SpanData {
+                        span: Span::from_parts("test", "13", 12..14),
+                        data: "13".to_string(),
+                    },
+                })),
+            },
+            Identifier(SpanData {
+                span: Span::from_parts("test", "testing", 4..11),
+                data: "testing".to_string(),
+            }),
+        ));
+
+        let result = TypeToken::parse_type_identifier(&mut tokenized);
+
+        assert!(tokenized.next().is_some());
+        assert_eq!(None, tokenized.next());
 
         assert_eq!(expected, result);
     }

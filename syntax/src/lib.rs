@@ -1,5 +1,6 @@
-use general::{Span, SpanData};
-use tokenizer::{DataType, Token};
+use general::Span;
+use itertools::peek_nth;
+use tokenizer::{Token, TokenData};
 
 mod scope;
 pub use scope::Scope;
@@ -43,7 +44,10 @@ where
     I: IntoIterator<Item = Token, IntoIter = IT>,
     IT: Iterator<Item = Token>,
 {
-    let mut tokens = tokens.into_iter().peekable();
+    let mut tokens = peek_nth(tokens.into_iter().filter(|t| match &t.data {
+        TokenData::Comment { .. } => false,
+        _ => true,
+    }));
 
     let global_scope = Scope::parse(&mut tokens);
 

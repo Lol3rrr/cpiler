@@ -11,6 +11,8 @@ mod resolver;
 mod pir;
 use pir::{into_pir, PIR};
 
+mod state;
+
 #[derive(Debug)]
 pub enum ProcessError<L> {
     UnknownDirective { raw: String },
@@ -35,8 +37,8 @@ where
     let root_tokens = tokenize(root);
     let root_pir = into_pir(root_tokens);
 
-    let mut defines = resolver::DefineManager::new();
-    let processed = resolver::resolve(root_pir, loader, &mut defines);
+    let mut state = state::State::new();
+    let processed = resolver::resolve(root_pir, loader, &mut state);
 
     let result = processed
         .map(|p| match p {

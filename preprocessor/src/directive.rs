@@ -12,6 +12,18 @@ pub enum ConditionalDirective {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum GnuExtesion {
+    /// Docs:
+    /// https://gcc.gnu.org/onlinedocs/cpp/Wrapper-Headers.html
+    IncludeNext { path: String },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Extensions {
+    GNU(GnuExtesion),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Directive {
     Include {
         local: bool,
@@ -31,6 +43,10 @@ pub enum Directive {
     },
     Conditional(ConditionalDirective),
     EndIf,
+    Pragma {
+        content: Span,
+    },
+    Extensions(Extensions),
 }
 
 #[derive(Debug, PartialEq)]
@@ -88,6 +104,22 @@ impl Directive {
                     })
                 }
             }
+            // From a GNU Extension that we should probably support as well
+            ("include_next", Some(body)) => {
+                let mut path = String::new();
+                path.reserve(body.content().len());
+
+                body.content().chars().for_each(|c| match c {
+                    '"' | '<' | '>' => {}
+                    other => {
+                        path.push(other);
+                    }
+                });
+
+                Ok(Directive::Extensions(Extensions::GNU(
+                    GnuExtesion::IncludeNext { path },
+                )))
+            }
             ("define", Some(body)) => {
                 let def = match define::parse_define(body) {
                     Ok(d) => d,
@@ -112,6 +144,9 @@ impl Directive {
             ("undef", Some(body)) => Ok(Directive::Undefine {
                 name: body.content().to_owned(),
             }),
+            ("pragma", Some(body)) => Ok(Directive::Pragma {
+                content: body.into(),
+            }),
             ("if", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::If {
                 condition: body.into(),
             })),
@@ -125,7 +160,7 @@ impl Directive {
             ("elif", Some(body)) => Ok(Directive::Conditional(ConditionalDirective::ElseIf {
                 condition: body.into(),
             })),
-            ("endif", None) => Ok(Directive::EndIf),
+            ("endif", _) => Ok(Directive::EndIf),
             (name, body) => Err(ParseDirectiveError::UnknownDirective {
                 raw: name.to_owned(),
             }),

@@ -1,8 +1,9 @@
-use preprocessor::loader::files::FileLoader;
+use preprocessor::Loader;
 
-pub fn run(source_file: &str) {
-    let loader = FileLoader::new();
-
+pub fn run<L>(source_file: &str, loader: L)
+where
+    L: Loader,
+{
     let preprocessed = preprocessor::preprocess(&loader, source_file).unwrap();
 
     let basic_ast = syntax::parse(preprocessed);

@@ -90,17 +90,17 @@ fn defined_condition() {
 
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 29..32),
+            span: Span::from_parts(file_name, "int", 48..51),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "first", 33..38),
+            span: Span::from_parts(file_name, "first", 52..57),
             data: TokenData::Literal {
                 content: "first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 38..39),
+            span: Span::from_parts(file_name, ";", 57..58),
             data: TokenData::Semicolon,
         },
     ];
