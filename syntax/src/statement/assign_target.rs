@@ -84,7 +84,7 @@ impl AssignTarget {
 
 #[cfg(test)]
 mod tests {
-    use general::{Span, SpanData};
+    use general::{Source, Span, SpanData};
     use itertools::peek_nth;
 
     use super::*;
@@ -92,11 +92,12 @@ mod tests {
     #[test]
     fn variable() {
         let input_content = "test";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let input_tokens = tokenizer::tokenize(input_span);
 
         let expected = Ok(AssignTarget::Variable(Identifier(SpanData {
-            span: Span::from_parts("test", "test", 0..4),
+            span: Span::new_source(source.clone(), 0..4),
             data: "test".to_string(),
         })));
 
@@ -110,17 +111,18 @@ mod tests {
     #[test]
     fn array_access() {
         let input_content = "test[0]";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let input_tokens = tokenizer::tokenize(input_span);
 
         let expected = Ok(AssignTarget::ArrayAccess {
             base: Box::new(AssignTarget::Variable(Identifier(SpanData {
-                span: Span::from_parts("test", "test", 0..4),
+                span: Span::new_source(source.clone(), 0..4),
                 data: "test".to_string(),
             }))),
             index: Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "0", 5..6),
+                    span: Span::new_source(source.clone(), 5..6),
                     data: "0".to_string(),
                 },
             },
@@ -136,16 +138,17 @@ mod tests {
     #[test]
     fn struct_access() {
         let input_content = "test.field";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let input_tokens = tokenizer::tokenize(input_span);
 
         let expected = Ok(AssignTarget::StructAccess {
             base: Box::new(AssignTarget::Variable(Identifier(SpanData {
-                span: Span::from_parts("test", "test", 0..4),
+                span: Span::new_source(source.clone(), 0..4),
                 data: "test".to_string(),
             }))),
             field: Identifier(SpanData {
-                span: Span::from_parts("test", "field", 5..10),
+                span: Span::new_source(source.clone(), 5..10),
                 data: "field".to_string(),
             }),
         });
@@ -160,16 +163,17 @@ mod tests {
     #[test]
     fn struct_ptr_access() {
         let input_content = "test->field";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let input_tokens = tokenizer::tokenize(input_span);
 
         let expected = Ok(AssignTarget::StructPtrAccess {
             base: Box::new(AssignTarget::Variable(Identifier(SpanData {
-                span: Span::from_parts("test", "test", 0..4),
+                span: Span::new_source(source.clone(), 0..4),
                 data: "test".to_string(),
             }))),
             field: Identifier(SpanData {
-                span: Span::from_parts("test", "field", 6..11),
+                span: Span::new_source(source.clone(), 6..11),
                 data: "field".to_string(),
             }),
         });

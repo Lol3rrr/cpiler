@@ -366,7 +366,7 @@ impl Expression {
 
 #[cfg(test)]
 mod tests {
-    use general::Span;
+    use general::{Source, Span};
     use itertools::peek_nth;
 
     use super::*;
@@ -374,7 +374,8 @@ mod tests {
     #[test]
     fn empty() {
         let input_content = "";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Err(SyntaxError::UnexpectedEOF);
@@ -387,12 +388,13 @@ mod tests {
     #[test]
     fn one_literal() {
         let input_content = "123";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Literal {
             content: SpanData {
-                span: Span::from_parts("test", "123", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: "123".to_owned(),
             },
         });
@@ -405,12 +407,13 @@ mod tests {
     #[test]
     fn string_literal() {
         let input_content = "\"123\"";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::StringLiteral {
             content: SpanData {
-                span: Span::from_parts("test", "123", 1..4),
+                span: Span::new_source(source.clone(), 1..4),
                 data: "123".to_owned(),
             },
         });
@@ -423,20 +426,21 @@ mod tests {
     #[test]
     fn add_two_literals() {
         let input_content = "123 + 234";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             left: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "123", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: "123".to_owned(),
                 },
             }),
             operation: ExpressionOperator::Add,
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "234", 6..9),
+                    span: Span::new_source(source.clone(), 6..9),
                     data: "234".to_owned(),
                 },
             }),
@@ -449,21 +453,22 @@ mod tests {
     #[test]
     fn add_three_literals() {
         let input_content = "123 + 234 + 345";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             left: Box::new(Expression::Operation {
                 left: Box::new(Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "123", 0..3),
+                        span: Span::new_source(source.clone(), 0..3),
                         data: "123".to_owned(),
                     },
                 }),
                 operation: ExpressionOperator::Add,
                 right: Box::new(Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "234", 6..9),
+                        span: Span::new_source(source.clone(), 6..9),
                         data: "234".to_owned(),
                     },
                 }),
@@ -471,7 +476,7 @@ mod tests {
             operation: ExpressionOperator::Add,
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "345", 12..15),
+                    span: Span::new_source(source.clone(), 12..15),
                     data: "345".to_owned(),
                 },
             }),
@@ -485,14 +490,15 @@ mod tests {
     #[test]
     fn logical_not() {
         let input_content = "!123";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             operation: SingleOperation::LogicalNot,
             base: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "123", 1..4),
+                    span: Span::new_source(source.clone(), 1..4),
                     data: "123".to_owned(),
                 },
             }),
@@ -505,7 +511,8 @@ mod tests {
     #[test]
     fn logical_not_and_add() {
         let input_content = "!123 + 234";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
@@ -513,7 +520,7 @@ mod tests {
                 operation: SingleOperation::LogicalNot,
                 base: Box::new(Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "123", 1..4),
+                        span: Span::new_source(source.clone(), 1..4),
                         data: "123".to_owned(),
                     },
                 }),
@@ -521,7 +528,7 @@ mod tests {
             operation: ExpressionOperator::Add,
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "234", 7..10),
+                    span: Span::new_source(source.clone(), 7..10),
                     data: "234".to_string(),
                 },
             }),
@@ -535,19 +542,20 @@ mod tests {
     #[test]
     fn array_access() {
         let input_content = "test[0]";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
             operation: SingleOperation::ArrayAccess(Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "0", 5..6),
+                    span: Span::new_source(source.clone(), 5..6),
                     data: "0".to_string(),
                 },
             })),
@@ -562,13 +570,14 @@ mod tests {
     #[test]
     fn empty_function_call() {
         let input_content = "test()";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
@@ -583,19 +592,20 @@ mod tests {
     #[test]
     fn one_arg_function_call() {
         let input_content = "test(0)";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
             operation: SingleOperation::FuntionCall(vec![Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "0", 5..6),
+                    span: Span::new_source(source.clone(), 5..6),
                     data: "0".to_string(),
                 },
             }]),
@@ -609,26 +619,27 @@ mod tests {
     #[test]
     fn two_args_function_call() {
         let input_content = "test(0,1)";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
             operation: SingleOperation::FuntionCall(vec![
                 Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "0", 5..6),
+                        span: Span::new_source(source.clone(), 5..6),
                         data: "0".to_string(),
                     },
                 },
                 Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "1", 7..8),
+                        span: Span::new_source(source.clone(), 7..8),
                         data: "1".to_string(),
                     },
                 },
@@ -644,7 +655,8 @@ mod tests {
     #[test]
     fn array_literal_empty() {
         let input_content = "{}";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::ArrayLiteral { parts: Vec::new() });
@@ -658,26 +670,27 @@ mod tests {
     #[test]
     fn function_call_2_args() {
         let input_content = "test(2, 3)";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
             operation: SingleOperation::FuntionCall(vec![
                 Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "2", 5..6),
+                        span: Span::new_source(source.clone(), 5..6),
                         data: "2".to_string(),
                     },
                 },
                 Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "3", 8..9),
+                        span: Span::new_source(source.clone(), 8..9),
                         data: "3".to_string(),
                     },
                 },
@@ -693,25 +706,26 @@ mod tests {
     #[test]
     fn conditional_simple() {
         let input_content = "1 ? 2 : 3";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Conditional {
             condition: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "1", 0..1),
+                    span: Span::new_source(source.clone(), 0..1),
                     data: "1".to_string(),
                 },
             }),
             first: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "2", 4..5),
+                    span: Span::new_source(source.clone(), 4..5),
                     data: "2".to_string(),
                 },
             }),
             second: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "3", 8..9),
+                    span: Span::new_source(source.clone(), 8..9),
                     data: "3".to_string(),
                 },
             }),
@@ -726,20 +740,21 @@ mod tests {
     #[test]
     fn parens() {
         let input_content = "(1 + 2)";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Expression::Operation {
             operation: ExpressionOperator::Add,
             left: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "1", 1..2),
+                    span: Span::new_source(source.clone(), 1..2),
                     data: "1".to_string(),
                 },
             }),
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "2", 5..6),
+                    span: Span::new_source(source.clone(), 5..6),
                     data: "2".to_string(),
                 },
             }),

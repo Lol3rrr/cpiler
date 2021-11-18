@@ -406,7 +406,7 @@ impl Statement {
 
 #[cfg(test)]
 mod tests {
-    use general::{Span, SpanData};
+    use general::{Source, Span, SpanData};
     use itertools::peek_nth;
     use tokenizer::DataType;
 
@@ -417,16 +417,17 @@ mod tests {
     #[test]
     fn function_definition_no_args() {
         let input_content = "int test() {}";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::FunctionDefinition {
             r_type: TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             }),
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
             arguments: Vec::new(),
@@ -443,25 +444,26 @@ mod tests {
     #[test]
     fn function_definition_one_arg() {
         let input_content = "int test(int x) {}";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::FunctionDefinition {
             r_type: TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             }),
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
             arguments: vec![FunctionArgument {
                 name: Identifier(SpanData {
-                    span: Span::from_parts("test", "x", 13..14),
+                    span: Span::new_source(source.clone(), 13..14),
                     data: "x".to_string(),
                 }),
                 ty: TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 9..12),
+                    span: Span::new_source(source.clone(), 9..12),
                     data: DataType::Int,
                 }),
             }],
@@ -481,33 +483,34 @@ mod tests {
             int first;
             int second;
         }";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::StructDefinition {
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 7..11),
+                span: Span::new_source(source.clone(), 7..11),
                 data: "test".to_string(),
             }),
             members: structs::StructMembers {
                 members: vec![
                     (
                         TypeToken::Primitive(SpanData {
-                            span: Span::from_parts("test", "int", 26..29),
+                            span: Span::new_source(source.clone(), 26..29),
                             data: DataType::Int,
                         }),
                         Identifier(SpanData {
-                            span: Span::from_parts("test", "first", 30..35),
+                            span: Span::new_source(source.clone(), 30..35),
                             data: "first".to_string(),
                         }),
                     ),
                     (
                         TypeToken::Primitive(SpanData {
-                            span: Span::from_parts("test", "int", 49..52),
+                            span: Span::new_source(source.clone(), 49..52),
                             data: DataType::Int,
                         }),
                         Identifier(SpanData {
-                            span: Span::from_parts("test", "second", 53..59),
+                            span: Span::new_source(source.clone(), 53..59),
                             data: "second".to_string(),
                         }),
                     ),
@@ -523,16 +526,17 @@ mod tests {
     #[test]
     fn declare_var_primitive() {
         let input_content = "int test;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclaration {
             ty: TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             }),
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -546,18 +550,19 @@ mod tests {
     #[test]
     fn declare_var_custom_type() {
         let input_content = "Rect test;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclaration {
             ty: TypeToken::TypeDefed {
                 name: Identifier(SpanData {
-                    span: Span::from_parts("test", "Rect", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "Rect".to_string(),
                 }),
             },
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 5..9),
+                span: Span::new_source(source.clone(), 5..9),
                 data: "test".to_string(),
             }),
         });
@@ -569,18 +574,19 @@ mod tests {
     #[test]
     fn declare_var_custom_type_ptr() {
         let input_content = "Rect* test;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclaration {
             ty: TypeToken::Pointer(Box::new(TypeToken::TypeDefed {
                 name: Identifier(SpanData {
-                    span: Span::from_parts("test", "Rect", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "Rect".to_string(),
                 }),
             })),
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 6..10),
+                span: Span::new_source(source.clone(), 6..10),
                 data: "test".to_string(),
             }),
         });
@@ -594,24 +600,25 @@ mod tests {
     #[test]
     fn declare_array_known_size() {
         let input_content = "int test[3];";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclaration {
             ty: TypeToken::ArrayType {
                 base: Box::new(TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 })),
                 size: Some(Box::new(Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "3", 9..10),
+                        span: Span::new_source(source.clone(), 9..10),
                         data: "3".to_string(),
                     },
                 })),
             },
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -623,19 +630,20 @@ mod tests {
     #[test]
     fn declare_array_unknown_size() {
         let input_content = "int test[];";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclaration {
             ty: TypeToken::ArrayType {
                 base: Box::new(TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 })),
                 size: None,
             },
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -648,25 +656,26 @@ mod tests {
     #[test]
     fn declare_array_with_one_value() {
         let input_content = "int test[] = {1};";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclarationAssignment {
             ty: TypeToken::ArrayType {
                 base: Box::new(TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 })),
                 size: None,
             },
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
             value: Expression::ArrayLiteral {
                 parts: vec![Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "1", 14..15),
+                        span: Span::new_source(source.clone(), 14..15),
                         data: "1".to_string(),
                     },
                 }],
@@ -680,32 +689,33 @@ mod tests {
     #[test]
     fn declare_array_with_two_values() {
         let input_content = "int test[] = {1, 2};";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableDeclarationAssignment {
             ty: TypeToken::ArrayType {
                 base: Box::new(TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 })),
                 size: None,
             },
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "test", 4..8),
+                span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
             value: Expression::ArrayLiteral {
                 parts: vec![
                     Expression::Literal {
                         content: SpanData {
-                            span: Span::from_parts("test", "1", 14..15),
+                            span: Span::new_source(source.clone(), 14..15),
                             data: "1".to_string(),
                         },
                     },
                     Expression::Literal {
                         content: SpanData {
-                            span: Span::from_parts("test", "2", 17..18),
+                            span: Span::new_source(source.clone(), 17..18),
                             data: "2".to_string(),
                         },
                     },
@@ -721,17 +731,18 @@ mod tests {
     #[test]
     fn variable_assignment() {
         let input_content = "test = 13;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableAssignment {
             target: AssignTarget::Variable(Identifier(SpanData {
-                span: Span::from_parts("test", "test", 0..4),
+                span: Span::new_source(source.clone(), 0..4),
                 data: "test".to_string(),
             })),
             value: Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "13", 7..9),
+                    span: Span::new_source(source.clone(), 7..9),
                     data: "13".to_string(),
                 },
             },
@@ -744,25 +755,26 @@ mod tests {
     #[test]
     fn variable_array_assignment() {
         let input_content = "test[0] = 13;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::VariableAssignment {
             target: AssignTarget::ArrayAccess {
                 base: Box::new(AssignTarget::Variable(Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }))),
                 index: Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "0", 5..6),
+                        span: Span::new_source(source.clone(), 5..6),
                         data: "0".to_string(),
                     },
                 },
             },
             value: Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "13", 10..12),
+                    span: Span::new_source(source.clone(), 10..12),
                     data: "13".to_string(),
                 },
             },
@@ -776,13 +788,14 @@ mod tests {
     #[test]
     fn funcion_call_noargs() {
         let input_content = "test();";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::SingleExpression(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
@@ -796,19 +809,20 @@ mod tests {
     #[test]
     fn funcion_call_1arg() {
         let input_content = "test(\"literal\");";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::SingleExpression(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::from_parts("test", "test", 0..4),
+                    span: Span::new_source(source.clone(), 0..4),
                     data: "test".to_string(),
                 }),
             }),
             operation: SingleOperation::FuntionCall(vec![Expression::StringLiteral {
                 content: SpanData {
-                    span: Span::from_parts("test", "literal", 6..13),
+                    span: Span::new_source(source.clone(), 6..13),
                     data: "literal".to_string(),
                 },
             }]),
@@ -822,20 +836,21 @@ mod tests {
     #[test]
     fn return_with_paren() {
         let input_content = "return (1 + 2);";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::Return(Some(Expression::Operation {
             operation: ExpressionOperator::Add,
             left: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "1", 8..9),
+                    span: Span::new_source(source.clone(), 8..9),
                     data: "1".to_string(),
                 },
             }),
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::from_parts("test", "2", 12..13),
+                    span: Span::new_source(source.clone(), 12..13),
                     data: "2".to_string(),
                 },
             }),
@@ -849,7 +864,8 @@ mod tests {
     #[test]
     fn return_nothing() {
         let input_content = "return;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::Return(None));

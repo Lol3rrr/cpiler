@@ -1,5 +1,3 @@
-use std::iter::Peekable;
-
 use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};

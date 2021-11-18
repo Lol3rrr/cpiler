@@ -1,29 +1,30 @@
-use general::{Span, SpanData};
+use general::{Source, Span, SpanData};
 use syntax::{Expression, Identifier, Scope, Statement, TypeToken, AST};
 use tokenizer::DataType;
 
 #[test]
 fn simple() {
     let body = "int main() { return 0; }";
-    let body_span = Span::from_parts("test", body, 0..body.len());
+    let source = Source::new("test", body);
+    let body_span: Span = source.clone().into();
     let tokenized = tokenizer::tokenize(body_span);
 
     let expected = AST {
         global_scope: Scope {
             statements: vec![Statement::FunctionDefinition {
                 r_type: TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 }),
                 name: Identifier(SpanData {
-                    span: Span::from_parts("test", "main", 4..8),
+                    span: Span::new_source(source.clone(), 4..8),
                     data: "main".to_string(),
                 }),
                 arguments: vec![],
                 body: Scope {
                     statements: vec![Statement::Return(Some(Expression::Literal {
                         content: SpanData {
-                            span: Span::from_parts("test", "0", 20..21),
+                            span: Span::new_source(source.clone(), 20..21),
                             data: "0".to_string(),
                         },
                     }))],
@@ -32,7 +33,7 @@ fn simple() {
         },
     };
 
-    let result = syntax::parse(tokenized);
+    let result = syntax::parse(tokenized).unwrap();
 
     dbg!(&result);
 

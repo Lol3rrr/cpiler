@@ -1,5 +1,3 @@
-use std::iter::Peekable;
-
 use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
@@ -155,7 +153,7 @@ impl TypeToken {
 
 #[cfg(test)]
 mod tests {
-    use general::Span;
+    use general::{Source, Span};
     use itertools::peek_nth;
 
     use super::*;
@@ -163,11 +161,13 @@ mod tests {
     #[test]
     fn primitive_type() {
         let input_content = "int";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Primitive(SpanData {
-            span: Span::from_parts("test", "int", 0..3),
+            span: Span::new_source(source.clone(), 0..3),
             data: DataType::Int,
         }));
 
@@ -179,12 +179,14 @@ mod tests {
     #[test]
     fn pointer() {
         let input_content = "int*";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Primitive(
             SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             },
         ))));
@@ -197,12 +199,14 @@ mod tests {
     #[test]
     fn nested_pointer() {
         let input_content = "int**";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Pointer(Box::new(
             TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             }),
         )))));
@@ -215,16 +219,18 @@ mod tests {
     #[test]
     fn modified_type() {
         let input_content = "unsigned int";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Composition {
             modifier: Box::new(TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "unsigned", 0..8),
+                span: Span::new_source(source.clone(), 0..8),
                 data: DataType::Unsigned,
             })),
             base: Box::new(TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 9..12),
+                span: Span::new_source(source.clone(), 9..12),
                 data: DataType::Int,
             })),
         });
@@ -237,12 +243,14 @@ mod tests {
     #[test]
     fn simple_struct() {
         let input_content = "struct testing";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::StructType {
             name: Identifier(SpanData {
-                span: Span::from_parts("test", "testing", 7..14),
+                span: Span::new_source(source.clone(), 7..14),
                 data: "testing".to_string(),
             }),
         });
@@ -255,16 +263,18 @@ mod tests {
     #[test]
     fn type_name_combination_primitive() {
         let input_content = "int testing;";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok((
             TypeToken::Primitive(SpanData {
-                span: Span::from_parts("test", "int", 0..3),
+                span: Span::new_source(source.clone(), 0..3),
                 data: DataType::Int,
             }),
             Identifier(SpanData {
-                span: Span::from_parts("test", "testing", 4..11),
+                span: Span::new_source(source.clone(), 4..11),
                 data: "testing".to_string(),
             }),
         ));
@@ -279,24 +289,26 @@ mod tests {
     #[test]
     fn type_name_combination_primitive_array_known_size() {
         let input_content = "int testing[13];";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let source = Source::new("test", input_content);
+
+        let input_span: Span = source.clone().into();
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok((
             TypeToken::ArrayType {
                 base: Box::new(TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 0..3),
+                    span: Span::new_source(source.clone(), 0..3),
                     data: DataType::Int,
                 })),
                 size: Some(Box::new(Expression::Literal {
                     content: SpanData {
-                        span: Span::from_parts("test", "13", 12..14),
+                        span: Span::new_source(source.clone(), 12..14),
                         data: "13".to_string(),
                     },
                 })),
             },
             Identifier(SpanData {
-                span: Span::from_parts("test", "testing", 4..11),
+                span: Span::new_source(source.clone(), 4..11),
                 data: "testing".to_string(),
             }),
         ));

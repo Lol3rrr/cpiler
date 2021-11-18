@@ -1,5 +1,3 @@
-use std::iter::Peekable;
-
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
@@ -59,7 +57,7 @@ impl StructMembers {
 
 #[cfg(test)]
 mod tests {
-    use general::{Span, SpanData};
+    use general::{Source, Span, SpanData};
     use itertools::peek_nth;
     use tokenizer::DataType;
 
@@ -68,7 +66,8 @@ mod tests {
     #[test]
     fn empty_struct_def() {
         let input = "{}";
-        let input_span = Span::from_parts("test", input, 0..input.len());
+        let source = Source::new("test", input);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(StructMembers {
@@ -87,17 +86,18 @@ mod tests {
         {
             int first;
         }";
-        let input_span = Span::from_parts("test", input, 0..input.len());
+        let source = Source::new("test", input);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(StructMembers {
             members: vec![(
                 TypeToken::Primitive(SpanData {
-                    span: Span::from_parts("test", "int", 23..26),
+                    span: Span::new_source(source.clone(), 23..26),
                     data: DataType::Int,
                 }),
                 Identifier(SpanData {
-                    span: Span::from_parts("test", "first", 27..32),
+                    span: Span::new_source(source.clone(), 27..32),
                     data: "first".to_string(),
                 }),
             )],
@@ -116,28 +116,29 @@ mod tests {
             int first;
             int second;
         }";
-        let input_span = Span::from_parts("test", input, 0..input.len());
+        let source = Source::new("test", input);
+        let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(StructMembers {
             members: vec![
                 (
                     TypeToken::Primitive(SpanData {
-                        span: Span::from_parts("test", "int", 23..26),
+                        span: Span::new_source(source.clone(), 23..26),
                         data: DataType::Int,
                     }),
                     Identifier(SpanData {
-                        span: Span::from_parts("test", "first", 27..32),
+                        span: Span::new_source(source.clone(), 27..32),
                         data: "first".to_string(),
                     }),
                 ),
                 (
                     TypeToken::Primitive(SpanData {
-                        span: Span::from_parts("test", "int", 46..49),
+                        span: Span::new_source(source.clone(), 46..49),
                         data: DataType::Int,
                     }),
                     Identifier(SpanData {
-                        span: Span::from_parts("test", "second", 50..56),
+                        span: Span::new_source(source.clone(), 50..56),
                         data: "second".to_string(),
                     }),
                 ),
