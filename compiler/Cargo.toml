@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 preprocessor = { path = "../preprocessor" }
 syntax = { path = "../syntax" }
+
+# For Fancy error messages
+ariadne = "0.1.3"

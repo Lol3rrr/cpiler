@@ -15,7 +15,7 @@ pub use char_iter::CharIndexIter;
 use crate::Source;
 
 /// A Span describes a Part of some overall String, most likely source Code
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Span {
     /// The Source Content (most likely a File)
     source: Arc<Source>,
@@ -82,10 +82,34 @@ impl From<Source> for Span {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Span {{ source: {:?}, source_area: {:?}, content: {:?} }}",
+            self.source(),
+            self.source_area(),
+            self.content()
+        )
+    }
+}
+
+#[derive(PartialEq, Clone)]
 pub struct SpanRef<'a> {
     source: &'a Arc<Source>,
     source_area: Range<usize>,
+}
+
+impl<'a> Debug for SpanRef<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Span {{ source: {:?}, source_area: {:?}, content: {:?} }}",
+            self.source,
+            self.source_area,
+            self.content()
+        )
+    }
 }
 
 impl<'a> SpanRef<'a> {
