@@ -358,11 +358,14 @@ impl TryFrom<ConditionalDirective> for Conditional {
 
 #[cfg(test)]
 mod tests {
+    use general::Source;
+
     use super::*;
 
     #[test]
     fn parse_condition_single() {
-        let in_span = Span::new_source("test", "x < 0");
+        let source = Source::new("test", "x < 0");
+        let in_span: Span = source.into();
 
         let expected = Some(Conditional::BinaryOp {
             left: Box::new(Conditional::Name {

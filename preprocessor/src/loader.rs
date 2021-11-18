@@ -26,7 +26,7 @@ pub trait Loader {
     ) -> Result<Vec<PIR>, Self::LoadError> {
         let span = self.load_file(path)?;
 
-        state.add_included_file(span.source().to_string());
+        state.add_included_file(span.source().name().to_string());
 
         let tokens = tokenizer::tokenize(span);
 
@@ -39,7 +39,7 @@ pub mod files {
 
     use std::{fmt::Display, path::PathBuf};
 
-    use general::Span;
+    use general::{Source, Span};
 
     use crate::Loader;
 
@@ -100,7 +100,8 @@ pub mod files {
                 let content = String::from_utf8(raw_content).unwrap();
 
                 let path_str = path.to_str().unwrap();
-                let res_span = Span::new_source(path_str, content);
+                let res_source = Source::new(path_str, content);
+                let res_span: Span = res_source.into();
 
                 return Ok(res_span);
             }

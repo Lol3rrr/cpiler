@@ -28,6 +28,10 @@ impl Source {
         self.content.get(range)
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn content(&self) -> &str {
         &self.content
     }

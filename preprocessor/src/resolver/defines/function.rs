@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use general::Span;
+use general::Source;
 use tokenizer::{Token, TokenData};
 
 use super::DefineManager;
@@ -216,7 +216,8 @@ where
             tmp
         };
 
-        let new = tokenizer::tokenize(Span::from_parts("preprocessor", &raw_new, 0..raw_new.len()));
+        let source = Source::new("preprocessor", raw_new);
+        let new = tokenizer::tokenize(source.into());
 
         result.extend(new.into_iter().map(|t| MacroToken::Created(t)));
     }

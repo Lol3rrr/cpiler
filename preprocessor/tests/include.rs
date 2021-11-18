@@ -1,78 +1,21 @@
-use general::Span;
+use general::Source;
 use preprocessor::loader::files::FileLoader;
-use tokenizer::{Assignment, ControlFlow, DataType, Keyword, Token, TokenData};
 
 #[test]
 fn simple_include() {
     let loader = FileLoader::new();
 
-    let expected = vec![
-        Token {
-            span: Span::from_parts("./tests/files/other.c", "int", 0..3),
-            data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
-        },
-        Token {
-            span: Span::from_parts("./tests/files/other.c", "test", 4..8),
-            data: TokenData::Literal {
-                content: "test".to_string(),
-            },
-        },
-        Token {
-            span: Span::from_parts("./tests/files/other.c", "=", 9..10),
-            data: TokenData::Assign(Assignment::Assign),
-        },
-        Token {
-            span: Span::from_parts("./tests/files/other.c", "0", 11..12),
-            data: TokenData::Literal {
-                content: "0".to_string(),
-            },
-        },
-        Token {
-            span: Span::from_parts("./tests/files/other.c", ";", 12..13),
-            data: TokenData::Semicolon,
-        },
-        // The Data of the "original File"
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "int", 20..23),
-            data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "main", 24..28),
-            data: TokenData::Literal {
-                content: "main".to_string(),
-            },
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "(", 28..29),
-            data: TokenData::OpenParen,
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", ")", 29..30),
-            data: TokenData::CloseParen,
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "{", 31..32),
-            data: TokenData::OpenBrace,
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "return", 34..40),
-            data: TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Return)),
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "0", 41..42),
-            data: TokenData::Literal {
-                content: "0".to_string(),
-            },
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", ";", 42..43),
-            data: TokenData::Semicolon,
-        },
-        Token {
-            span: Span::from_parts("./tests/files/include.c", "}", 44..45),
-            data: TokenData::CloseBrace,
-        },
-    ];
+    let other_source = Source::new("./tests/files/other.c", include_str!("./files/other.c"));
+    let include_source = Source::new("./tests/files/include.c", include_str!("./files/include.c"));
+
+    let other_tokens = tokenizer::tokenize(other_source.clone().into());
+    let include_tokens = {
+        let mut tmp = tokenizer::tokenize(include_source.clone().into());
+        tmp.next();
+        tmp
+    };
+
+    let expected: Vec<_> = other_tokens.chain(include_tokens).collect();
 
     let result = preprocessor::preprocess(&loader, "./tests/files/include.c").unwrap();
 

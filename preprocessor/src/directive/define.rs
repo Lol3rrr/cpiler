@@ -99,15 +99,18 @@ where
 
 #[cfg(test)]
 mod tests {
+    use general::Source;
+
     use super::*;
 
     #[test]
     fn valid_define_block() {
-        let content = Span::from_parts("tmp", "TEST 0", 0..6);
+        let source = Source::new("tmp", "TEST 0");
+        let content: Span = source.clone().into();
 
         let expected = Ok(DefineDirective::Block {
             name: "TEST".to_string(),
-            body: Span::from_parts("tmp", "0", 5..6),
+            body: Span::new_source(source.clone(), 5..6),
         });
 
         let result = parse_define(&content);
@@ -117,12 +120,13 @@ mod tests {
 
     #[test]
     fn valid_define_function_0args() {
-        let content = Span::from_parts("tmp", "TEST() (13)", 0..11);
+        let source = Source::new("tmp", "TEST() (13)");
+        let content: Span = source.clone().into();
 
         let expected = Ok(DefineDirective::Function {
             name: "TEST".to_string(),
             arguments: Vec::new(),
-            body: Span::from_parts("tmp", "(13)", 7..11),
+            body: Span::new_source(source.clone(), 7..11),
         });
 
         let result = parse_define(&content);
@@ -132,11 +136,12 @@ mod tests {
 
     #[test]
     fn valid_empty_define() {
-        let content = Span::from_parts("tmp", "TEST", 0..4);
+        let source = Source::new("tmp", "TEST");
+        let content: Span = source.clone().into();
 
         let expected = Ok(DefineDirective::Block {
             name: "TEST".to_string(),
-            body: Span::from_parts("tmp", "", 4..4),
+            body: Span::new_source(source.clone(), 4..4),
         });
 
         let result = parse_define(&content);

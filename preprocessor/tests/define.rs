@@ -1,4 +1,4 @@
-use general::Span;
+use general::{Source, Span};
 use preprocessor::loader::files::FileLoader;
 use tokenizer::{Token, TokenData};
 
@@ -8,17 +8,17 @@ fn nested_defines() {
 
     let loader = FileLoader::new();
 
+    let define_source = Source::new(define_file, include_str!("./files/define.c"));
+
     let expected = vec![
         Token {
-            span: Span::from_parts(define_file, "HI THERE", 48..56),
+            span: Span::new_source(define_source.clone(), 48..56),
             data: TokenData::StringLiteral {
                 content: "HI THERE".to_owned(),
             },
         },
         Token {
-            span: Span::from_parts(
-                define_file,
-                " \"HI THERE\", because concatenation occurs before normal expansion",
+            span: Span::new_source(define_source.clone(),
                 151..216,
             ),
             data: TokenData::Comment {
@@ -27,25 +27,25 @@ fn nested_defines() {
             },
         },
         Token {
-            span: Span::from_parts("preprocessor", "HI_THERE", 0..8),
+            span: Span::new_source(Source::new("preprocessor", "HI_THERE"), 0..8),
             data: TokenData::Literal {
                 content: "HI_THERE".to_owned(),
             },
         },
         Token {
-            span: Span::from_parts(define_file, " HI_THERE, because the tokens originating from parameters (\"HE\" and \"LLO\") are expanded first", 233..326),
+            span: Span::new_source(define_source.clone(), 233..326),
             data: TokenData::Comment {
                 content: " HI_THERE, because the tokens originating from parameters (\"HE\" and \"LLO\") are expanded first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(define_file, "HI THERE", 48..56),
+            span: Span::new_source(define_source.clone(), 48..56),
             data: TokenData::StringLiteral {
                 content: "HI THERE".to_owned(),
             },
         },
         Token {
-            span: Span::from_parts(define_file, " \"HI THERE\", because parameters are expanded first", 339..389),
+            span: Span::new_source(define_source.clone(), 339..389),
             data: TokenData::Comment {
                 content: " \"HI THERE\", because parameters are expanded first".to_owned(),
             },

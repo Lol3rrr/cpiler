@@ -1,4 +1,4 @@
-use general::Span;
+use general::{Source, Span};
 use preprocessor::loader::files::FileLoader;
 use tokenizer::{DataType, Keyword, Token, TokenData};
 
@@ -7,19 +7,24 @@ fn ifdef_conditional() {
     let file_name = "./tests/files/conditional_compilation/ifdef.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/ifdef.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 26..29),
+            span: Span::new_source(source.clone(), 26..29),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "first", 30..35),
+            span: Span::new_source(source.clone(), 30..35),
             data: TokenData::Literal {
                 content: "first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 35..36),
+            span: Span::new_source(source.clone(), 35..36),
             data: TokenData::Semicolon,
         },
     ];
@@ -34,19 +39,24 @@ fn ifndef_conditional() {
     let file_name = "./tests/files/conditional_compilation/ifndef.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/ifndef.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 12..15),
+            span: Span::new_source(source.clone(), 12..15),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "first", 16..21),
+            span: Span::new_source(source.clone(), 16..21),
             data: TokenData::Literal {
                 content: "first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 21..22),
+            span: Span::new_source(source.clone(), 21..22),
             data: TokenData::Semicolon,
         },
     ];
@@ -61,19 +71,24 @@ fn nested_ifdefs() {
     let file_name = "./tests/files/conditional_compilation/nested_ifdefs.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/nested_ifdefs.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 55..58),
+            span: Span::new_source(source.clone(), 55..58),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "first", 59..64),
+            span: Span::new_source(source.clone(), 59..64),
             data: TokenData::Literal {
                 content: "first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 64..65),
+            span: Span::new_source(source.clone(), 64..65),
             data: TokenData::Semicolon,
         },
     ];
@@ -88,19 +103,24 @@ fn defined_condition() {
     let file_name = "./tests/files/conditional_compilation/defined_condition.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/defined_condition.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 48..51),
+            span: Span::new_source(source.clone(), 48..51),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "first", 52..57),
+            span: Span::new_source(source.clone(), 52..57),
             data: TokenData::Literal {
                 content: "first".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 57..58),
+            span: Span::new_source(source.clone(), 57..58),
             data: TokenData::Semicolon,
         },
     ];
@@ -115,19 +135,24 @@ fn condition_else() {
     let file_name = "./tests/files/conditional_compilation/condition_else.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/condition_else.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 27..30),
+            span: Span::new_source(source.clone(), 27..30),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "second", 31..37),
+            span: Span::new_source(source.clone(), 31..37),
             data: TokenData::Literal {
                 content: "second".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 37..38),
+            span: Span::new_source(source.clone(), 37..38),
             data: TokenData::Semicolon,
         },
     ];
@@ -142,19 +167,24 @@ fn condition_ifelse_true() {
     let file_name = "./tests/files/conditional_compilation/condition_else_if_true.c";
     let loader = FileLoader::new();
 
+    let source = Source::new(
+        file_name,
+        include_str!("./files/conditional_compilation/condition_else_if_true.c"),
+    );
+
     let expected = vec![
         Token {
-            span: Span::from_parts(file_name, "int", 34..37),
+            span: Span::new_source(source.clone(), 34..37),
             data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
         },
         Token {
-            span: Span::from_parts(file_name, "second", 38..44),
+            span: Span::new_source(source.clone(), 38..44),
             data: TokenData::Literal {
                 content: "second".to_string(),
             },
         },
         Token {
-            span: Span::from_parts(file_name, ";", 44..45),
+            span: Span::new_source(source.clone(), 44..45),
             data: TokenData::Semicolon,
         },
     ];

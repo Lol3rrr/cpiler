@@ -45,7 +45,8 @@ where
                 match dir {
                     Directive::Include { path, local } => {
                         let local_root = if local {
-                            let mut local_root = PathBuf::from_str(span.span.source()).unwrap();
+                            let mut local_root =
+                                PathBuf::from_str(span.span.source().name()).unwrap();
                             local_root.pop();
                             Some(local_root)
                         } else {

@@ -170,11 +170,14 @@ impl Directive {
 
 #[cfg(test)]
 mod tests {
+    use general::Source;
+
     use super::*;
 
     #[test]
     fn unknown_directive() {
-        let body = Span::from_parts("tmp", "random other", 0..12);
+        let source = Source::new("tmp", "random other");
+        let body: Span = source.into();
 
         let expected = Err(ParseDirectiveError::UnknownDirective {
             raw: "random".to_string(),
@@ -187,8 +190,8 @@ mod tests {
 
     #[test]
     fn local_include() {
-        let body_content = "include \"testing\"";
-        let body = Span::from_parts("tmp", body_content, 0..body_content.len());
+        let source = Source::new("tmp", "include \"testing\"");
+        let body: Span = source.into();
 
         let expected = Ok(Directive::Include {
             local: true,
@@ -202,8 +205,8 @@ mod tests {
 
     #[test]
     fn non_local_include() {
-        let body_content = "include <testing>";
-        let body = Span::from_parts("tmp", body_content, 0..body_content.len());
+        let source = Source::new("tmp", "include <testing>");
+        let body: Span = source.into();
 
         let expected = Ok(Directive::Include {
             local: false,
@@ -217,12 +220,12 @@ mod tests {
 
     #[test]
     fn define_block() {
-        let body_content = "define TMP 123";
-        let body = Span::from_parts("tmp", body_content, 0..body_content.len());
+        let source = Source::new("tmp", "define TMP 123");
+        let body: Span = source.clone().into();
 
         let expected = Ok(Directive::DefineBlock {
             name: "TMP".to_string(),
-            body: Span::from_parts("tmp", "123", 11..14),
+            body: Span::new_source(source, 11..14),
         });
 
         let result = Directive::parse((&body).into());
@@ -232,13 +235,13 @@ mod tests {
 
     #[test]
     fn define_function() {
-        let body_content = "define TMP(x) (x * 10)";
-        let body = Span::from_parts("tmp", body_content, 0..body_content.len());
+        let source = Source::new("tmp", "define TMP(x) (x * 10)");
+        let body: Span = source.clone().into();
 
         let expected = Ok(Directive::DefineFunction {
             name: "TMP".to_string(),
             arguments: vec!["x".to_string()],
-            body: Span::from_parts("tmp", "(x * 10)", 14..22),
+            body: Span::new_source(source, 14..22),
         });
 
         let result = Directive::parse((&body).into());
@@ -248,8 +251,8 @@ mod tests {
 
     #[test]
     fn simple_undef() {
-        let body_content = "undef TMP";
-        let body = Span::from_parts("tmp", body_content, 0..body_content.len());
+        let source = Source::new("tmp", "undef TMP");
+        let body: Span = source.into();
 
         let expected = Ok(Directive::Undefine {
             name: "TMP".to_string(),

@@ -68,7 +68,7 @@ impl<'i> Iterator for InnerConditionalIterator<'i> {
 
 #[cfg(test)]
 mod tests {
-    use general::{Span, SpanData};
+    use general::{Source, Span, SpanData};
     use tokenizer::{DataType, Keyword, TokenData};
 
     use crate::pir::into_pir;
@@ -84,11 +84,8 @@ int first;
 int second;
 #endif
             ";
-        let input_toks = tokenizer::tokenize(Span::from_parts(
-            "test",
-            input_content,
-            0..input_content.len(),
-        ));
+        let source = Source::new("test", input_content);
+        let input_toks = tokenizer::tokenize(source.clone().into());
         let mut input_pir = into_pir(input_toks).peekable();
 
         // We remove the First Element of it, because that is one of the assumptions we
@@ -105,17 +102,17 @@ int second;
 
         let expected = vec![
             PIR::Token(SpanData {
-                span: Span::from_parts("test", "int", 12..15),
+                span: Span::new_source(source.clone(), 12..15),
                 data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
             }),
             PIR::Token(SpanData {
-                span: Span::from_parts("test", "first", 16..21),
+                span: Span::new_source(source.clone(), 16..21),
                 data: TokenData::Literal {
                     content: "first".to_string(),
                 },
             }),
             PIR::Token(SpanData {
-                span: Span::from_parts("test", ";", 21..22),
+                span: Span::new_source(source.clone(), 21..22),
                 data: TokenData::Semicolon,
             }),
         ];
@@ -141,11 +138,8 @@ int first;
 int second;
 #endif
             ";
-        let input_toks = tokenizer::tokenize(Span::from_parts(
-            "test",
-            input_content,
-            0..input_content.len(),
-        ));
+        let source = Source::new("test", input_content);
+        let input_toks = tokenizer::tokenize(source.clone().into());
         let mut input_pir = into_pir(input_toks).peekable();
 
         // We remove the First Element of it, because that is one of the assumptions we
@@ -163,7 +157,7 @@ int second;
         let expected = vec![
             PIR::Directive((
                 SpanData {
-                    span: Span::from_parts("test", "ifdef OTHER", 13..24),
+                    span: Span::new_source(source.clone(), 13..24),
                     data: TokenData::CompilerDirective {
                         content: "ifdef OTHER".to_string(),
                     },
@@ -173,22 +167,22 @@ int second;
                 }),
             )),
             PIR::Token(SpanData {
-                span: Span::from_parts("test", "int", 25..28),
+                span: Span::new_source(source.clone(), 25..28),
                 data: TokenData::Keyword(Keyword::DataType(DataType::Int)),
             }),
             PIR::Token(SpanData {
-                span: Span::from_parts("test", "first", 29..34),
+                span: Span::new_source(source.clone(), 29..34),
                 data: TokenData::Literal {
                     content: "first".to_string(),
                 },
             }),
             PIR::Token(SpanData {
-                span: Span::from_parts("test", ";", 34..35),
+                span: Span::new_source(source.clone(), 34..35),
                 data: TokenData::Semicolon,
             }),
             PIR::Directive((
                 SpanData {
-                    span: Span::from_parts("test", "endif", 37..42),
+                    span: Span::new_source(source.clone(), 37..42),
                     data: TokenData::CompilerDirective {
                         content: "endif".to_string(),
                     },
