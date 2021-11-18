@@ -259,30 +259,32 @@ impl Iterator for TokenIter {
 
 #[cfg(test)]
 mod tests {
+    use general::Source;
+
     use super::*;
 
     #[test]
     fn macro_concat_sequence() {
-        let input_content = "a##b";
-        let input_span = Span::from_parts("test", input_content, 0..input_content.len());
+        let input_source = Source::new("test", "a##b");
+        let input_span: Span = input_source.clone().into();
 
         let expected = vec![
             Token {
-                span: Span::from_parts("test", "a", 0..1),
+                span: Span::new_source(input_source.clone(), 0..1),
                 data: TokenData::Literal {
                     content: "a".to_string(),
                 },
             },
             Token {
-                span: Span::from_parts("test", "#", 1..2),
+                span: Span::new_source(input_source.clone(), 1..2),
                 data: TokenData::Hashtag,
             },
             Token {
-                span: Span::from_parts("test", "#", 2..3),
+                span: Span::new_source(input_source.clone(), 2..3),
                 data: TokenData::Hashtag,
             },
             Token {
-                span: Span::from_parts("test", "b", 3..4),
+                span: Span::new_source(input_source.clone(), 3..4),
                 data: TokenData::Literal {
                     content: "b".to_string(),
                 },
