@@ -102,7 +102,7 @@ where
             let next_tok = tokens.next().unwrap();
             match &next_tok.data {
                 TokenData::OpenBrace => {
-                    let inner_scope = Scope::parse(tokens);
+                    let inner_scope = Scope::parse(tokens)?;
 
                     Ok(Statement::FunctionDefinition {
                         name,

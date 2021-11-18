@@ -72,7 +72,13 @@ impl AssignTarget {
     /// Converts the Target to an Expression that can be used to "load" this Target, which
     /// is mainly used when handling assignments with operators like "+="
     pub fn to_exp(&self) -> Expression {
-        todo!()
+        dbg!(&self);
+        match self {
+            Self::Variable(ident) => Expression::Identifier {
+                ident: ident.to_owned(),
+            },
+            other => todo!("{:?}", other),
+        }
     }
 }
 

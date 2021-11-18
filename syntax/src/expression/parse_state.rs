@@ -1,3 +1,4 @@
+use general::SpanData;
 use tokenizer::{Operator, TokenData};
 
 use crate::{Expression, ExpressionOperator, SingleOperation};
@@ -121,9 +122,10 @@ impl RpnOp {
                 RpnOp::SingleOp(SingleOperation::Negative)
             }
             (Operator::Sub, _) => RpnOp::Expression(ExpressionOperator::Sub),
-            (Operator::Decrement, _) => {
-                todo!("Handle decrement");
+            (Operator::Decrement, Some(TokenData::Literal { .. })) => {
+                RpnOp::SingleOp(SingleOperation::SuffixDecrement)
             }
+            (Operator::Decrement, _) => RpnOp::SingleOp(SingleOperation::PrefixDecrement),
             (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
             (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
             (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),
@@ -142,9 +144,7 @@ impl RpnOp {
             (Operator::Greater, _) => RpnOp::Expression(ExpressionOperator::Greater),
             (Operator::GreaterEqual, _) => RpnOp::Expression(ExpressionOperator::GreaterEqual),
             (Operator::LessEqual, _) => RpnOp::Expression(ExpressionOperator::LessEqual),
-            (Operator::Arrow, _) => {
-                todo!("Handle Arrow");
-            }
+            (Operator::Arrow, _) => RpnOp::ConnectionOp(ConnectionOp::Arrow),
             (Operator::Dot, _) => RpnOp::ConnectionOp(ConnectionOp::Dot),
         }
     }
@@ -268,16 +268,66 @@ impl ParseState {
                             let right = final_stack.pop().unwrap();
                             let left = final_stack.pop().unwrap();
 
-                            dbg!(&left, &right, &con_op);
+                            let result = match (right, con_op) {
+                                (Expression::Identifier { ident }, _) => Expression::StructAccess {
+                                    base: Box::new(left),
+                                    field: ident,
+                                },
+                                (right, ConnectionOp::Dot) => match (left, right) {
+                                    (
+                                        Expression::Literal {
+                                            content: left_content,
+                                        },
+                                        Expression::Literal {
+                                            content: right_content,
+                                        },
+                                    ) => {
+                                        let left_str = &left_content.data;
+                                        if left_str.chars().find(|c| !c.is_digit(10)).is_some() {
+                                            todo!("Left side is not a number");
+                                        }
 
-                            let field_ident = match right {
-                                Expression::Identifier { ident } => ident,
+                                        let right_span = {
+                                            let tmp = &right_content.data;
+                                            if tmp.ends_with('f') {
+                                                right_content
+                                                    .span
+                                                    .sub_span(0..tmp.len() - 1)
+                                                    .unwrap()
+                                            } else if tmp.ends_with('d') {
+                                                right_content
+                                                    .span
+                                                    .sub_span(0..tmp.len() - 1)
+                                                    .unwrap()
+                                            } else {
+                                                right_content.span.sub_span(0..tmp.len()).unwrap()
+                                            }
+                                        };
+
+                                        if right_span
+                                            .content()
+                                            .chars()
+                                            .find(|c| !c.is_digit(10))
+                                            .is_some()
+                                        {
+                                            todo!("Right side is not a number");
+                                        }
+
+                                        let combined_span =
+                                            left_content.span.join(right_span.into(), ".");
+
+                                        Expression::Literal {
+                                            content: SpanData {
+                                                data: combined_span.content().to_owned(),
+                                                span: combined_span,
+                                            },
+                                        }
+                                    }
+                                    (left, right) => {
+                                        panic!("Unexpected Dot Combination: {:?}.{:?}", left, right)
+                                    }
+                                },
                                 other => panic!("Expected Identifier but got: {:?}", other),
-                            };
-
-                            let result = Expression::StructAccess {
-                                base: Box::new(left),
-                                field: field_ident,
                             };
 
                             final_stack.push(result);

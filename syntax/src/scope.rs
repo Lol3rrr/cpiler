@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
-use crate::Statement;
+use crate::{Statement, SyntaxError};
 
 #[derive(Debug, PartialEq)]
 pub struct Scope {
@@ -11,7 +11,7 @@ pub struct Scope {
 impl Scope {
     /// Assumes that the Opening Curly Brace is not in the Iterator anymore.
     /// Will consume the Closing Curly Brace
-    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Self
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {
@@ -26,13 +26,13 @@ impl Scope {
                 _ => {}
             };
 
-            let statement = Statement::parse(tokens, &Statement::default_terminaton()).unwrap();
+            let statement = Statement::parse(tokens, &Statement::default_terminaton())?;
 
             dbg!(&statement);
 
             statements.push(statement);
         }
 
-        Self { statements }
+        Ok(Self { statements })
     }
 }

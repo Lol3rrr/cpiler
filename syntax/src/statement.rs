@@ -219,18 +219,37 @@ impl Statement {
                     }
                 };
 
-                let inner_scope = Scope::parse(tokens);
+                let inner_scope = Scope::parse(tokens)?;
 
                 dbg!(&condition_exp, &inner_scope);
 
                 let mut elses = Vec::new();
                 while let Some(peeked) = tokens.peek() {
                     match &peeked.data {
-                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Else)) => {
-                            todo!("Parse Else");
-                        }
+                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Else)) => {}
                         _ => break,
                     };
+
+                    // Consume the Else Token
+                    let _ = tokens.next();
+
+                    let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    match next_tok.data {
+                        TokenData::OpenBrace => {
+                            let scope = Scope::parse(tokens)?;
+
+                            elses.push((None, scope));
+                        }
+                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::If)) => {
+                            todo!("Conditional Else");
+                        }
+                        _ => {
+                            return Err(SyntaxError::UnexpectedToken {
+                                expected: Some(vec!["{".to_string(), "if".to_string()]),
+                                got: next_tok.span,
+                            })
+                        }
+                    }
                 }
 
                 Ok(Statement::If {
@@ -277,7 +296,7 @@ impl Statement {
                     }
                 };
 
-                let inner_scope = Scope::parse(tokens);
+                let inner_scope = Scope::parse(tokens)?;
 
                 Ok(Self::WhileLoop {
                     condition: condition_exp,
@@ -369,7 +388,7 @@ impl Statement {
                     }
                 };
 
-                let inner_scope = Scope::parse(tokens);
+                let inner_scope = Scope::parse(tokens)?;
 
                 Ok(Self::ForLoop {
                     setup: vec![init_statement],

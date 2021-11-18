@@ -39,7 +39,7 @@ pub struct AST {
     pub global_scope: Scope,
 }
 
-pub fn parse<I, IT>(tokens: I) -> AST
+pub fn parse<I, IT>(tokens: I) -> Result<AST, SyntaxError>
 where
     I: IntoIterator<Item = Token, IntoIter = IT>,
     IT: Iterator<Item = Token>,
@@ -49,7 +49,7 @@ where
         _ => true,
     }));
 
-    let global_scope = Scope::parse(&mut tokens);
+    let global_scope = Scope::parse(&mut tokens)?;
 
-    AST { global_scope }
+    Ok(AST { global_scope })
 }

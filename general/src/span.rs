@@ -1,4 +1,8 @@
-use std::ops::Range;
+use std::{
+    fmt::{Debug, Display},
+    ops::Range,
+    sync::Arc,
+};
 
 // TODO
 // Potentially switch the source String to an Arc<String> and then whenever
@@ -8,48 +12,30 @@ use std::ops::Range;
 mod char_iter;
 pub use char_iter::CharIndexIter;
 
+use crate::Source;
+
 /// A Span describes a Part of some overall String, most likely source Code
 #[derive(Debug, PartialEq, Clone)]
 pub struct Span {
-    source: String,
+    /// The Source Content (most likely a File)
+    source: Arc<Source>,
+    /// The Area in the Source which corresponds to the Content of this File
     source_area: Range<usize>,
-    content: String,
 }
 
 impl Span {
-    pub fn new_source<S, C>(source: S, content: C) -> Self
-    where
-        S: Into<String>,
-        C: Into<String>,
-    {
-        let source = source.into();
-        let content = content.into();
-
+    pub fn new_source(source: Source, range: Range<usize>) -> Self {
         Self {
-            source,
-            source_area: 0..content.len(),
-            content,
-        }
-    }
-
-    pub fn from_parts<S, C>(source: S, content: C, range: Range<usize>) -> Self
-    where
-        S: Into<String>,
-        C: Into<String>,
-    {
-        Self {
-            source: source.into(),
+            source: Arc::new(source),
             source_area: range,
-            content: content.into(),
         }
     }
 
     pub fn sub_span<'out>(&'out self, range: Range<usize>) -> Option<SpanRef<'out>> {
-        if range.start > self.content.len() || range.end > self.content.len() {
+        let length = self.source_area.len();
+        if range.start > length || range.end > length {
             return None;
         }
-
-        let sub_content = &self.content[range.clone()];
 
         let source_start = self.source_area.start;
         let sub_area = source_start + range.start..source_start + range.end;
@@ -57,15 +43,29 @@ impl Span {
         Some(SpanRef {
             source: &self.source,
             source_area: sub_area,
-            content: sub_content,
         })
     }
 
     pub fn content(&'_ self) -> &'_ str {
-        &self.content
+        self.source.sub_content(self.source_area.clone()).expect("")
     }
-    pub fn source(&self) -> &str {
+    pub fn source(&self) -> &Source {
         &self.source
+    }
+    pub fn source_area(&self) -> &Range<usize> {
+        &self.source_area
+    }
+
+    pub fn join<C>(self, other: Self, combinator: C) -> Self
+    where
+        C: Display,
+    {
+        let n_range = self.source_area.start..other.source_area.end;
+
+        Self {
+            source: self.source,
+            source_area: n_range,
+        }
     }
 }
 
@@ -74,25 +74,30 @@ impl AsRef<str> for Span {
         self.content()
     }
 }
+impl From<Source> for Span {
+    fn from(source: Source) -> Self {
+        let source_range = 0..source.content().len();
+
+        Self::new_source(source, source_range)
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SpanRef<'a> {
-    source: &'a str,
+    source: &'a Arc<Source>,
     source_area: Range<usize>,
-    content: &'a str,
 }
 
 impl<'a> SpanRef<'a> {
     pub fn content(&self) -> &str {
-        self.content
+        self.source.sub_content(self.source_area.clone()).expect("")
     }
 
     pub fn sub_span<'out>(&'out self, range: Range<usize>) -> Option<SpanRef<'out>> {
-        if range.start > self.content.len() || range.end > self.content.len() {
+        let length = self.source_area.len();
+        if range.start > length || range.end > length {
             return None;
         }
-
-        let sub_content = &self.content[range.clone()];
 
         let source_start = self.source_area.start;
         let sub_area = source_start + range.start..source_start + range.end;
@@ -100,7 +105,6 @@ impl<'a> SpanRef<'a> {
         Some(SpanRef {
             source: &self.source,
             source_area: sub_area,
-            content: sub_content,
         })
     }
 }
@@ -110,7 +114,6 @@ impl<'s> Into<Span> for SpanRef<'s> {
         Span {
             source: self.source.to_owned(),
             source_area: self.source_area,
-            content: self.content.to_owned(),
         }
     }
 }
@@ -119,7 +122,6 @@ impl<'s> Into<Span> for &SpanRef<'s> {
         Span {
             source: self.source.to_owned(),
             source_area: self.source_area.clone(),
-            content: self.content.to_owned(),
         }
     }
 }
@@ -129,8 +131,7 @@ where
 {
     fn from(source: &'o Span) -> Self {
         Self {
-            source: source.source(),
-            content: source.content(),
+            source: &source.source,
             source_area: source.source_area.clone(),
         }
     }
@@ -148,11 +149,13 @@ mod tests {
 
     #[test]
     fn valid_subspan_beginning() {
-        let source_span = Span::new_source("testing", "abcdefghijklmonpqrstuvw");
+        let source = Source::new("testing", "abcdefghijklmonpqrstuvw");
+        let arced_source = Arc::new(source.clone());
+
+        let source_span: Span = source.into();
         let expected_sub = Some(SpanRef {
-            source: "testing",
+            source: &arced_source,
             source_area: 0..6,
-            content: "abcdef",
         });
 
         let result = source_span.sub_span(0..6);
@@ -162,11 +165,13 @@ mod tests {
 
     #[test]
     fn valid_subspan_middle() {
-        let source_span = Span::new_source("testing", "abcdefghijklmonpqrstuvw");
+        let source = Source::new("testing", "abcdefghijklmonpqrstuvw");
+        let arced_source = Arc::new(source.clone());
+
+        let source_span: Span = source.into();
         let expected_sub = Some(SpanRef {
-            source: "testing",
+            source: &arced_source,
             source_area: 3..6,
-            content: "def",
         });
 
         let result = source_span.sub_span(3..6);
@@ -176,20 +181,22 @@ mod tests {
 
     #[test]
     fn invalid_subspan_end_outofbounds() {
-        let source_span = Span::new_source("testing", "abcdefghijklmonpqrstuvw");
+        let source = Source::new("testing", "abcdefghijklmonpqrstuvw");
+        let source_span: Span = source.into();
         let expected_sub = None;
 
-        let result = source_span.sub_span(0..source_span.content.len() + 4);
+        let result = source_span.sub_span(0..source_span.content().len() + 4);
 
         assert_eq!(expected_sub, result);
     }
     #[test]
     fn invalid_subspan_start_outofbounds() {
-        let source_span = Span::new_source("testing", "abcdefghijklmonpqrstuvw");
+        let source = Source::new("testing", "abcdefghijklmonpqrstuvw");
+        let source_span: Span = source.into();
         let expected_sub = None;
 
         let result =
-            source_span.sub_span(source_span.content.len() + 2..source_span.content.len() + 4);
+            source_span.sub_span(source_span.content().len() + 2..source_span.content().len() + 4);
 
         assert_eq!(expected_sub, result);
     }
