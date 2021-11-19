@@ -187,6 +187,25 @@ impl Iterator for TokenIter {
                     result = Some(token);
                     break;
                 }
+                ('\'', Environment::Code) => {
+                    self.state.move_start(index + 1);
+                    self.state.switch_env(Environment::CharLiteral);
+                }
+                ('\'', Environment::CharLiteral) => {
+                    let sub_span = self.state.current_sub(&self.span, index).unwrap();
+
+                    self.state.move_start(index + 1);
+                    self.state.switch_env(Environment::Code);
+
+                    let content = sub_span.content().to_owned();
+                    let token = Token {
+                        span: sub_span.into(),
+                        data: TokenData::CharLiteral { content },
+                    };
+
+                    result = Some(token);
+                    break;
+                }
                 ('\n', Environment::SLComment) => {
                     let sub_span = self.state.current_sub(&self.span, index).unwrap();
                     let content = sub_span.content().to_owned();

@@ -35,6 +35,9 @@ pub enum TokenData {
     StringLiteral {
         content: String,
     },
+    CharLiteral {
+        content: String,
+    },
     CompilerDirective {
         content: String,
     },
@@ -60,6 +63,7 @@ impl Display for TokenData {
             Self::Operator(op) => write!(f, "{}", op),
             Self::Literal { content } => write!(f, "{}", content),
             Self::StringLiteral { content } => write!(f, "\"{}\"", content),
+            Self::CharLiteral { content } => write!(f, "'{}'", content),
             Self::CompilerDirective { content } => write!(f, "#{}", content),
         }
     }

@@ -17,35 +17,8 @@ fn main() {
         Ok(_) => {
             println!("Compiled Program");
         }
-        Err(e) => match e {
-            Error::Preprocessor(pe) => {
-                dbg!(pe);
-            }
-            Error::Syntax(se) => {
-                dbg!(&se);
-                match se {
-                    SyntaxError::UnexpectedEOF => {
-                        dbg!("EOF");
-                    }
-                    SyntaxError::UnexpectedToken { got, expected } => {
-                        let content = got.source().content();
-                        let content_area = got.source_area();
-
-                        Report::build(ReportKind::Error, (), 0)
-                            .with_message("Unexpected Token")
-                            .with_label(
-                                Label::new(content_area.clone()).with_message("This was given"),
-                            )
-                            .with_label(
-                                Label::new(content_area.clone())
-                                    .with_message(format!("Expected {:?}", expected)),
-                            )
-                            .finish()
-                            .print(Source::from(content))
-                            .unwrap();
-                    }
-                }
-            }
-        },
+        Err(e) => {
+            e.display();
+        }
     };
 }

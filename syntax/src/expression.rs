@@ -23,6 +23,9 @@ pub enum Expression {
     StringLiteral {
         content: SpanData<String>,
     },
+    CharLiteral {
+        content: SpanData<char>,
+    },
     ArrayLiteral {
         parts: Vec<Expression>,
     },
@@ -141,6 +144,22 @@ impl Expression {
                     data: content,
                 },
             }),
+            TokenData::CharLiteral { content } => {
+                let mut chars = content.chars();
+                let first_char = chars.next().ok_or(SyntaxError::UnexpectedEOF)?;
+
+                match chars.next() {
+                    Some(_) => return Err(SyntaxError::UnexpectedEOF),
+                    _ => {}
+                };
+
+                Ok(Self::CharLiteral {
+                    content: SpanData {
+                        span: current.span,
+                        data: first_char,
+                    },
+                })
+            }
             _ => Err(SyntaxError::UnexpectedToken {
                 expected: None,
                 got: current.span,
@@ -248,20 +267,95 @@ impl Expression {
                             state.add_single_op(SingleOperation::FuntionCall(params));
                         }
                         _ => {
-                            let exp = Self::parse(tokens)?;
+                            let following_tok = {
+                                let mut current_pos = 0;
+                                let mut level = 0;
+                                while let Some(tmp) = tokens.peek_nth(current_pos) {
+                                    match &tmp.data {
+                                        TokenData::CloseParen if level == 0 => break,
+                                        TokenData::OpenParen => {
+                                            level += 1;
+                                        }
+                                        TokenData::CloseParen => {
+                                            level -= 1;
+                                        }
+                                        _ => {}
+                                    };
 
-                            let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                            match closing_token.data {
-                                TokenData::CloseParen => {}
-                                _ => {
-                                    return Err(SyntaxError::UnexpectedToken {
-                                        expected: Some(vec![")".to_string()]),
-                                        got: closing_token.span,
-                                    })
+                                    current_pos += 1;
                                 }
+
+                                let following_index = current_pos + 1;
+                                tokens.peek_nth(following_index)
                             };
 
-                            state.add_expression(exp);
+                            match &following_tok {
+                                Some(tok) => {
+                                    match &tok.data {
+                                        TokenData::Operator(_)
+                                        | TokenData::Semicolon
+                                        | TokenData::Comma
+                                        | TokenData::CloseParen => {
+                                            let exp = Self::parse(tokens)?;
+
+                                            let closing_token =
+                                                tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                            match closing_token.data {
+                                                TokenData::CloseParen => {}
+                                                _ => {
+                                                    return Err(SyntaxError::UnexpectedToken {
+                                                        expected: Some(vec![")".to_string()]),
+                                                        got: closing_token.span,
+                                                    })
+                                                }
+                                            };
+
+                                            state.add_expression(exp);
+                                        }
+                                        _ => {
+                                            let target_ty = TypeToken::parse(tokens)?;
+
+                                            let close_paren_token =
+                                                tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                            match close_paren_token.data {
+                                                TokenData::CloseParen => {}
+                                                _ => {
+                                                    return Err(SyntaxError::UnexpectedToken {
+                                                        got: close_paren_token.span,
+                                                        expected: Some(vec![")".to_string()]),
+                                                    })
+                                                }
+                                            };
+
+                                            let exp = Self::parse(tokens)?;
+
+                                            let cast_exp = Self::Cast {
+                                                target_ty,
+                                                exp: Box::new(exp),
+                                            };
+
+                                            state.add_expression(cast_exp);
+                                        }
+                                    };
+                                }
+                                None => {
+                                    let exp = Self::parse(tokens)?;
+
+                                    let closing_token =
+                                        tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                    match closing_token.data {
+                                        TokenData::CloseParen => {}
+                                        _ => {
+                                            return Err(SyntaxError::UnexpectedToken {
+                                                expected: Some(vec![")".to_string()]),
+                                                got: closing_token.span,
+                                            })
+                                        }
+                                    };
+
+                                    state.add_expression(exp);
+                                }
+                            };
                         }
                     };
                 }

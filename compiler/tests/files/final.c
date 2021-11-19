@@ -345,7 +345,7 @@ void addRemoveCourse() {
 		if (studentsCourses == 4) {
 			printf("The student already has 4 courses \n");
 			
-			input[0] == 10;
+			//input[0] == 10;
 			
 			return;
 		}
@@ -434,7 +434,7 @@ void addRemoveCourse() {
 		if (!isValid) {
 			printf("The student does not have a course with the given ID \n");
 
-			input[0] == 10;
+			//input[0] == 10;
 
 			return;
 		}

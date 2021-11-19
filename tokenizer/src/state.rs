@@ -18,6 +18,8 @@ pub enum Environment {
     CompilerDirective,
     /// The String Literal Context
     StringLiteral,
+    /// The Char Literal Context
+    CharLiteral,
 }
 
 impl TokenizeState {

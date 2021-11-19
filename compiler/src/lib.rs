@@ -1,10 +1,7 @@
 use preprocessor::Loader;
 
-#[derive(Debug)]
-pub enum Error<P> {
-    Preprocessor(preprocessor::ProcessError<P>),
-    Syntax(syntax::SyntaxError),
-}
+mod error;
+pub use error::Error;
 
 pub fn run<L>(source_file: &str, loader: L) -> Result<(), Error<L::LoadError>>
 where
