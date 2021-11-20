@@ -2,7 +2,7 @@ use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
-use crate::{Expression, Identifier, SyntaxError};
+use crate::{ExpectedToken, Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeToken {
@@ -69,7 +69,7 @@ impl TypeToken {
             }
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
-                    expected: Some(vec!["Identifier".to_string()]),
+                    expected: Some(vec![ExpectedToken::Identifier]),
                     got: next_tok.span,
                 })
             }

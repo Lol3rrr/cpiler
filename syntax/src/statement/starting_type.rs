@@ -2,9 +2,11 @@ use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{Assignment, Token, TokenData};
 
-use crate::{Expression, FunctionArgument, Identifier, Scope, Statement, SyntaxError, TypeToken};
-
 use super::structs;
+use crate::{
+    ExpectedToken, Expression, ExpressionReason, FunctionArgument, Identifier, Scope, Statement,
+    SyntaxError, TypeToken,
+};
 
 /// This gets called if we want to parse a new Statement and notice that it started with a
 /// Type, meaning it can only be either a variable or function declaration/definition
@@ -90,7 +92,7 @@ where
                     }),
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["Identifier".to_string()]),
+                            expected: Some(vec![ExpectedToken::Identifier]),
                             got: name_token.span,
                         })
                     }
@@ -127,9 +129,15 @@ where
                 }
             };
 
-            let _ = tokens.next();
+            let tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
 
-            let exp = Expression::parse(tokens)?;
+            let exp = Expression::parse(tokens).map_err(|e| match e {
+                SyntaxError::UnexpectedEOF => SyntaxError::ExpectedExpression {
+                    span: tok.span,
+                    reason: ExpressionReason::Assignment,
+                },
+                other => other,
+            })?;
 
             let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
             is_termination(next_tok)?;

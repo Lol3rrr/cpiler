@@ -1,7 +1,10 @@
 use itertools::PeekNth;
 use tokenizer::{ControlFlow, DataType, Keyword, Token, TokenData};
 
-use crate::{expression::Expression, FunctionArgument, Identifier, Scope, SyntaxError, TypeToken};
+use crate::{
+    expression::Expression, ExpectedToken, FunctionArgument, Identifier, Scope, SyntaxError,
+    TypeToken,
+};
 
 mod assign_target;
 pub use assign_target::AssignTarget;
@@ -89,7 +92,7 @@ impl Statement {
         |token: Token| match token.data {
             TokenData::Semicolon => Ok(()),
             _ => Err(SyntaxError::UnexpectedToken {
-                expected: Some(vec![";".to_string()]),
+                expected: Some(vec![ExpectedToken::Semicolon]),
                 got: token.span,
             }),
         }
@@ -189,7 +192,7 @@ impl Statement {
                     TokenData::OpenParen => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["(".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenParen]),
                             got: open_paren_token.span,
                         })
                     }
@@ -202,7 +205,7 @@ impl Statement {
                     TokenData::CloseParen => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec![")".to_string()]),
+                            expected: Some(vec![ExpectedToken::CloseParen]),
                             got: close_paren_token.span,
                         })
                     }
@@ -213,7 +216,7 @@ impl Statement {
                     TokenData::OpenBrace => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["{".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenBrace]),
                             got: open_brace_token.span,
                         })
                     }
@@ -245,7 +248,7 @@ impl Statement {
                         }
                         _ => {
                             return Err(SyntaxError::UnexpectedToken {
-                                expected: Some(vec!["{".to_string(), "if".to_string()]),
+                                expected: Some(vec![ExpectedToken::OpenBrace, ExpectedToken::If]),
                                 got: next_tok.span,
                             })
                         }
@@ -266,7 +269,7 @@ impl Statement {
                     TokenData::OpenParen => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["(".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenParen]),
                             got: open_paren_token.span,
                         })
                     }
@@ -279,7 +282,7 @@ impl Statement {
                     TokenData::CloseParen => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec![")".to_string()]),
+                            expected: Some(vec![ExpectedToken::CloseParen]),
                             got: close_paren_token.span,
                         })
                     }
@@ -290,7 +293,7 @@ impl Statement {
                     TokenData::OpenBrace => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["{".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenBrace]),
                             got: open_brace_token.span,
                         })
                     }
@@ -311,7 +314,7 @@ impl Statement {
                     TokenData::Semicolon => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec![";".to_string()]),
+                            expected: Some(vec![ExpectedToken::Semicolon]),
                             got: semi_colon_token.span,
                         })
                     }
@@ -327,7 +330,7 @@ impl Statement {
                     TokenData::Semicolon => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec![";".to_string()]),
+                            expected: Some(vec![ExpectedToken::Semicolon]),
                             got: semi_colon_token.span,
                         })
                     }
@@ -343,7 +346,7 @@ impl Statement {
                     TokenData::OpenParen => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["(".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenParen]),
                             got: open_paren_token.span,
                         })
                     }
@@ -358,7 +361,7 @@ impl Statement {
                     TokenData::Semicolon => {}
                     _ => {
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec![";".to_string()]),
+                            expected: Some(vec![ExpectedToken::Semicolon]),
                             got: semi_colon_token.span,
                         })
                     }
@@ -367,7 +370,7 @@ impl Statement {
                 let post_statement_termination = |token: Token| match token.data {
                     TokenData::CloseParen => Ok(()),
                     _ => Err(SyntaxError::UnexpectedToken {
-                        expected: Some(vec![")".to_string()]),
+                        expected: Some(vec![ExpectedToken::OpenParen]),
                         got: token.span,
                     }),
                 };
@@ -382,7 +385,7 @@ impl Statement {
                     _ => {
                         let tmp = tokens.next().unwrap();
                         return Err(SyntaxError::UnexpectedToken {
-                            expected: Some(vec!["{".to_string()]),
+                            expected: Some(vec![ExpectedToken::OpenBrace]),
                             got: tmp.span,
                         });
                     }
@@ -410,7 +413,7 @@ mod tests {
     use itertools::peek_nth;
     use tokenizer::DataType;
 
-    use crate::{ExpressionOperator, SingleOperation};
+    use crate::{ExpressionOperator, ExpressionReason, SingleOperation};
 
     use super::*;
 

@@ -106,7 +106,6 @@ where
             }
         };
     }
-    dbg!(&result);
 
     result.into_iter()
 }

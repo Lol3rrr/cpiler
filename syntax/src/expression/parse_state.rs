@@ -1,7 +1,7 @@
-use general::SpanData;
+use general::{Span, SpanData};
 use tokenizer::{Operator, TokenData};
 
-use crate::{Expression, ExpressionOperator, SingleOperation};
+use crate::{Expression, ExpressionOperator, ExpressionReason, SingleOperation, SyntaxError};
 
 #[derive(Debug)]
 enum Assosication {
@@ -153,12 +153,12 @@ impl RpnOp {
 #[derive(Debug)]
 enum RPN {
     Expression(Expression),
-    Operation(RpnOp),
+    Operation(RpnOp, Span),
 }
 
 pub struct ParseState {
     output: Vec<RPN>,
-    op_stack: Vec<RpnOp>,
+    op_stack: Vec<(RpnOp, Span)>,
     last_token_data: Option<TokenData>,
 }
 
@@ -175,25 +175,25 @@ impl ParseState {
         self.output.push(RPN::Expression(exp));
     }
 
-    fn add_op(&mut self, op: RpnOp) {
+    fn add_op(&mut self, op: RpnOp, span: Span) {
         let new_prec = op.precedence();
         let new_assoc = op.assosication();
 
         loop {
             match self.op_stack.last() {
-                Some(latest) => {
+                Some((latest, _)) => {
                     let latest_prec = latest.precedence();
 
                     if new_prec < latest_prec {
-                        let popped = self.op_stack.pop().unwrap();
-                        self.output.push(RPN::Operation(popped));
+                        let (popped, p_span) = self.op_stack.pop().unwrap();
+                        self.output.push(RPN::Operation(popped, p_span));
                         continue;
                     }
 
                     if new_prec == latest_prec {
                         if let Assosication::Left = new_assoc {
-                            let popped = self.op_stack.pop().unwrap();
-                            self.output.push(RPN::Operation(popped));
+                            let (popped, p_span) = self.op_stack.pop().unwrap();
+                            self.output.push(RPN::Operation(popped, p_span));
                             continue;
                         }
                     }
@@ -204,22 +204,22 @@ impl ParseState {
             break;
         }
 
-        self.op_stack.push(op);
+        self.op_stack.push((op, span));
     }
 
-    pub fn add_operator(&mut self, op: &Operator) {
+    pub fn add_operator(&mut self, op: &Operator, span: Span) {
         let last_token_data = self.last_token_data.clone();
 
         let exp_op = RpnOp::from_op(op, last_token_data);
-        self.add_op(exp_op);
+        self.add_op(exp_op, span);
     }
 
-    pub fn add_single_op(&mut self, op: SingleOperation) {
-        self.add_op(RpnOp::SingleOp(op));
+    pub fn add_single_op(&mut self, op: SingleOperation, span: Span) {
+        self.add_op(RpnOp::SingleOp(op), span);
     }
 
-    pub fn add_conditional(&mut self) {
-        self.add_op(RpnOp::Conditional);
+    pub fn add_conditional(&mut self, span: Span) {
+        self.add_op(RpnOp::Conditional, span);
     }
 
     pub fn get_cloned_last_token_data(&self) -> Option<TokenData> {
@@ -229,9 +229,9 @@ impl ParseState {
         self.last_token_data = Some(data);
     }
 
-    pub fn finalize(mut self) -> Option<Expression> {
-        while let Some(op) = self.op_stack.pop() {
-            self.output.push(RPN::Operation(op));
+    pub fn finalize(mut self) -> Result<Expression, SyntaxError> {
+        while let Some((op, span)) = self.op_stack.pop() {
+            self.output.push(RPN::Operation(op, span));
         }
 
         let mut final_stack: Vec<Expression> = Vec::new();
@@ -240,10 +240,15 @@ impl ParseState {
                 RPN::Expression(exp) => {
                     final_stack.push(exp);
                 }
-                RPN::Operation(op) => {
+                RPN::Operation(op, span) => {
                     match op {
                         RpnOp::SingleOp(op) => {
-                            let base = final_stack.pop().unwrap();
+                            let base = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
 
                             let result = Expression::SingleOperation {
                                 operation: op,
@@ -253,8 +258,18 @@ impl ParseState {
                             final_stack.push(result);
                         }
                         RpnOp::Expression(op) => {
-                            let right = final_stack.pop().unwrap();
-                            let left = final_stack.pop().unwrap();
+                            let right = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
+                            let left = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
 
                             let result = Expression::Operation {
                                 left: Box::new(left),
@@ -350,6 +365,6 @@ impl ParseState {
             };
         }
 
-        final_stack.pop()
+        final_stack.pop().ok_or(SyntaxError::UnexpectedEOF)
     }
 }

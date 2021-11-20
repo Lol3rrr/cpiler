@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
-use crate::{Identifier, SyntaxError, TypeToken};
+use crate::{ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 #[derive(Debug, PartialEq)]
 pub struct StructMembers {
@@ -18,7 +18,7 @@ impl StructMembers {
             TokenData::OpenBrace => {}
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
-                    expected: Some(vec!["{".to_string()]),
+                    expected: Some(vec![ExpectedToken::OpenBrace]),
                     got: opening_token.span,
                 })
             }
@@ -42,7 +42,7 @@ impl StructMembers {
                 TokenData::Semicolon => {}
                 _ => {
                     return Err(SyntaxError::UnexpectedToken {
-                        expected: Some(vec![";".to_string()]),
+                        expected: Some(vec![ExpectedToken::Semicolon]),
                         got: semicolon_tok.span,
                     })
                 }

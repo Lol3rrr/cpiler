@@ -31,6 +31,13 @@ impl Span {
         }
     }
 
+    pub fn new_arc_source(source: Arc<Source>, range: Range<usize>) -> Self {
+        Self {
+            source,
+            source_area: range,
+        }
+    }
+
     pub fn sub_span<'out>(&'out self, range: Range<usize>) -> Option<SpanRef<'out>> {
         let length = self.source_area.len();
         if range.start > length || range.end > length {
@@ -49,7 +56,7 @@ impl Span {
     pub fn content(&'_ self) -> &'_ str {
         self.source.sub_content(self.source_area.clone()).expect("")
     }
-    pub fn source(&self) -> &Source {
+    pub fn source(&self) -> &Arc<Source> {
         &self.source
     }
     pub fn source_area(&self) -> &Range<usize> {

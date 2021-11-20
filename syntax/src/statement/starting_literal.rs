@@ -1,7 +1,10 @@
 use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
-use crate::{statement::AssignTarget, Expression, ExpressionOperator, Statement, SyntaxError};
+use crate::{
+    statement::AssignTarget, Expression, ExpressionOperator, ExpressionReason, Statement,
+    SyntaxError,
+};
 
 use super::starting_type;
 
@@ -84,9 +87,6 @@ where
         contains
     };
 
-    dbg!(&literal_count);
-    dbg!(&contains_assign);
-
     match (literal_count, contains_assign) {
         (1, false) => StatementType::Expression,
         (1, true) => StatementType::Assignment,
@@ -103,8 +103,6 @@ where
 {
     let stat_type = get_stat_type(tokens);
 
-    dbg!(&stat_type);
-
     match stat_type {
         StatementType::Assignment => {
             let target = AssignTarget::parse(tokens)?;
@@ -115,7 +113,13 @@ where
                 _ => panic!("Expected '=' but got '{:?}'", next_token),
             };
 
-            let base_exp = Expression::parse(tokens)?;
+            let base_exp = Expression::parse(tokens).map_err(|e| match e {
+                SyntaxError::UnexpectedEOF => SyntaxError::ExpectedExpression {
+                    span: next_token.span,
+                    reason: ExpressionReason::Assignment,
+                },
+                other => other,
+            })?;
 
             let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
             is_termination(next_token)?;

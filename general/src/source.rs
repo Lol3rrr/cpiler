@@ -1,4 +1,6 @@
-use std::{fmt::Debug, ops::Range};
+use std::{fmt::Debug, ops::Range, sync::Arc};
+
+use crate::Span;
 
 #[derive(PartialEq, Clone)]
 pub struct Source {

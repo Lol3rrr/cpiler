@@ -2,7 +2,7 @@ use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
-use crate::SyntaxError;
+use crate::{ExpectedToken, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier(pub SpanData<String>);
@@ -22,7 +22,7 @@ impl Identifier {
             }
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
-                    expected: Some(vec!["Identifier".to_string()]),
+                    expected: Some(vec![ExpectedToken::Identifier]),
                     got: token.span,
                 })
             }

@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
-use crate::{Expression, Identifier, SyntaxError};
+use crate::{ExpectedToken, Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq)]
 pub enum AssignTarget {
@@ -31,7 +31,7 @@ impl AssignTarget {
                         TokenData::CloseBracket => {}
                         _ => {
                             return Err(SyntaxError::UnexpectedToken {
-                                expected: Some(vec!["]".to_string()]),
+                                expected: Some(vec![ExpectedToken::CloseBracket]),
                                 got: close_token.span,
                             })
                         }

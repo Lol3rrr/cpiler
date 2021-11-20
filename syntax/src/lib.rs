@@ -17,14 +17,8 @@ pub use identifier::Identifier;
 mod ty;
 pub use ty::TypeToken;
 
-#[derive(Debug, PartialEq)]
-pub enum SyntaxError {
-    UnexpectedToken {
-        expected: Option<Vec<String>>,
-        got: Span,
-    },
-    UnexpectedEOF,
-}
+mod error;
+pub use error::*;
 
 #[derive(Debug, PartialEq)]
 pub struct FunctionArgument {

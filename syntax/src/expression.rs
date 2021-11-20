@@ -2,11 +2,13 @@
 // * https://www.tutorialspoint.com/cprogramming/c_operators_precedence.htm
 // * https://en.cppreference.com/w/c/language/operator_precedence
 
-use general::SpanData;
+use std::sync::Arc;
+
+use general::{Source, Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Assignment, Operator, Token, TokenData};
 
-use crate::{Identifier, SyntaxError, TypeToken};
+use crate::{ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 mod parse_state;
 
@@ -148,6 +150,19 @@ impl Expression {
                 let mut chars = content.chars();
                 let first_char = chars.next().ok_or(SyntaxError::UnexpectedEOF)?;
 
+                let value = match first_char {
+                    '\\' => {
+                        let next = chars.next().ok_or(SyntaxError::UnexpectedEOF)?;
+
+                        match next {
+                            '0' => '\0',
+                            'n' => '\n',
+                            other => panic!("Unexpected Escape Sequence: {:?}", other),
+                        }
+                    }
+                    other => other,
+                };
+
                 match chars.next() {
                     Some(_) => return Err(SyntaxError::UnexpectedEOF),
                     _ => {}
@@ -156,7 +171,7 @@ impl Expression {
                 Ok(Self::CharLiteral {
                     content: SpanData {
                         span: current.span,
-                        data: first_char,
+                        data: value,
                     },
                 })
             }
@@ -223,35 +238,47 @@ impl Expression {
             let current = tokens.next().unwrap();
             let new_last_data = current.data.clone();
 
-            match &current.data {
-                TokenData::Literal { .. } => {
+            match (&current.data, state.get_cloned_last_token_data()) {
+                (TokenData::Literal { .. }, Some(TokenData::Operator(_)))
+                | (TokenData::Literal { .. }, None) => {
                     let entry = Self::parse_single_token(current)?;
 
                     state.add_expression(entry);
                 }
-                TokenData::StringLiteral { .. } => {
+                (TokenData::Literal { .. }, _) => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        got: current.span,
+                        expected: Some(vec![ExpectedToken::Identifier, ExpectedToken::Semicolon]),
+                    });
+                }
+                (TokenData::StringLiteral { .. }, _) => {
                     let entry = Self::parse_single_token(current)?;
 
                     state.add_expression(entry);
                 }
-                TokenData::Operator(op) => {
+                (TokenData::CharLiteral { .. }, _) => {
+                    let entry = Self::parse_single_token(current)?;
+
+                    state.add_expression(entry);
+                }
+                (TokenData::Operator(op), _) => {
                     match op {
                         Operator::BitwiseAnd => {
                             match state.get_cloned_last_token_data() {
                                 Some(TokenData::Operator(_)) | None => {
-                                    state.add_single_op(SingleOperation::AddressOf);
+                                    state.add_single_op(SingleOperation::AddressOf, current.span);
                                 }
                                 _ => {
-                                    state.add_operator(&Operator::BitwiseAnd);
+                                    state.add_operator(&Operator::BitwiseAnd, current.span);
                                 }
                             };
                         }
                         other => {
-                            state.add_operator(other);
+                            state.add_operator(other, current.span);
                         }
                     };
                 }
-                TokenData::OpenParen => {
+                (TokenData::OpenParen, _) => {
                     match state.get_cloned_last_token_data() {
                         Some(TokenData::Literal { .. }) => {
                             dbg!("Got Function Call");
@@ -264,7 +291,14 @@ impl Expression {
                                 other => panic!("Expected ')' but got '{:?}'", other),
                             };
 
-                            state.add_single_op(SingleOperation::FuntionCall(params));
+                            let start_range = current.span.source_area().start;
+                            let end_range = closing_token.span.source_area().end;
+                            let n_range = start_range..end_range;
+
+                            let source = current.span.source();
+                            let span = Span::new_arc_source(source.clone(), n_range);
+
+                            state.add_single_op(SingleOperation::FuntionCall(params), span);
                         }
                         _ => {
                             let following_tok = {
@@ -304,7 +338,9 @@ impl Expression {
                                                 TokenData::CloseParen => {}
                                                 _ => {
                                                     return Err(SyntaxError::UnexpectedToken {
-                                                        expected: Some(vec![")".to_string()]),
+                                                        expected: Some(vec![
+                                                            ExpectedToken::CloseParen,
+                                                        ]),
                                                         got: closing_token.span,
                                                     })
                                                 }
@@ -322,7 +358,9 @@ impl Expression {
                                                 _ => {
                                                     return Err(SyntaxError::UnexpectedToken {
                                                         got: close_paren_token.span,
-                                                        expected: Some(vec![")".to_string()]),
+                                                        expected: Some(vec![
+                                                            ExpectedToken::CloseParen,
+                                                        ]),
                                                     })
                                                 }
                                             };
@@ -347,7 +385,7 @@ impl Expression {
                                         TokenData::CloseParen => {}
                                         _ => {
                                             return Err(SyntaxError::UnexpectedToken {
-                                                expected: Some(vec![")".to_string()]),
+                                                expected: Some(vec![ExpectedToken::CloseParen]),
                                                 got: closing_token.span,
                                             })
                                         }
@@ -359,7 +397,7 @@ impl Expression {
                         }
                     };
                 }
-                TokenData::OpenBracket => {
+                (TokenData::OpenBracket, _) => {
                     let exp = Self::parse(tokens)?;
 
                     let ending_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
@@ -368,9 +406,16 @@ impl Expression {
                         other => panic!("Expected ']' but got '{:?}'", other),
                     };
 
-                    state.add_single_op(SingleOperation::ArrayAccess(Box::new(exp)));
+                    let start = current.span.source_area().start;
+                    let end = ending_token.span.source_area().end;
+                    let n_range = start..end;
+
+                    let source: Arc<Source> = current.span.source().clone();
+                    let span = Span::new_arc_source(source, n_range);
+
+                    state.add_single_op(SingleOperation::ArrayAccess(Box::new(exp)), span);
                 }
-                TokenData::OpenBrace => {
+                (TokenData::OpenBrace, _) => {
                     let mut items = Vec::new();
                     while let Ok(exp) = Expression::parse(tokens) {
                         items.push(exp);
@@ -385,7 +430,10 @@ impl Expression {
                             _ => {
                                 let tmp = tokens.next().unwrap();
                                 return Err(SyntaxError::UnexpectedToken {
-                                    expected: Some(vec![",".to_string(), "}".to_string()]),
+                                    expected: Some(vec![
+                                        ExpectedToken::Comma,
+                                        ExpectedToken::CloseBrace,
+                                    ]),
                                     got: tmp.span,
                                 });
                             }
@@ -397,7 +445,7 @@ impl Expression {
                         TokenData::CloseBrace => {}
                         _ => {
                             return Err(SyntaxError::UnexpectedToken {
-                                expected: Some(vec!["}".to_string()]),
+                                expected: Some(vec![ExpectedToken::CloseBrace]),
                                 got: closing_token.span,
                             })
                         }
@@ -405,7 +453,7 @@ impl Expression {
 
                     state.add_expression(Expression::ArrayLiteral { parts: items });
                 }
-                TokenData::QuestionMark => {
+                (TokenData::QuestionMark, _) => {
                     let first = Self::parse(tokens)?;
                     dbg!(&first);
 
@@ -414,7 +462,7 @@ impl Expression {
                         TokenData::Colon => {}
                         _ => {
                             return Err(SyntaxError::UnexpectedToken {
-                                expected: Some(vec![":".to_string()]),
+                                expected: Some(vec![ExpectedToken::Colon]),
                                 got: seperator_token.span,
                             })
                         }
@@ -423,7 +471,14 @@ impl Expression {
                     let second = Self::parse(tokens)?;
                     dbg!(&second);
 
-                    state.add_conditional();
+                    let start = current.span.source_area().start;
+                    let end = start;
+                    let n_range = start..end;
+
+                    let source: Arc<Source> = current.span.source().clone();
+                    let span = Span::new_arc_source(source, n_range);
+
+                    state.add_conditional(span);
                     state.add_expression(first);
                     state.add_expression(second);
                 }
@@ -438,7 +493,7 @@ impl Expression {
             state.set_last_token_data(new_last_data);
         }
 
-        let result = state.finalize().ok_or(SyntaxError::UnexpectedEOF)?;
+        let result = state.finalize()?;
         Ok(result)
     }
 
@@ -463,6 +518,8 @@ mod tests {
     use general::{Source, Span};
     use itertools::peek_nth;
 
+    use crate::ExpressionReason;
+
     use super::*;
 
     #[test]
@@ -473,6 +530,22 @@ mod tests {
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Err(SyntaxError::UnexpectedEOF);
+
+        let result = Expression::parse(&mut input_tokens);
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn add_with_missing_operand() {
+        let input_content = "1 + ";
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Err(SyntaxError::ExpectedExpression {
+            span: Span::new_source(source.clone(), 2..3),
+            reason: ExpressionReason::Operand,
+        });
 
         let result = Expression::parse(&mut input_tokens);
 
@@ -857,6 +930,39 @@ mod tests {
         let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(None, input_tokens.next());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn missing_operand_binary_op() {
+        let input_content = "2 + ";
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Err(SyntaxError::ExpectedExpression {
+            span: Span::new_source(source.clone(), 2..3),
+            reason: ExpressionReason::Operand,
+        });
+
+        let result = Expression::parse(&mut input_tokens);
+
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn missing_operand_unary_op() {
+        let input_content = "!";
+        let source = Source::new("test", input_content);
+        let input_span: Span = source.clone().into();
+        let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
+
+        let expected = Err(SyntaxError::ExpectedExpression {
+            span: Span::new_source(source.clone(), 0..1),
+            reason: ExpressionReason::Operand,
+        });
+
+        let result = Expression::parse(&mut input_tokens);
+
         assert_eq!(expected, result);
     }
 }

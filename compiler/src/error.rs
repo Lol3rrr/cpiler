@@ -28,13 +28,28 @@ where
                         let content_area = got.source_area();
 
                         Report::build(ReportKind::Error, (), 0)
-                            .with_message("Unexpected Token")
+                            .with_message("Syntax Error: Unexpected Token")
                             .with_label(
                                 Label::new(content_area.clone()).with_message("This was given"),
                             )
                             .with_label(
                                 Label::new(content_area.clone())
                                     .with_message(format!("Expected {:?}", expected)),
+                            )
+                            .finish()
+                            .print(Source::from(content))
+                            .unwrap();
+                    }
+                    SyntaxError::ExpectedExpression { span, reason } => {
+                        dbg!(&reason);
+
+                        let content = span.source().content();
+                        let content_area = span.source_area();
+
+                        Report::build(ReportKind::Error, (), 0)
+                            .with_message("Expected Expression")
+                            .with_label(
+                                Label::new(content_area.clone()).with_message("Because of this"),
                             )
                             .finish()
                             .print(Source::from(content))
