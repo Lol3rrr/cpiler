@@ -413,7 +413,7 @@ mod tests {
     use itertools::peek_nth;
     use tokenizer::DataType;
 
-    use crate::{ExpressionOperator, ExpressionReason, SingleOperation};
+    use crate::{ExpressionOperator, SingleOperation};
 
     use super::*;
 

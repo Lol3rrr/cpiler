@@ -2,6 +2,9 @@
 //#include <string.h>
 //#include <stdlib.h>
 
+// Because we dont include these standard Headers we just need to declare these functions
+void printf(char* content);
+
 void addCourses();
 
 void outputMenu();

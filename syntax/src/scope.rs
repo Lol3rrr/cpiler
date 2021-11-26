@@ -28,8 +28,6 @@ impl Scope {
 
             let statement = Statement::parse(tokens, &Statement::default_terminaton())?;
 
-            dbg!(&statement);
-
             statements.push(statement);
         }
 

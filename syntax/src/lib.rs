@@ -1,4 +1,4 @@
-use general::Span;
+use general::SpanData;
 use itertools::peek_nth;
 use tokenizer::{Token, TokenData};
 
@@ -6,7 +6,7 @@ mod scope;
 pub use scope::Scope;
 
 mod statement;
-pub use statement::Statement;
+pub use statement::{AssignTarget, Statement, TypeDefType};
 
 mod expression;
 pub use expression::{Expression, ExpressionOperator, SingleOperation};
@@ -19,6 +19,8 @@ pub use ty::TypeToken;
 
 mod error;
 pub use error::*;
+
+pub use tokenizer::DataType;
 
 #[derive(Debug, PartialEq)]
 pub struct FunctionArgument {

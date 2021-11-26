@@ -17,6 +17,7 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "preprocessor",
+ "semantic",
  "syntax",
 ]
 
@@ -44,6 +45,15 @@ name = "preprocessor"
 version = "0.1.0"
 dependencies = [
  "general",
+ "tokenizer",
+]
+
+[[package]]
+name = "semantic"
+version = "0.1.0"
+dependencies = [
+ "general",
+ "syntax",
  "tokenizer",
 ]
 

@@ -4,7 +4,7 @@ use tokenizer::{Token, TokenData};
 
 use crate::{ExpectedToken, SyntaxError};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Identifier(pub SpanData<String>);
 
 impl Identifier {

@@ -1,5 +1,6 @@
 use std::{
     fmt::{Debug, Display},
+    hash::Hash,
     ops::Range,
     sync::Arc,
 };
@@ -22,6 +23,14 @@ pub struct Span {
     /// The Area in the Source which corresponds to the Content of this File
     source_area: Range<usize>,
 }
+
+impl Hash for Span {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write(self.content().as_bytes());
+    }
+}
+
+impl Eq for Span {}
 
 impl Span {
     pub fn new_source(source: Source, range: Range<usize>) -> Self {

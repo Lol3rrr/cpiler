@@ -55,6 +55,15 @@ impl StructMembers {
     }
 }
 
+impl IntoIterator for StructMembers {
+    type IntoIter = std::vec::IntoIter<(TypeToken, Identifier)>;
+    type Item = (TypeToken, Identifier);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.members.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use general::{Source, Span, SpanData};

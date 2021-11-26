@@ -1,6 +1,6 @@
 use crate::{Span, SpanRef};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct SpanData<D> {
     pub span: Span,
     pub data: D,

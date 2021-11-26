@@ -1,4 +1,4 @@
-use general::SpanData;
+use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 

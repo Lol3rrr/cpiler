@@ -127,6 +127,16 @@ impl TryFrom<Assignment> for ExpressionOperator {
 }
 
 impl Expression {
+    // TODO
+    pub fn entire_span(&self) -> Option<Span> {
+        None
+    }
+
+    // TODO
+    pub fn sub_spans(&self) -> (Option<Span>, Option<Span>) {
+        (None, None)
+    }
+
     fn parse_single_token(current: Token) -> Result<Self, SyntaxError> {
         match current.data {
             TokenData::Literal { content } => {

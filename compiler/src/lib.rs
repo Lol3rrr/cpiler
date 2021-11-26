@@ -12,7 +12,11 @@ where
 
     let basic_ast = syntax::parse(preprocessed).map_err(|e| Error::Syntax(e))?;
 
-    dbg!(basic_ast);
+    dbg!(&basic_ast);
+
+    let aast = semantic::parse(basic_ast).map_err(|e| Error::Semantic(e))?;
+
+    dbg!(aast);
 
     Ok(())
 }
