@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use ariadne::{Label, Report, ReportKind};
+use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportKind};
 use semantic::SemanticError;
 use syntax::SyntaxError;
 
@@ -73,11 +73,16 @@ where
 
                         let sources = SourceCache::from([&name.0.span]);
 
+                        let unknown_c = Color::Red;
+
+                        let identifier_str = format!("{}", name.0.data).fg(unknown_c);
+
                         Report::build(ReportKind::Error, &name.0.span, 0)
-                            .with_message(format!("Unknown Identifier \"{}\" used", name.0.data))
+                            .with_message(format!("Unknown Identifier \"{}\" used", identifier_str))
                             .with_label(
                                 Label::new((&name.0.span, content_area.clone()))
-                                    .with_message("Unknown"),
+                                    .with_message("Unknown Identifier")
+                                    .with_color(unknown_c),
                             )
                             .finish()
                             .print(sources)
@@ -89,19 +94,28 @@ where
                             sources.add_source(&received.span);
                         }
 
+                        let mut color_gen = ColorGenerator::new();
+
+                        let expected_c = color_gen.next();
+                        let received_c = color_gen.next();
+
+                        let expected_str = format!("{:?}", expected.data).fg(expected_c);
+                        let received_str = format!("{:?}", received.data).fg(received_c);
+
                         Report::build(ReportKind::Error, &received.span, 0)
                             .with_message(format!(
-                                "Type mismatch between {:?} and {:?}",
-                                expected.data, received.data
+                                "Type mismatch between {} and {}",
+                                expected_str, received_str
                             ))
                             .with_label(
                                 Label::new((&expected.span, expected.span.source_area().clone()))
-                                    .with_message(format!("Expected {:?}", expected.data)),
+                                    .with_message(format!("Expected {}", expected_str)).with_color(expected_c),
                             )
                             .with_label(
                                 Label::new((&received.span, received.span.source_area().clone()))
-                                    .with_message(format!("Received {:?}", received.data)),
+                                    .with_message(format!("Received {}", received_str)).with_color(received_c),
                             )
+                            .with_note("Consider changing either of the Types, to match, or performing an explicit Cast")
                             .finish()
                             .print(sources)
                             .unwrap();
