@@ -1,8 +1,35 @@
-use general::{Span, SpanData};
+use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
 use crate::{ExpectedToken, Expression, Identifier, SyntaxError};
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Modifier {
+    Const,
+    Signed,
+    Unsigned,
+}
+
+impl Modifier {
+    pub fn is_modifier(token: &TokenData) -> bool {
+        match &token {
+            TokenData::Keyword(Keyword::Const) => true,
+            TokenData::Keyword(Keyword::DataType(DataType::Signed)) => true,
+            TokenData::Keyword(Keyword::DataType(DataType::Unsigned)) => true,
+            _ => false,
+        }
+    }
+
+    pub fn parse(data: TokenData) -> Option<Self> {
+        match data {
+            TokenData::Keyword(Keyword::Const) => Some(Self::Const),
+            TokenData::Keyword(Keyword::DataType(DataType::Signed)) => Some(Self::Signed),
+            TokenData::Keyword(Keyword::DataType(DataType::Unsigned)) => Some(Self::Unsigned),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeToken {
@@ -13,7 +40,7 @@ pub enum TypeToken {
     /// Handles types like "long long" or "unsigned int" and the like
     Composition {
         /// The "Modifier" that should be applied, like "unsigned" or "long"
-        modifier: Box<Self>,
+        modifier: SpanData<Modifier>,
         base: Box<Self>,
     },
     /// Datatypes that have been delcared using typedef
@@ -39,7 +66,7 @@ pub enum TypeToken {
 }
 
 impl TypeToken {
-    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
+    fn parse_ty<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {
@@ -81,19 +108,36 @@ impl TypeToken {
                     let _ = tokens.next();
                     base = Self::Pointer(Box::new(base));
                 }
-                TokenData::Keyword(Keyword::DataType(_)) => {
-                    let mod_base = Self::parse(tokens)?;
-
-                    base = Self::Composition {
-                        modifier: Box::new(base),
-                        base: Box::new(mod_base),
-                    };
-                }
                 _ => return Ok(base),
             };
         }
 
         Ok(base)
+    }
+
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
+    where
+        I: Iterator<Item = Token>,
+    {
+        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+        match &peeked.data {
+            data if Modifier::is_modifier(&data) => {
+                let next = tokens.next().unwrap();
+
+                let modif = Modifier::parse(next.data).unwrap();
+
+                let base = Self::parse_ty(tokens)?;
+
+                Ok(Self::Composition {
+                    base: Box::new(base),
+                    modifier: SpanData {
+                        span: next.span,
+                        data: modif,
+                    },
+                })
+            }
+            _ => Self::parse_ty(tokens),
+        }
     }
 
     /// This should be used to parse combinations of form "type identifier", as
@@ -225,10 +269,10 @@ mod tests {
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Composition {
-            modifier: Box::new(TypeToken::Primitive(SpanData {
+            modifier: SpanData {
                 span: Span::new_source(source.clone(), 0..8),
-                data: DataType::Unsigned,
-            })),
+                data: Modifier::Unsigned,
+            },
             base: Box::new(TypeToken::Primitive(SpanData {
                 span: Span::new_source(source.clone(), 9..12),
                 data: DataType::Int,

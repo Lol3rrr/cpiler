@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
-use ariadne::{sources, Label, Report, ReportKind, Source};
+use ariadne::{Label, Report, ReportKind};
 use semantic::SemanticError;
 use syntax::SyntaxError;
+
+mod cache;
+use cache::*;
 
 #[derive(Debug)]
 pub enum Error<P> {
@@ -26,40 +29,39 @@ where
                         dbg!("EOF");
                     }
                     SyntaxError::UnexpectedToken { got, expected } => {
-                        let content = got.source().content();
                         let content_area = got.source_area();
 
-                        let source_name = got.source().name().to_string();
+                        let sources = SourceCache::from([&got]);
 
-                        let source_list = sources(vec![(source_name.clone(), content.to_string())]);
-
-                        Report::build(ReportKind::Error, source_name.clone(), 0)
+                        Report::build(ReportKind::Error, &got, 0)
                             .with_message("Syntax Error: Unexpected Token")
                             .with_label(
-                                Label::new((source_name.clone(), content_area.clone()))
+                                Label::new((&got, content_area.clone()))
                                     .with_message("This was given"),
                             )
                             .with_label(
-                                Label::new((source_name.clone(), content_area.clone()))
+                                Label::new((&got, content_area.clone()))
                                     .with_message(format!("Expected {:?}", expected)),
                             )
                             .finish()
-                            .print(source_list)
+                            .print(sources)
                             .unwrap();
                     }
                     SyntaxError::ExpectedExpression { span, reason } => {
                         dbg!(&reason);
 
-                        let content = span.source().content();
                         let content_area = span.source_area();
 
-                        Report::build(ReportKind::Error, (), 0)
+                        let sources = SourceCache::from([&span]);
+
+                        Report::build(ReportKind::Error, &span, 0)
                             .with_message("Expected Expression")
                             .with_label(
-                                Label::new(content_area.clone()).with_message("Because of this"),
+                                Label::new((&span, content_area.clone()))
+                                    .with_message("Because of this"),
                             )
                             .finish()
-                            .print(Source::from(content))
+                            .print(sources)
                             .unwrap();
                     }
                 };
@@ -67,62 +69,41 @@ where
             Self::Semantic(se) => {
                 match se {
                     SemanticError::UnknownIdentifier { name } => {
-                        let content = name.0.span.source().content();
                         let content_area = name.0.span.source_area();
 
-                        Report::build(ReportKind::Error, (), 0)
+                        let sources = SourceCache::from([&name.0.span]);
+
+                        Report::build(ReportKind::Error, &name.0.span, 0)
                             .with_message(format!("Unknown Identifier \"{}\" used", name.0.data))
-                            .with_label(Label::new(content_area.clone()).with_message("Unknown"))
+                            .with_label(
+                                Label::new((&name.0.span, content_area.clone()))
+                                    .with_message("Unknown"),
+                            )
                             .finish()
-                            .print(Source::from(content))
+                            .print(sources)
                             .unwrap();
                     }
                     SemanticError::MismatchedTypes { expected, received } => {
-                        let received_span = received.span;
-                        let received_source = received_span.source();
-                        let received_area = received_span.source_area();
+                        let mut sources = SourceCache::from([&expected.span]);
+                        if expected.span.source().name() != received.span.source().name() {
+                            sources.add_source(&received.span);
+                        }
 
-                        let expected_span = expected.span;
-                        let expected_source = expected_span.source();
-                        let expected_area = expected_span.source_area();
-
-                        let print_sources_vec = {
-                            let mut tmp = vec![(
-                                expected_source.name().to_string(),
-                                expected_source.content().to_string(),
-                            )];
-                            if received_source.name() != expected_source.name() {
-                                tmp.push((
-                                    received_source.name().to_string(),
-                                    received_source.content().to_string(),
-                                ));
-                            }
-
-                            tmp
-                        };
-                        let print_sources = sources(print_sources_vec);
-
-                        Report::build(ReportKind::Error, received_source.name().to_string(), 0)
+                        Report::build(ReportKind::Error, &received.span, 0)
                             .with_message(format!(
                                 "Type mismatch between {:?} and {:?}",
                                 expected.data, received.data
                             ))
                             .with_label(
-                                Label::new((
-                                    expected_source.name().to_string(),
-                                    expected_area.clone(),
-                                ))
-                                .with_message(format!("Expected {:?}", expected.data)),
+                                Label::new((&expected.span, expected.span.source_area().clone()))
+                                    .with_message(format!("Expected {:?}", expected.data)),
                             )
                             .with_label(
-                                Label::new((
-                                    received_source.name().to_string(),
-                                    received_area.clone(),
-                                ))
-                                .with_message(format!("Received {:?}", received.data)),
+                                Label::new((&received.span, received.span.source_area().clone()))
+                                    .with_message(format!("Received {:?}", received.data)),
                             )
                             .finish()
-                            .print(print_sources)
+                            .print(sources)
                             .unwrap();
                     }
                     SemanticError::Redefinition {

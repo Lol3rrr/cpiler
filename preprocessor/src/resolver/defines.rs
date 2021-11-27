@@ -1,5 +1,6 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::{collections::HashMap, iter::Peekable, ops::Range, sync::Arc};
 
+use general::{Source, Span, SpanData};
 use tokenizer::TokenData;
 
 use crate::pir::PIR;
@@ -60,6 +61,7 @@ impl DefineManager {
 }
 
 pub fn expand<I>(
+    tok: (&Arc<Source>, &Range<usize>),
     tok_iter: &mut Peekable<I>,
     defined: &RegisteredDefine,
     macros: &DefineManager,
@@ -68,7 +70,18 @@ where
     I: Iterator<Item = PIR>,
 {
     match defined {
-        RegisteredDefine::Block { content } => Some(content.clone()),
+        RegisteredDefine::Block { content } => {
+            let iter = content.clone().into_iter().map(|t| {
+                let n_span = Span::new_arc_source_og(tok.0.clone(), tok.1.clone(), t.span);
+
+                SpanData {
+                    span: n_span,
+                    data: t.data,
+                }
+            });
+
+            Some(iter.collect())
+        }
         RegisteredDefine::Function { arguments, content } => {
             match tok_iter.peek() {
                 Some(PIR::Token(tok)) if matches!(&tok.data, TokenData::OpenParen) => {}
@@ -79,8 +92,6 @@ where
                 Some(a) => a,
                 None => panic!("Expected Args"),
             };
-
-            dbg!(&called_args);
 
             if called_args.len() != arguments.len() {
                 panic!(
@@ -96,7 +107,7 @@ where
                 .zip(called_args.into_iter())
                 .collect();
 
-            let expanded = function::expand_function_macro(macros, arg_map, &content);
+            let expanded = function::expand_function_macro(tok, macros, arg_map, &content);
 
             Some(expanded)
         }

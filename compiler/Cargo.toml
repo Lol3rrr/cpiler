@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+general = { path = "../general" }
 preprocessor = { path = "../preprocessor" }
 syntax = { path = "../syntax" }
 semantic = { path = "../semantic" }

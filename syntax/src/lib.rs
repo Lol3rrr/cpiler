@@ -1,4 +1,3 @@
-use general::SpanData;
 use itertools::peek_nth;
 use tokenizer::{Token, TokenData};
 
@@ -15,7 +14,7 @@ mod identifier;
 pub use identifier::Identifier;
 
 mod ty;
-pub use ty::TypeToken;
+pub use ty::{Modifier, TypeToken};
 
 mod error;
 pub use error::*;

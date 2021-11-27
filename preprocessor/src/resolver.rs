@@ -27,7 +27,12 @@ where
                             .get_defined(&content)
                             .expect("We previously checked that this Key is defined");
 
-                        match defines::expand(&mut new_iter, &m_def, &state.defines) {
+                        match defines::expand(
+                            (tok.span.source(), tok.span.source_area()),
+                            &mut new_iter,
+                            &m_def,
+                            &state.defines,
+                        ) {
                             Some(replacements) => {
                                 result.extend(replacements.into_iter().map(|t| PIR::Token(t)));
                             }

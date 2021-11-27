@@ -23,7 +23,7 @@ fn simple_char() {
             data: TokenData::Assign(Assignment::Assign),
         },
         Token {
-            span: Span::new_source(source.clone(), 13..14),
+            span: Span::new_source(source.clone(), 12..15),
             data: TokenData::CharLiteral {
                 content: "c".to_string(),
             },

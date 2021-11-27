@@ -10,6 +10,16 @@ pub enum AExpression {
         ident: Identifier,
         ty: AType,
     },
+    ArrayAccess {
+        base: Box<Self>,
+        index: Box<Self>,
+        ty: AType,
+    },
+    StructAccess {
+        base: Box<Self>,
+        field: Identifier,
+        ty: AType,
+    },
     FunctionCall {
         name: Identifier,
         arguments: Vec<AExpression>,
@@ -86,6 +96,41 @@ impl AExpression {
                     ty: var_type.clone(),
                 })
             }
+            Expression::StructAccess { base, field } => {
+                dbg!(&base, &field);
+
+                let base_exp = AExpression::parse(*base, vars)?;
+                dbg!(&base_exp);
+
+                let base_ty = base_exp.result_type();
+                dbg!(&base_ty);
+
+                let struct_def = match base_ty {
+                    AType::AnonStruct(def) => def,
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Expected Struct");
+                    }
+                };
+                dbg!(&struct_def);
+
+                let (field_ty, _) = match struct_def.find_member(&field) {
+                    Some(f) => (f.data, f.span),
+                    None => {
+                        dbg!(&field);
+
+                        todo!("Unknown Field on Struct");
+                    }
+                };
+                dbg!(&field_ty);
+
+                Ok(Self::StructAccess {
+                    base: Box::new(base_exp),
+                    field,
+                    ty: field_ty,
+                })
+            }
             Expression::SingleOperation {
                 base,
                 operation: SingleOperation::FuntionCall(raw_args),
@@ -127,13 +172,10 @@ impl AExpression {
                 }
 
                 let mut arg_iter = arg_types.iter().zip(args.iter());
-                let found = arg_iter.find(|(exp, recv)| *exp != &recv.result_type());
+                let found = arg_iter.find(|(exp, recv)| &exp.data != &recv.result_type());
                 if let Some((expected, received)) = found {
                     return Err(SemanticError::MismatchedTypes {
-                        expected: SpanData {
-                            span: f_span.clone(),
-                            data: expected.clone(),
-                        },
+                        expected: expected.clone(),
                         received: SpanData {
                             span: received.entire_span(),
                             data: received.result_type(),
@@ -147,6 +189,31 @@ impl AExpression {
                     name,
                     arguments: args,
                     result_ty: r_type.clone(),
+                })
+            }
+            Expression::SingleOperation {
+                base,
+                operation: SingleOperation::ArrayAccess(index),
+            } => {
+                let base_exp = Self::parse(*base, vars)?;
+
+                let base_ty = base_exp.result_type();
+
+                let elem_ty = match base_ty {
+                    AType::Array(arr) => arr.ty,
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Expected Array");
+                    }
+                };
+
+                let a_index = AExpression::parse(*index, vars)?;
+
+                Ok(Self::ArrayAccess {
+                    base: Box::new(base_exp),
+                    index: Box::new(a_index),
+                    ty: *elem_ty,
                 })
             }
             Expression::SingleOperation { base, operation } => {
@@ -183,6 +250,8 @@ impl AExpression {
                 }
             },
             Self::Variable { ty, .. } => ty.clone(),
+            Self::ArrayAccess { ty, .. } => ty.clone(),
+            Self::StructAccess { ty, .. } => ty.clone(),
             Self::FunctionCall { result_ty, .. } => result_ty.clone(),
         }
     }
@@ -194,6 +263,8 @@ impl AExpression {
                 Literal::StringLiteral(SpanData { span, .. }) => span.clone(),
             },
             Self::Variable { ident, .. } => ident.0.span.clone(),
+            Self::ArrayAccess { base, .. } => base.entire_span(),
+            Self::StructAccess { field, .. } => field.0.span.clone(),
             Self::FunctionCall { name, .. } => name.0.span.clone(),
         }
     }

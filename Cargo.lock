@@ -16,6 +16,7 @@ name = "compiler"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "general",
  "preprocessor",
  "semantic",
  "syntax",

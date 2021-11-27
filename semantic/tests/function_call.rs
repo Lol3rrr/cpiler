@@ -52,7 +52,7 @@ void other() {
 
     let expected = Err(SemanticError::MismatchedTypes {
         expected: SpanData {
-            span: Span::new_source(input_source.clone(), 6..13),
+            span: Span::new_source(input_source.clone(), 14..22),
             data: AType::Primitve(APrimitive::Int),
         },
         received: SpanData {

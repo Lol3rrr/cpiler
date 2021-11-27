@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use general::SpanData;
 use syntax::{AssignTarget, Scope, Statement};
 
 use crate::{AStatement, AType, FunctionDeclaration, SemanticError};
@@ -96,8 +97,11 @@ impl AScope {
                     let arguments = {
                         let mut tmp = Vec::new();
                         for arg in arguments {
-                            let tmp_ty = AType::parse(arg.ty, current.type_defs(), &current)?;
-                            tmp.push(tmp_ty);
+                            let tmp_ty = AType::parse(arg.data.ty, current.type_defs(), &current)?;
+                            tmp.push(SpanData {
+                                span: arg.span,
+                                data: tmp_ty,
+                            });
                         }
                         tmp
                     };
@@ -122,8 +126,11 @@ impl AScope {
                     let arguments = {
                         let mut tmp = Vec::new();
                         for arg in arguments {
-                            let tmp_ty = AType::parse(arg.ty, current.type_defs(), &current)?;
-                            tmp.push(tmp_ty);
+                            let tmp_ty = AType::parse(arg.data.ty, current.type_defs(), &current)?;
+                            tmp.push(SpanData {
+                                span: arg.span,
+                                data: tmp_ty,
+                            });
                         }
                         tmp
                     };

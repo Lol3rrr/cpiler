@@ -39,10 +39,16 @@ void other() {
                             })),
                             body: AScope {
                                 statements: vec![AStatement::Assignment {
-                                    target: AAssignTarget::Variable(Identifier(SpanData {
-                                        span: Span::new_source(input_source.clone(), 53..57),
-                                        data: "test".to_string(),
-                                    })),
+                                    target: AAssignTarget::Variable {
+                                        ident: Identifier(SpanData {
+                                            span: Span::new_source(input_source.clone(), 53..57),
+                                            data: "test".to_string(),
+                                        }),
+                                        ty_info: SpanData {
+                                            span: Span::new_source(input_source.clone(), 24..28),
+                                            data: AType::Primitve(APrimitive::Int),
+                                        },
+                                    },
                                     value: AExpression::Literal(Literal::Integer(SpanData {
                                         span: Span::new_source(input_source.clone(), 60..61),
                                         data: 1,

@@ -1,6 +1,10 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{
+    collections::HashMap,
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
-use general::Source;
+use general::{Source, Span, SpanData};
 use tokenizer::{Token, TokenData};
 
 use super::DefineManager;
@@ -59,7 +63,7 @@ where
 #[derive(Debug)]
 pub enum MacroToken {
     Original(Token),
-    Replaced(Token),
+    Param(Token),
     Created(Token),
 }
 
@@ -69,7 +73,7 @@ impl Deref for MacroToken {
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Original(t) => t,
-            Self::Replaced(t) => t,
+            Self::Param(t) => t,
             Self::Created(t) => t,
         }
     }
@@ -78,7 +82,7 @@ impl Into<Token> for MacroToken {
     fn into(self) -> Token {
         match self {
             Self::Original(t) => t,
-            Self::Replaced(t) => t,
+            Self::Param(t) => t,
             Self::Created(t) => t,
         }
     }
@@ -91,6 +95,7 @@ impl Into<Token> for MacroToken {
 // - Tokens originating from parameters are expanded.
 // - The resulting tokens are expanded as normal.
 pub fn expand_function_macro(
+    og: (&Arc<Source>, &Range<usize>),
     macros: &DefineManager,
     call_args: HashMap<String, Vec<Token>>,
     macro_content: &[Token],
@@ -105,14 +110,12 @@ pub fn expand_function_macro(
     let concat_idents = concat_idents(replaced_params);
 
     // Expand token Parameters
-    let param_expanded = expand_params(concat_idents, macros);
+    let param_expanded = expand_params(og, concat_idents, macros);
 
     // Expand all the other Tokens
-    let all_expanded = expand_all(param_expanded, macros);
+    let all_expanded = expand_all(og, param_expanded, macros);
 
-    let result = all_expanded;
-
-    result
+    all_expanded
 }
 
 fn stringify<I, IT>(input: I) -> Vec<MacroToken>
@@ -144,7 +147,7 @@ where
                 result.extend(
                     replacement
                         .into_iter()
-                        .map(|t| MacroToken::Replaced(t.clone())),
+                        .map(|t| MacroToken::Param(t.clone())),
                 );
             }
             _ => {
@@ -225,7 +228,11 @@ where
     result
 }
 
-fn expand_params<I, IT>(input: I, macros: &DefineManager) -> Vec<Token>
+fn expand_params<I, IT>(
+    og: (&Arc<Source>, &Range<usize>),
+    input: I,
+    macros: &DefineManager,
+) -> Vec<Token>
 where
     I: IntoIterator<Item = MacroToken, IntoIter = IT>,
     IT: Iterator<Item = MacroToken>,
@@ -235,7 +242,7 @@ where
     let mut prev_iter = input.into_iter();
     while let Some(tmp) = prev_iter.next() {
         match tmp {
-            MacroToken::Replaced(t) => {
+            MacroToken::Param(t) => {
                 match &t.data {
                     TokenData::Literal { content } if macros.is_defined(&content) => {
                         let macro_def = macros
@@ -247,7 +254,12 @@ where
                             .map(|t| PIR::Token((*t).clone()))
                             .peekable();
 
-                        match expand(&mut tmp_iter, macro_def, macros) {
+                        match expand(
+                            (t.span.source(), t.span.source_area()),
+                            &mut tmp_iter,
+                            macro_def,
+                            macros,
+                        ) {
                             Some(resulting) => {
                                 result.extend(resulting);
                             }
@@ -262,7 +274,16 @@ where
                 };
             }
             t => {
-                result.push((*t).clone());
+                let inner: SpanData<TokenData> = t.into();
+                dbg!(&inner);
+
+                let n_inner = SpanData {
+                    span: Span::new_arc_source_og(og.0.clone(), og.1.clone(), inner.span.clone()),
+                    data: inner.data.clone(),
+                };
+                dbg!(&n_inner);
+
+                result.push(n_inner);
             }
         };
     }
@@ -270,7 +291,11 @@ where
     result
 }
 
-fn expand_all<I, IT>(input: I, macros: &DefineManager) -> Vec<Token>
+fn expand_all<I, IT>(
+    og: (&Arc<Source>, &Range<usize>),
+    input: I,
+    macros: &DefineManager,
+) -> Vec<Token>
 where
     I: IntoIterator<Item = Token, IntoIter = IT>,
     IT: Iterator<Item = Token>,
@@ -287,9 +312,17 @@ where
 
                 let mut tmp_iter = prev_iter.by_ref().map(|t| PIR::Token(t)).peekable();
 
-                match expand(&mut tmp_iter, macro_def, macros) {
+                match expand(
+                    (current.span.source(), current.span.source_area()),
+                    &mut tmp_iter,
+                    macro_def,
+                    macros,
+                ) {
                     Some(resulting) => {
-                        result.extend(resulting);
+                        result.extend(resulting.into_iter().map(|t| SpanData {
+                            span: Span::new_arc_source_og(og.0.clone(), og.1.clone(), t.span),
+                            data: t.data,
+                        }));
                     }
                     None => {
                         result.push(current);

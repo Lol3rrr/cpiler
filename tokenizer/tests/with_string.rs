@@ -49,7 +49,7 @@ fn with_string_program() {
             data: TokenData::Assign(Assignment::Assign),
         },
         Token {
-            span: Span::new_source(source.clone(), 27..38),
+            span: Span::new_source(source.clone(), 26..39),
             data: TokenData::StringLiteral {
                 content: "test string".to_string(),
             },

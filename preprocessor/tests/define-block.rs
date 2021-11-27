@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use general::{Source, Span};
 use preprocessor::loader::files::FileLoader;
 use tokenizer::{ControlFlow, DataType, Keyword, Token, TokenData};
@@ -39,7 +41,11 @@ fn simple_define() {
             data: TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Return)),
         },
         Token {
-            span: Span::new_source(define_source.clone(), 13..14),
+            span: Span::new_arc_source_og(
+                Arc::new(define_source.clone()),
+                37..41,
+                Span::new_source(define_source.clone(), 13..14),
+            ),
             data: TokenData::Literal {
                 content: "0".to_string(),
             },

@@ -335,6 +335,7 @@ impl<'r, 'a> From<&'r SpanRef<'a>> for TokenData {
             "union" => Self::Keyword(Keyword::DataType(DataType::Union)),
             "unsigned" => Self::Keyword(Keyword::DataType(DataType::Unsigned)),
             "signed" => Self::Keyword(Keyword::DataType(DataType::Signed)),
+            "const" => Self::Keyword(Keyword::Const),
 
             "if" => Self::Keyword(Keyword::ControlFlow(ControlFlow::If)),
             "else" => Self::Keyword(Keyword::ControlFlow(ControlFlow::Else)),

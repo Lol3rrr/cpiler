@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use general::Span;
+use general::{Span, SpanData};
 use syntax::{Identifier, AST};
 
 mod scope;
@@ -31,7 +31,7 @@ pub struct VariableDeclaration {
 pub struct FunctionDeclaration {
     pub return_ty: AType,
     pub declaration: Span,
-    pub arguments: Vec<AType>,
+    pub arguments: Vec<SpanData<AType>>,
 }
 
 /// An Annotated Abstract Syntax Tree
@@ -49,12 +49,12 @@ pub fn parse(ast: AST) -> Result<AAST, SemanticError> {
 pub trait VariableContainer {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)>;
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[AType], &Span)>;
+    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)>;
 }
 
 pub enum FuncOrVar {
     Var(AType, Span),
-    Function(AType, Vec<AType>, Span),
+    Function(AType, Vec<SpanData<AType>>, Span),
 }
 impl VariableContainer for HashMap<String, FuncOrVar> {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
@@ -65,7 +65,7 @@ impl VariableContainer for HashMap<String, FuncOrVar> {
         })
     }
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[AType], &Span)> {
+    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)> {
         let ident_name = &ident.0.data;
         self.get(ident_name).into_iter().find_map(|r| match r {
             FuncOrVar::Function(t, a, s) => Some((t, &a[..], s)),

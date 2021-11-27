@@ -1,4 +1,4 @@
-use general::SpanData;
+use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Assignment, Token, TokenData};
 
@@ -70,7 +70,7 @@ where
         TokenData::OpenParen => {
             let _ = tokens.next();
 
-            let mut arguments: Vec<FunctionArgument> = Vec::new();
+            let mut arguments: Vec<SpanData<FunctionArgument>> = Vec::new();
             while let Some(tmp_tok) = tokens.peek() {
                 // TODO
                 dbg!(&tmp_tok);
@@ -81,6 +81,9 @@ where
                     }
                     _ => {}
                 };
+
+                let source = tmp_tok.span.source().clone();
+                let start = tmp_tok.span.source_area().start;
 
                 let ty = TypeToken::parse(tokens)?;
 
@@ -98,10 +101,23 @@ where
                     }
                 };
 
-                arguments.push(FunctionArgument { name, ty });
+                let arg_span = Span::new_arc_source(source, start..name.0.span.source_area().end);
+
+                arguments.push(SpanData {
+                    span: arg_span,
+                    data: FunctionArgument { name, ty },
+                });
+
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                match &peeked.data {
+                    TokenData::Comma => {
+                        let _ = tokens.next();
+                    }
+                    _ => {}
+                };
             }
 
-            let next_tok = tokens.next().unwrap();
+            let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
             match &next_tok.data {
                 TokenData::OpenBrace => {
                     let inner_scope = Scope::parse(tokens)?;

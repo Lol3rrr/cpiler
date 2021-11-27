@@ -169,16 +169,21 @@ impl Iterator for TokenIter {
                     break;
                 }
                 ('"', Environment::Code) => {
-                    self.state.move_start(index + 1);
+                    self.state.move_start(index);
                     self.state.switch_env(Environment::StringLiteral);
                 }
                 ('"', Environment::StringLiteral) => {
-                    let sub_span = self.state.current_sub(&self.span, index).unwrap();
+                    let sub_span = self.state.current_sub(&self.span, index + 1).unwrap();
 
                     self.state.move_start(index + 1);
                     self.state.switch_env(Environment::Code);
 
-                    let content = sub_span.content().to_owned();
+                    let sub_span_length = sub_span.content().len();
+                    let content = sub_span
+                        .sub_span(1..sub_span_length - 1)
+                        .unwrap()
+                        .content()
+                        .to_owned();
                     let token = Token {
                         span: sub_span.into(),
                         data: TokenData::StringLiteral { content },
@@ -188,16 +193,23 @@ impl Iterator for TokenIter {
                     break;
                 }
                 ('\'', Environment::Code) => {
-                    self.state.move_start(index + 1);
+                    self.state.move_start(index);
                     self.state.switch_env(Environment::CharLiteral);
                 }
                 ('\'', Environment::CharLiteral) => {
-                    let sub_span = self.state.current_sub(&self.span, index).unwrap();
+                    let sub_span = self.state.current_sub(&self.span, index + 1).unwrap();
 
                     self.state.move_start(index + 1);
                     self.state.switch_env(Environment::Code);
 
-                    let content = sub_span.content().to_owned();
+                    let sub_span_length = sub_span.content().len();
+                    let content_range = 1..sub_span_length - 1;
+
+                    let content = sub_span
+                        .sub_span(content_range)
+                        .unwrap()
+                        .content()
+                        .to_owned();
                     let token = Token {
                         span: sub_span.into(),
                         data: TokenData::CharLiteral { content },
@@ -309,6 +321,24 @@ mod tests {
                 },
             },
         ];
+
+        let result_iter = TokenIter::new(input_span);
+        let result_vec: Vec<_> = result_iter.collect();
+
+        assert_eq!(expected, result_vec);
+    }
+
+    #[test]
+    fn char_literal() {
+        let input_source = Source::new("test", "'c'");
+        let input_span: Span = input_source.clone().into();
+
+        let expected = vec![Token {
+            span: Span::new_source(input_source.clone(), 0..3),
+            data: TokenData::CharLiteral {
+                content: "c".to_string(),
+            },
+        }];
 
         let result_iter = TokenIter::new(input_span);
         let result_vec: Vec<_> = result_iter.collect();

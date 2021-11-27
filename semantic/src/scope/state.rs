@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use general::Span;
+use general::{Span, SpanData};
 use syntax::Identifier;
 
 use crate::{AType, FunctionDeclaration, TypeDefinitions, VariableContainer, VariableDeclaration};
@@ -59,7 +59,7 @@ impl ParseState {
         &mut self,
         name: Identifier,
         declaration: Span,
-        arguments: Vec<AType>,
+        arguments: Vec<SpanData<AType>>,
         return_ty: AType,
     ) {
         self.local_variables
@@ -88,7 +88,7 @@ impl VariableContainer for ParseState {
             })
     }
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[AType], &Span)> {
+    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)> {
         match self.local_variables.get_declared(ident) {
             Some(Declared::Function(func)) => {
                 return Some((&func.return_ty, &func.arguments, &func.declaration))
@@ -142,7 +142,7 @@ impl Variables {
         &mut self,
         name: Identifier,
         declaration: Span,
-        arguments: Vec<AType>,
+        arguments: Vec<SpanData<AType>>,
         return_ty: AType,
     ) {
         let data = Declared::Function(FunctionDeclaration {

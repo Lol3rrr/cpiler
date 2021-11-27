@@ -1,3 +1,4 @@
+use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{ControlFlow, DataType, Keyword, Token, TokenData};
 
@@ -31,12 +32,12 @@ pub enum Statement {
     FunctionDeclaration {
         r_type: TypeToken,
         name: Identifier,
-        arguments: Vec<FunctionArgument>,
+        arguments: Vec<SpanData<FunctionArgument>>,
     },
     FunctionDefinition {
         r_type: TypeToken,
         name: Identifier,
-        arguments: Vec<FunctionArgument>,
+        arguments: Vec<SpanData<FunctionArgument>>,
         body: Scope,
     },
     StructDefinition {
@@ -460,15 +461,18 @@ mod tests {
                 span: Span::new_source(source.clone(), 4..8),
                 data: "test".to_string(),
             }),
-            arguments: vec![FunctionArgument {
-                name: Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 13..14),
-                    data: "x".to_string(),
-                }),
-                ty: TypeToken::Primitive(SpanData {
-                    span: Span::new_source(source.clone(), 9..12),
-                    data: DataType::Int,
-                }),
+            arguments: vec![SpanData {
+                span: Span::new_source(source.clone(), 9..14),
+                data: FunctionArgument {
+                    name: Identifier(SpanData {
+                        span: Span::new_source(source.clone(), 13..14),
+                        data: "x".to_string(),
+                    }),
+                    ty: TypeToken::Primitive(SpanData {
+                        span: Span::new_source(source.clone(), 9..12),
+                        data: DataType::Int,
+                    }),
+                },
             }],
             body: Scope {
                 statements: Vec::new(),
@@ -676,12 +680,15 @@ mod tests {
                 data: "test".to_string(),
             }),
             value: Expression::ArrayLiteral {
-                parts: vec![Expression::Literal {
-                    content: SpanData {
-                        span: Span::new_source(source.clone(), 14..15),
-                        data: "1".to_string(),
-                    },
-                }],
+                parts: SpanData {
+                    span: Span::new_source(source.clone(), 13..16),
+                    data: vec![Expression::Literal {
+                        content: SpanData {
+                            span: Span::new_source(source.clone(), 14..15),
+                            data: "1".to_string(),
+                        },
+                    }],
+                },
             },
         });
 
@@ -709,20 +716,23 @@ mod tests {
                 data: "test".to_string(),
             }),
             value: Expression::ArrayLiteral {
-                parts: vec![
-                    Expression::Literal {
-                        content: SpanData {
-                            span: Span::new_source(source.clone(), 14..15),
-                            data: "1".to_string(),
+                parts: SpanData {
+                    span: Span::new_source(source.clone(), 13..19),
+                    data: vec![
+                        Expression::Literal {
+                            content: SpanData {
+                                span: Span::new_source(source.clone(), 14..15),
+                                data: "1".to_string(),
+                            },
                         },
-                    },
-                    Expression::Literal {
-                        content: SpanData {
-                            span: Span::new_source(source.clone(), 17..18),
-                            data: "2".to_string(),
+                        Expression::Literal {
+                            content: SpanData {
+                                span: Span::new_source(source.clone(), 17..18),
+                                data: "2".to_string(),
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
         });
 
@@ -825,7 +835,7 @@ mod tests {
             }),
             operation: SingleOperation::FuntionCall(vec![Expression::StringLiteral {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 6..13),
+                    span: Span::new_source(source.clone(), 5..14),
                     data: "literal".to_string(),
                 },
             }]),

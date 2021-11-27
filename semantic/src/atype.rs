@@ -1,6 +1,9 @@
-use syntax::{DataType, Identifier, TypeDefType, TypeToken};
+use syntax::{DataType, Modifier, TypeDefType, TypeToken};
 
 use crate::{AExpression, EvaluationValue, SemanticError, TypeDefinitions, VariableContainer};
+
+mod struct_def;
+pub use struct_def::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AType {
@@ -8,6 +11,7 @@ pub enum AType {
     Pointer(Box<Self>),
     AnonStruct(StructDef),
     Array(Array),
+    Composition(Modifier, Box<Self>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -19,14 +23,9 @@ pub enum APrimitive {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct StructDef {
-    members: Vec<(Identifier, AType)>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct Array {
-    size: Option<usize>,
-    ty: Box<AType>,
+    pub size: Option<usize>,
+    pub ty: Box<AType>,
 }
 
 impl AType {
@@ -97,6 +96,14 @@ impl AType {
                     }
                 }
             }
+            TypeToken::Composition { base, modifier } => {
+                dbg!(&base, &modifier);
+
+                let base_ty = Self::parse(*base, ty_defs, vars)?;
+                dbg!(&base_ty);
+
+                Ok(Self::Composition(modifier.data, Box::new(base_ty)))
+            }
             unknown => panic!("Unknown TypeToken: {:?}", unknown),
         }
     }
@@ -117,7 +124,7 @@ impl AType {
                     .into_iter()
                     .filter_map(
                         |(raw_ty, ident)| match AType::parse(raw_ty, ty_defs, vars) {
-                            Ok(ty) => Some((ident, ty)),
+                            Ok(ty) => Some(StructMember { name: ident, ty }),
                             _ => None,
                         },
                     )

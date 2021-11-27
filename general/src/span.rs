@@ -22,6 +22,8 @@ pub struct Span {
     source: Arc<Source>,
     /// The Area in the Source which corresponds to the Content of this File
     source_area: Range<usize>,
+    /// This can be used to for example note that it came from a Macro
+    original: Option<Box<Self>>,
 }
 
 impl Hash for Span {
@@ -34,16 +36,24 @@ impl Eq for Span {}
 
 impl Span {
     pub fn new_source(source: Source, range: Range<usize>) -> Self {
-        Self {
-            source: Arc::new(source),
-            source_area: range,
-        }
+        let arced = Arc::new(source);
+
+        Self::new_arc_source(arced, range)
     }
 
     pub fn new_arc_source(source: Arc<Source>, range: Range<usize>) -> Self {
         Self {
             source,
             source_area: range,
+            original: None,
+        }
+    }
+
+    pub fn new_arc_source_og(source: Arc<Source>, range: Range<usize>, og: Span) -> Self {
+        Self {
+            source,
+            source_area: range,
+            original: Some(Box::new(og)),
         }
     }
 
@@ -81,6 +91,7 @@ impl Span {
         Self {
             source: self.source,
             source_area: n_range,
+            original: None,
         }
     }
 }
@@ -102,10 +113,11 @@ impl Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Span {{ source: {:?}, source_area: {:?}, content: {:?} }}",
+            "Span {{ source: {:?}, source_area: {:?}, content: {:?}, og: {:?} }}",
             self.source(),
             self.source_area(),
-            self.content()
+            self.content(),
+            self.original,
         )
     }
 }
@@ -151,18 +163,12 @@ impl<'a> SpanRef<'a> {
 
 impl<'s> Into<Span> for SpanRef<'s> {
     fn into(self) -> Span {
-        Span {
-            source: self.source.to_owned(),
-            source_area: self.source_area,
-        }
+        Span::new_arc_source(self.source.clone(), self.source_area)
     }
 }
 impl<'s> Into<Span> for &SpanRef<'s> {
     fn into(self) -> Span {
-        Span {
-            source: self.source.to_owned(),
-            source_area: self.source_area.clone(),
-        }
+        Span::new_arc_source(self.source.clone(), self.source_area.clone())
     }
 }
 impl<'o, 's> From<&'o Span> for SpanRef<'s>

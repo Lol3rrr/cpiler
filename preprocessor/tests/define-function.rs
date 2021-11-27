@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use general::{Source, Span};
 use preprocessor::loader::files::FileLoader;
 use tokenizer::{ControlFlow, DataType, Keyword, Operator, Token, TokenData};
@@ -9,6 +11,7 @@ fn simple_function_define() {
     let loader = FileLoader::new();
 
     let define_source = Source::new(file, include_str!("./files/define-function.c"));
+    let arced_source = Arc::new(define_source.clone());
 
     let expected = vec![
         Token {
@@ -38,7 +41,11 @@ fn simple_function_define() {
             data: TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Return)),
         },
         Token {
-            span: Span::new_source(define_source.clone(), 16..17),
+            span: Span::new_arc_source_og(
+                arced_source.clone(),
+                46..50,
+                Span::new_source(define_source.clone(), 16..17),
+            ),
             data: TokenData::OpenParen,
         },
         Token {
@@ -52,17 +59,29 @@ fn simple_function_define() {
             },
         },
         Token {
-            span: Span::new_source(define_source.clone(), 19..20),
+            span: Span::new_arc_source_og(
+                arced_source.clone(),
+                46..50,
+                Span::new_source(define_source.clone(), 19..20),
+            ),
             data: TokenData::Operator(Operator::Add),
         },
         Token {
-            span: Span::new_source(define_source.clone(), 21..22),
+            span: Span::new_arc_source_og(
+                arced_source.clone(),
+                46..50,
+                Span::new_source(define_source.clone(), 21..22),
+            ),
             data: TokenData::Literal {
                 content: "1".to_string(),
             },
         },
         Token {
-            span: Span::new_source(define_source.clone(), 22..23),
+            span: Span::new_arc_source_og(
+                arced_source.clone(),
+                46..50,
+                Span::new_source(define_source.clone(), 22..23),
+            ),
             data: TokenData::CloseParen,
         },
         Token {
@@ -76,6 +95,8 @@ fn simple_function_define() {
     ];
 
     let result = preprocessor::preprocess(&loader, file).unwrap();
+
+    dbg!(&result);
 
     assert_eq!(expected, result);
 }

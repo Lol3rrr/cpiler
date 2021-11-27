@@ -29,7 +29,7 @@ pub enum Expression {
         content: SpanData<char>,
     },
     ArrayLiteral {
-        parts: Vec<Expression>,
+        parts: SpanData<Vec<Expression>>,
     },
     /// A Type-Cast
     Cast {
@@ -129,7 +129,14 @@ impl TryFrom<Assignment> for ExpressionOperator {
 impl Expression {
     // TODO
     pub fn entire_span(&self) -> Option<Span> {
-        None
+        match &self {
+            Self::Identifier { ident } => Some(ident.0.span.clone()),
+            Self::Literal { content } => Some(content.span.clone()),
+            Self::StringLiteral { content } => Some(content.span.clone()),
+            Self::CharLiteral { content } => Some(content.span.clone()),
+            Self::ArrayLiteral { parts } => Some(parts.span.clone()),
+            _ => None,
+        }
     }
 
     // TODO
@@ -461,7 +468,16 @@ impl Expression {
                         }
                     };
 
-                    state.add_expression(Expression::ArrayLiteral { parts: items });
+                    let entire_range =
+                        current.span.source_area().start..closing_token.span.source_area().end;
+                    let entire_span =
+                        Span::new_arc_source(current.span.source().clone(), entire_range);
+                    state.add_expression(Expression::ArrayLiteral {
+                        parts: SpanData {
+                            span: entire_span,
+                            data: items,
+                        },
+                    });
                 }
                 (TokenData::QuestionMark, _) => {
                     let first = Self::parse(tokens)?;
@@ -590,7 +606,7 @@ mod tests {
 
         let expected = Ok(Expression::StringLiteral {
             content: SpanData {
-                span: Span::new_source(source.clone(), 1..4),
+                span: Span::new_source(source.clone(), 0..5),
                 data: "123".to_owned(),
             },
         });
@@ -836,7 +852,12 @@ mod tests {
         let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
-        let expected = Ok(Expression::ArrayLiteral { parts: Vec::new() });
+        let expected = Ok(Expression::ArrayLiteral {
+            parts: SpanData {
+                span: Span::new_source(source.clone(), 0..2),
+                data: Vec::new(),
+            },
+        });
 
         let result = Expression::parse(&mut input_tokens);
 
@@ -974,5 +995,76 @@ mod tests {
         let result = Expression::parse(&mut input_tokens);
 
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn entire_span() {
+        let input_content = "123456";
+        let input_source = Source::new("test", input_content);
+
+        // All the Standalone ones that dont need anything else
+        assert_eq!(
+            Some(Span::new_source(input_source.clone(), 0..1)),
+            Expression::Literal {
+                content: SpanData {
+                    span: Span::new_source(input_source.clone(), 0..1),
+                    data: "1".to_string()
+                }
+            }
+            .entire_span()
+        );
+        assert_eq!(
+            Some(Span::new_source(input_source.clone(), 0..1)),
+            Expression::StringLiteral {
+                content: SpanData {
+                    span: Span::new_source(input_source.clone(), 0..1),
+                    data: "1".to_string(),
+                }
+            }
+            .entire_span()
+        );
+        assert_eq!(
+            Some(Span::new_source(input_source.clone(), 0..1)),
+            Expression::CharLiteral {
+                content: SpanData {
+                    span: Span::new_source(input_source.clone(), 0..1),
+                    data: '1',
+                }
+            }
+            .entire_span()
+        );
+
+        // Array Literals are sort of special
+        assert_eq!(
+            Some(Span::new_source(input_source.clone(), 0..3)),
+            Expression::ArrayLiteral {
+                parts: SpanData {
+                    span: Span::new_source(input_source.clone(), 0..3),
+                    data: vec![
+                        Expression::Literal {
+                            content: SpanData {
+                                span: Span::new_source(input_source.clone(), 0..1),
+                                data: "1".to_string()
+                            }
+                        },
+                        Expression::Literal {
+                            content: SpanData {
+                                span: Span::new_source(input_source.clone(), 1..2),
+                                data: "2".to_string()
+                            }
+                        },
+                        Expression::Literal {
+                            content: SpanData {
+                                span: Span::new_source(input_source.clone(), 2..3),
+                                data: "3".to_string()
+                            }
+                        }
+                    ]
+                },
+            }
+            .entire_span()
+        );
+
+        // The ones that are mainly alone
     }
 }
