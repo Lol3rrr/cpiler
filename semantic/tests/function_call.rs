@@ -91,6 +91,7 @@ void other() {
                         arguments: vec![],
                         declaration: Span::new_source(input_source.clone(), 31..36),
                         return_ty: AType::Primitve(APrimitive::Void),
+                        var_args: false,
                     },
                     AScope {
                         statements: vec![AStatement::Expression(AExpression::FunctionCall {

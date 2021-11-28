@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 general = { path = "../general" }
+
+itertools = { version = "0.10" }

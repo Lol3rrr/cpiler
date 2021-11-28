@@ -10,6 +10,10 @@ pub enum AExpression {
         ident: Identifier,
         ty: AType,
     },
+    AddressOf {
+        base: Box<Self>,
+        ty: AType,
+    },
     ArrayAccess {
         base: Box<Self>,
         index: Box<Self>,
@@ -24,6 +28,10 @@ pub enum AExpression {
         name: Identifier,
         arguments: Vec<AExpression>,
         result_ty: AType,
+    },
+    ImplicitCast {
+        base: Box<Self>,
+        target: AType,
     },
 }
 
@@ -151,18 +159,19 @@ impl AExpression {
                 };
                 dbg!(&name, &args);
 
-                let (r_type, arg_types, f_span) = match vars.get_func(&name) {
+                let func_dec = match vars.get_func(&name) {
                     Some(tmp) => tmp,
                     None => return Err(SemanticError::UnknownIdentifier { name }),
                 };
+                dbg!(&func_dec);
 
-                dbg!(&r_type, &arg_types, &f_span);
-
-                if args.len() != arg_types.len() {
+                if (args.len() != func_dec.arguments.len() && !func_dec.var_args)
+                    || (func_dec.var_args && args.len() < func_dec.arguments.len())
+                {
                     return Err(SemanticError::MismatchedFunctionArgsCount {
                         expected: SpanData {
-                            span: f_span.clone(),
-                            data: arg_types.len(),
+                            span: func_dec.declaration.clone(),
+                            data: func_dec.arguments.len(),
                         },
                         received: SpanData {
                             span: name.0.span.clone(),
@@ -171,24 +180,45 @@ impl AExpression {
                     });
                 }
 
-                let mut arg_iter = arg_types.iter().zip(args.iter());
-                let found = arg_iter.find(|(exp, recv)| &exp.data != &recv.result_type());
-                if let Some((expected, received)) = found {
-                    return Err(SemanticError::MismatchedTypes {
-                        expected: expected.clone(),
-                        received: SpanData {
-                            span: received.entire_span(),
-                            data: received.result_type(),
-                        },
-                    });
+                let arg_iter = func_dec.arguments.iter().zip(args.into_iter());
+                let arg_results: Vec<_> = arg_iter
+                    .map(|(expected, recveived)| {
+                        let recveived_type = recveived.result_type();
+                        if &expected.data == &recveived_type {
+                            return Ok(recveived);
+                        }
+
+                        if recveived_type.implicitly_castable(&expected.data) {
+                            let target = expected.data.clone();
+                            let n_exp = Self::ImplicitCast {
+                                base: Box::new(recveived),
+                                target,
+                            };
+
+                            return Ok(n_exp);
+                        }
+
+                        Err(SemanticError::MismatchedTypes {
+                            expected: expected.clone(),
+                            received: SpanData {
+                                span: recveived.entire_span(),
+                                data: recveived_type,
+                            },
+                        })
+                    })
+                    .collect();
+
+                if let Some(err) = arg_results.iter().find(|t| t.is_err()) {
+                    return err.clone();
                 }
 
-                dbg!(&name, &args, &r_type);
+                let args: Vec<_> = arg_results.into_iter().filter_map(|t| t.ok()).collect();
+                dbg!(&name, &args, &func_dec.return_ty);
 
                 Ok(Self::FunctionCall {
                     name,
                     arguments: args,
-                    result_ty: r_type.clone(),
+                    result_ty: func_dec.return_ty.clone(),
                 })
             }
             Expression::SingleOperation {
@@ -214,6 +244,30 @@ impl AExpression {
                     base: Box::new(base_exp),
                     index: Box::new(a_index),
                     ty: *elem_ty,
+                })
+            }
+            Expression::SingleOperation {
+                base,
+                operation: SingleOperation::AddressOf,
+            } => {
+                dbg!(&base);
+
+                let a_base = Self::parse(*base, vars)?;
+                dbg!(&a_base);
+
+                match a_base {
+                    AExpression::Variable { .. } => {}
+                    _ => {
+                        todo!("Cant take address of this Expression");
+                    }
+                };
+
+                let base_ty = a_base.result_type();
+                let target_ty = AType::Pointer(Box::new(base_ty.clone()));
+
+                Ok(Self::AddressOf {
+                    base: Box::new(a_base),
+                    ty: target_ty,
                 })
             }
             Expression::SingleOperation { base, operation } => {
@@ -250,9 +304,11 @@ impl AExpression {
                 }
             },
             Self::Variable { ty, .. } => ty.clone(),
+            Self::AddressOf { ty, .. } => ty.clone(),
             Self::ArrayAccess { ty, .. } => ty.clone(),
             Self::StructAccess { ty, .. } => ty.clone(),
             Self::FunctionCall { result_ty, .. } => result_ty.clone(),
+            Self::ImplicitCast { target, .. } => target.clone(),
         }
     }
     pub fn entire_span(&self) -> Span {
@@ -263,9 +319,11 @@ impl AExpression {
                 Literal::StringLiteral(SpanData { span, .. }) => span.clone(),
             },
             Self::Variable { ident, .. } => ident.0.span.clone(),
+            Self::AddressOf { base, .. } => base.entire_span(),
             Self::ArrayAccess { base, .. } => base.entire_span(),
             Self::StructAccess { field, .. } => field.0.span.clone(),
             Self::FunctionCall { name, .. } => name.0.span.clone(),
+            Self::ImplicitCast { base, .. } => base.entire_span(),
         }
     }
 }

@@ -32,6 +32,7 @@ pub struct FunctionDeclaration {
     pub return_ty: AType,
     pub declaration: Span,
     pub arguments: Vec<SpanData<AType>>,
+    pub var_args: bool,
 }
 
 /// An Annotated Abstract Syntax Tree
@@ -49,12 +50,12 @@ pub fn parse(ast: AST) -> Result<AAST, SemanticError> {
 pub trait VariableContainer {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)>;
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)>;
+    fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration>;
 }
 
 pub enum FuncOrVar {
     Var(AType, Span),
-    Function(AType, Vec<SpanData<AType>>, Span),
+    Function(FunctionDeclaration),
 }
 impl VariableContainer for HashMap<String, FuncOrVar> {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
@@ -65,10 +66,10 @@ impl VariableContainer for HashMap<String, FuncOrVar> {
         })
     }
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)> {
+    fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
         let ident_name = &ident.0.data;
         self.get(ident_name).into_iter().find_map(|r| match r {
-            FuncOrVar::Function(t, a, s) => Some((t, &a[..], s)),
+            FuncOrVar::Function(f) => Some(f),
             _ => None,
         })
     }

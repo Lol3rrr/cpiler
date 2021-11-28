@@ -60,10 +60,18 @@ impl ParseState {
         name: Identifier,
         declaration: Span,
         arguments: Vec<SpanData<AType>>,
+        var_args: bool,
         return_ty: AType,
     ) {
-        self.local_variables
-            .declare_function(name, declaration, arguments, return_ty);
+        self.local_variables.declare_function(
+            name,
+            FunctionDeclaration {
+                return_ty,
+                arguments,
+                declaration,
+                var_args,
+            },
+        );
     }
 
     pub fn add_variable_declaration(&mut self, name: Identifier, declaration: Span, ty: AType) {
@@ -88,10 +96,10 @@ impl VariableContainer for ParseState {
             })
     }
 
-    fn get_func(&self, ident: &Identifier) -> Option<(&AType, &[SpanData<AType>], &Span)> {
+    fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
         match self.local_variables.get_declared(ident) {
             Some(Declared::Function(func)) => {
-                return Some((&func.return_ty, &func.arguments, &func.declaration))
+                return Some(func);
             }
             _ => {}
         };
@@ -100,9 +108,7 @@ impl VariableContainer for ParseState {
             .get_declared(ident)
             .into_iter()
             .find_map(|d| match d {
-                Declared::Function(func) => {
-                    Some((&func.return_ty, &func.arguments[..], &func.declaration))
-                }
+                Declared::Function(func) => Some(func),
                 _ => None,
             })
     }
@@ -138,18 +144,8 @@ impl Variables {
         let data = Declared::Variable(VariableDeclaration { ty, declaration });
         self.0.insert(name.0.data, data);
     }
-    pub fn declare_function(
-        &mut self,
-        name: Identifier,
-        declaration: Span,
-        arguments: Vec<SpanData<AType>>,
-        return_ty: AType,
-    ) {
-        let data = Declared::Function(FunctionDeclaration {
-            return_ty,
-            arguments,
-            declaration,
-        });
+    pub fn declare_function(&mut self, name: Identifier, func_dec: FunctionDeclaration) {
+        let data = Declared::Function(func_dec);
 
         self.0.insert(name.0.data, data);
     }

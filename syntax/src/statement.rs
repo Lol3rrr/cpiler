@@ -27,17 +27,19 @@ pub enum TypeDefType {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct FunctionHead {
+    pub r_type: TypeToken,
+    pub name: Identifier,
+    pub arguments: Vec<SpanData<FunctionArgument>>,
+    pub var_args: bool,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Statement {
     SubScope(Scope),
-    FunctionDeclaration {
-        r_type: TypeToken,
-        name: Identifier,
-        arguments: Vec<SpanData<FunctionArgument>>,
-    },
+    FunctionDeclaration(FunctionHead),
     FunctionDefinition {
-        r_type: TypeToken,
-        name: Identifier,
-        arguments: Vec<SpanData<FunctionArgument>>,
+        head: FunctionHead,
         body: Scope,
     },
     StructDefinition {
@@ -426,15 +428,18 @@ mod tests {
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::FunctionDefinition {
-            r_type: TypeToken::Primitive(SpanData {
-                span: Span::new_source(source.clone(), 0..3),
-                data: DataType::Int,
-            }),
-            name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..8),
-                data: "test".to_string(),
-            }),
-            arguments: Vec::new(),
+            head: FunctionHead {
+                r_type: TypeToken::Primitive(SpanData {
+                    span: Span::new_source(source.clone(), 0..3),
+                    data: DataType::Int,
+                }),
+                name: Identifier(SpanData {
+                    span: Span::new_source(source.clone(), 4..8),
+                    data: "test".to_string(),
+                }),
+                arguments: Vec::new(),
+                var_args: false,
+            },
             body: Scope {
                 statements: Vec::new(),
             },
@@ -453,27 +458,30 @@ mod tests {
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::FunctionDefinition {
-            r_type: TypeToken::Primitive(SpanData {
-                span: Span::new_source(source.clone(), 0..3),
-                data: DataType::Int,
-            }),
-            name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..8),
-                data: "test".to_string(),
-            }),
-            arguments: vec![SpanData {
-                span: Span::new_source(source.clone(), 9..14),
-                data: FunctionArgument {
-                    name: Identifier(SpanData {
-                        span: Span::new_source(source.clone(), 13..14),
-                        data: "x".to_string(),
-                    }),
-                    ty: TypeToken::Primitive(SpanData {
-                        span: Span::new_source(source.clone(), 9..12),
-                        data: DataType::Int,
-                    }),
-                },
-            }],
+            head: FunctionHead {
+                r_type: TypeToken::Primitive(SpanData {
+                    span: Span::new_source(source.clone(), 0..3),
+                    data: DataType::Int,
+                }),
+                name: Identifier(SpanData {
+                    span: Span::new_source(source.clone(), 4..8),
+                    data: "test".to_string(),
+                }),
+                arguments: vec![SpanData {
+                    span: Span::new_source(source.clone(), 9..14),
+                    data: FunctionArgument {
+                        name: Identifier(SpanData {
+                            span: Span::new_source(source.clone(), 13..14),
+                            data: "x".to_string(),
+                        }),
+                        ty: TypeToken::Primitive(SpanData {
+                            span: Span::new_source(source.clone(), 9..12),
+                            data: DataType::Int,
+                        }),
+                    },
+                }],
+                var_args: false,
+            },
             body: Scope {
                 statements: Vec::new(),
             },

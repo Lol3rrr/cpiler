@@ -4,8 +4,8 @@ use tokenizer::{Assignment, Token, TokenData};
 
 use super::structs;
 use crate::{
-    ExpectedToken, Expression, ExpressionReason, FunctionArgument, Identifier, Scope, Statement,
-    SyntaxError, TypeToken,
+    statement::FunctionHead, ExpectedToken, Expression, ExpressionReason, FunctionArgument,
+    Identifier, Scope, Statement, SyntaxError, TypeToken,
 };
 
 /// This gets called if we want to parse a new Statement and notice that it started with a
@@ -70,6 +70,7 @@ where
         TokenData::OpenParen => {
             let _ = tokens.next();
 
+            let mut var_args = false;
             let mut arguments: Vec<SpanData<FunctionArgument>> = Vec::new();
             while let Some(tmp_tok) = tokens.peek() {
                 // TODO
@@ -78,6 +79,24 @@ where
                     TokenData::CloseParen => {
                         let _ = tokens.next();
                         break;
+                    }
+                    TokenData::VarArgs => {
+                        let _ = tokens.next();
+
+                        var_args = true;
+
+                        let close_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        match close_token.data {
+                            TokenData::CloseParen => {
+                                break;
+                            }
+                            _ => {
+                                return Err(SyntaxError::UnexpectedToken {
+                                    got: close_token.span,
+                                    expected: Some(vec![ExpectedToken::CloseParen]),
+                                });
+                            }
+                        };
                     }
                     _ => {}
                 };
@@ -117,23 +136,24 @@ where
                 };
             }
 
+            let f_head = FunctionHead {
+                name,
+                r_type: f_type,
+                arguments,
+                var_args,
+            };
+
             let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
             match &next_tok.data {
                 TokenData::OpenBrace => {
                     let inner_scope = Scope::parse(tokens)?;
 
                     Ok(Statement::FunctionDefinition {
-                        name,
-                        r_type: f_type,
-                        arguments,
+                        head: f_head,
                         body: inner_scope,
                     })
                 }
-                TokenData::Semicolon => Ok(Statement::FunctionDeclaration {
-                    name,
-                    r_type: f_type,
-                    arguments,
-                }),
+                TokenData::Semicolon => Ok(Statement::FunctionDeclaration(f_head)),
                 other => panic!("Expected a {{ or ; but got: {:?}", other),
             }
         }

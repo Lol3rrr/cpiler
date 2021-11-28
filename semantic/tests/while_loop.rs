@@ -30,6 +30,7 @@ void other() {
                         return_ty: AType::Primitve(APrimitive::Void),
                         arguments: vec![],
                         declaration: Span::new_source(input_source.clone(), 6..11),
+                        var_args: false,
                     },
                     AScope {
                         statements: vec![AStatement::WhileLoop {

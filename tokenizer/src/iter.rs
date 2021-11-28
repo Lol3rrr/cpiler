@@ -1,6 +1,7 @@
-use std::{iter::Peekable, sync::Arc};
+use std::sync::Arc;
 
 use general::{CharIndexIter, Span};
+use itertools::{peek_nth, PeekNth};
 
 use crate::{
     state::{Environment, TokenizeState},
@@ -9,7 +10,7 @@ use crate::{
 
 pub struct TokenIter {
     span: Arc<Span>,
-    chars: Peekable<CharIndexIter<Arc<Span>>>,
+    chars: PeekNth<CharIndexIter<Arc<Span>>>,
 
     state: TokenizeState,
     last_char: char,
@@ -21,7 +22,7 @@ impl TokenIter {
         let tmp = Arc::new(content);
         Self {
             span: tmp.clone(),
-            chars: CharIndexIter::new(tmp).peekable(),
+            chars: peek_nth(CharIndexIter::new(tmp)),
 
             state: TokenizeState::new(),
             last_char: '\n',
@@ -126,6 +127,16 @@ impl Iterator for TokenIter {
                                 _ => prev_res,
                             }
                         }
+                        ('.', Some((_, '.'))) => match self.chars.peek_nth(1) {
+                            Some((last_index, '.')) => {
+                                let res = *last_index + 1;
+                                let _ = self.chars.next();
+                                let _ = self.chars.next();
+
+                                res
+                            }
+                            _ => index + 1,
+                        },
                         (_, Some((n_index, _))) => *n_index,
                         _ => index + 1,
                     };

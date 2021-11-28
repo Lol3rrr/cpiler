@@ -5,7 +5,7 @@ mod scope;
 pub use scope::Scope;
 
 mod statement;
-pub use statement::{AssignTarget, Statement, TypeDefType};
+pub use statement::{AssignTarget, FunctionHead, Statement, TypeDefType};
 
 mod expression;
 pub use expression::{Expression, ExpressionOperator, SingleOperation};

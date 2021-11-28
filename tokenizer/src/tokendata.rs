@@ -14,6 +14,7 @@ pub enum TokenData {
     Assign(Assignment),
     Semicolon,
     Comma,
+    VarArgs,
     QuestionMark,
     Colon,
     Hashtag,
@@ -50,6 +51,7 @@ impl Display for TokenData {
             Self::Assign(a) => write!(f, "{}", a),
             Self::Semicolon => write!(f, ";"),
             Self::Comma => write!(f, ","),
+            Self::VarArgs => write!(f, "..."),
             Self::QuestionMark => write!(f, "?"),
             Self::Colon => write!(f, ":"),
             Self::Hashtag => write!(f, "#"),
@@ -310,6 +312,7 @@ impl<'r, 'a> From<&'r SpanRef<'a>> for TokenData {
             "?" => Self::QuestionMark,
             ":" => Self::Colon,
             "#" => Self::Hashtag,
+            "..." => Self::VarArgs,
 
             "=" => Self::Assign(Assignment::Assign),
             "+=" => Self::Assign(Assignment::Add),

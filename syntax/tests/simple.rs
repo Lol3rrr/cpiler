@@ -1,5 +1,5 @@
 use general::{Source, Span, SpanData};
-use syntax::{Expression, Identifier, Scope, Statement, TypeToken, AST};
+use syntax::{Expression, FunctionHead, Identifier, Scope, Statement, TypeToken, AST};
 use tokenizer::DataType;
 
 #[test]
@@ -12,15 +12,18 @@ fn simple() {
     let expected = AST {
         global_scope: Scope {
             statements: vec![Statement::FunctionDefinition {
-                r_type: TypeToken::Primitive(SpanData {
-                    span: Span::new_source(source.clone(), 0..3),
-                    data: DataType::Int,
-                }),
-                name: Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 4..8),
-                    data: "main".to_string(),
-                }),
-                arguments: vec![],
+                head: FunctionHead {
+                    r_type: TypeToken::Primitive(SpanData {
+                        span: Span::new_source(source.clone(), 0..3),
+                        data: DataType::Int,
+                    }),
+                    name: Identifier(SpanData {
+                        span: Span::new_source(source.clone(), 4..8),
+                        data: "main".to_string(),
+                    }),
+                    arguments: vec![],
+                    var_args: false,
+                },
                 body: Scope {
                     statements: vec![Statement::Return(Some(Expression::Literal {
                         content: SpanData {

@@ -5,6 +5,7 @@
 // Because we dont include these standard Headers we just need to declare these functions
 void printf(char* content);
 void strcpy(char *dest, const char *src);
+int scanf(const char* format, ...);
 
 void addCourses();
 

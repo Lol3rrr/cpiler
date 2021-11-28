@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use general::SpanData;
-use syntax::{AssignTarget, Scope, Statement};
+use syntax::{AssignTarget, FunctionHead, Scope, Statement};
 
 use crate::{AStatement, AType, FunctionDeclaration, SemanticError};
 
@@ -81,11 +81,12 @@ impl AScope {
 
                     statements.push(tmp_stmnt);
                 }
-                Statement::FunctionDeclaration {
+                Statement::FunctionDeclaration(FunctionHead {
                     name,
                     r_type,
                     arguments,
-                } => {
+                    var_args,
+                }) => {
                     dbg!(&name, &r_type, &arguments);
 
                     if current.is_declared(&name) {
@@ -107,15 +108,19 @@ impl AScope {
                     };
 
                     let declaration = name.0.span.clone();
-                    current.add_function_declaration(name, declaration, arguments, r_ty);
+                    current.add_function_declaration(name, declaration, arguments, var_args, r_ty);
                 }
                 Statement::FunctionDefinition {
-                    name,
-                    r_type,
-                    arguments,
+                    head:
+                        FunctionHead {
+                            name,
+                            r_type,
+                            arguments,
+                            var_args,
+                        },
                     body,
                 } => {
-                    dbg!(&name, &r_type, &arguments, &body);
+                    dbg!(&name, &r_type, &arguments, &var_args, &body);
 
                     if current.is_defined(&name) {
                         panic!("Redefinition Error");
@@ -141,6 +146,7 @@ impl AScope {
                             name.clone(),
                             declaration,
                             arguments.clone(),
+                            var_args,
                             r_ty.clone(),
                         );
                     }
@@ -155,6 +161,7 @@ impl AScope {
                                 arguments,
                                 declaration,
                                 return_ty: r_ty,
+                                var_args,
                             },
                             inner_scope,
                         ),

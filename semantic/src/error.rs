@@ -3,7 +3,7 @@ use syntax::Identifier;
 
 use crate::AType;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SemanticError {
     MismatchedTypes {
         expected: SpanData<AType>,

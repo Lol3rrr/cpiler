@@ -1,5 +1,7 @@
 use general::{Source, Span, SpanData};
-use syntax::{DataType, FunctionArgument, Identifier, Scope, Statement, TypeToken, AST};
+use syntax::{
+    DataType, FunctionArgument, FunctionHead, Identifier, Scope, Statement, TypeToken, AST,
+};
 
 #[test]
 fn function_declarations() {
@@ -10,7 +12,7 @@ fn function_declarations() {
 
     let expected = Ok(AST {
         global_scope: Scope {
-            statements: vec![Statement::FunctionDeclaration {
+            statements: vec![Statement::FunctionDeclaration(FunctionHead {
                 name: Identifier(SpanData {
                     span: Span::new_source(input_source.clone(), 5..8),
                     data: "src".to_string(),
@@ -20,7 +22,8 @@ fn function_declarations() {
                     data: DataType::Void,
                 }),
                 arguments: vec![],
-            }],
+                var_args: false,
+            })],
         },
     });
 
@@ -39,7 +42,7 @@ fn function_declaration_pointer_arg() {
 
     let expected = Ok(AST {
         global_scope: Scope {
-            statements: vec![Statement::FunctionDeclaration {
+            statements: vec![Statement::FunctionDeclaration(FunctionHead {
                 name: Identifier(SpanData {
                     span: Span::new_source(input_source.clone(), 5..8),
                     data: "src".to_string(),
@@ -61,7 +64,8 @@ fn function_declaration_pointer_arg() {
                         }))),
                     },
                 }],
-            }],
+                var_args: false,
+            })],
         },
     });
 
@@ -80,7 +84,7 @@ fn function_declaration_two_args() {
 
     let expected = Ok(AST {
         global_scope: Scope {
-            statements: vec![Statement::FunctionDeclaration {
+            statements: vec![Statement::FunctionDeclaration(FunctionHead {
                 name: Identifier(SpanData {
                     span: Span::new_source(input_source.clone(), 5..8),
                     data: "src".to_string(),
@@ -117,7 +121,50 @@ fn function_declaration_two_args() {
                         },
                     },
                 ],
-            }],
+                var_args: false,
+            })],
+        },
+    });
+
+    let result = syntax::parse(input_tokens);
+    dbg!(&result);
+
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn function_declaration_with_var_args() {
+    let input_content = "void src(int *first, ...);";
+    let input_source = Source::new("test", input_content);
+    let input_span: Span = input_source.clone().into();
+    let input_tokens = tokenizer::tokenize(input_span);
+
+    let expected = Ok(AST {
+        global_scope: Scope {
+            statements: vec![Statement::FunctionDeclaration(FunctionHead {
+                name: Identifier(SpanData {
+                    span: Span::new_source(input_source.clone(), 5..8),
+                    data: "src".to_string(),
+                }),
+                r_type: TypeToken::Primitive(SpanData {
+                    span: Span::new_source(input_source.clone(), 0..4),
+                    data: DataType::Void,
+                }),
+                arguments: vec![SpanData {
+                    span: Span::new_source(input_source.clone(), 9..19),
+                    data: FunctionArgument {
+                        name: Identifier(SpanData {
+                            span: Span::new_source(input_source.clone(), 14..19),
+                            data: "first".to_string(),
+                        }),
+                        ty: TypeToken::Pointer(Box::new(TypeToken::Primitive(SpanData {
+                            span: Span::new_source(input_source.clone(), 9..12),
+                            data: DataType::Int,
+                        }))),
+                    },
+                }],
+                var_args: true,
+            })],
         },
     });
 

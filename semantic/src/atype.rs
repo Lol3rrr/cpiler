@@ -29,6 +29,18 @@ pub struct Array {
 }
 
 impl AType {
+    pub fn implicitly_castable(&self, target: &Self) -> bool {
+        if self == target {
+            return true;
+        }
+
+        match (self, target) {
+            (Self::Array(arr), Self::Pointer(inner)) => &arr.ty == inner,
+            (_, Self::Composition(Modifier::Const, inner)) => self.implicitly_castable(inner),
+            _ => false,
+        }
+    }
+
     pub fn parse<VC>(
         raw: TypeToken,
         ty_defs: &TypeDefinitions,
@@ -168,5 +180,17 @@ mod tests {
                 &HashMap::new()
             )
         )
+    }
+
+    #[test]
+    fn useable_array_pointer() {
+        let root = AType::Array(Array {
+            ty: Box::new(AType::Primitve(APrimitive::Int)),
+            size: None,
+        });
+
+        let target = AType::Pointer(Box::new(AType::Primitve(APrimitive::Int)));
+
+        assert_eq!(true, root.implicitly_castable(&target));
     }
 }
