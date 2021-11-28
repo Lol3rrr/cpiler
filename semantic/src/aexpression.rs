@@ -3,6 +3,12 @@ use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{APrimitive, AType, SemanticError, VariableContainer};
 
+mod operator;
+pub use operator::*;
+
+mod unary_operator;
+pub use unary_operator::*;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum AExpression {
     Literal(Literal),
@@ -32,6 +38,15 @@ pub enum AExpression {
     ImplicitCast {
         base: Box<Self>,
         target: AType,
+    },
+    BinaryOperator {
+        left: Box<Self>,
+        right: Box<Self>,
+        op: AOperator,
+    },
+    UnaryOperator {
+        base: Box<Self>,
+        op: UnaryOperator,
     },
 }
 
@@ -184,12 +199,12 @@ impl AExpression {
                 let arg_results: Vec<_> = arg_iter
                     .map(|(expected, recveived)| {
                         let recveived_type = recveived.result_type();
-                        if &expected.data == &recveived_type {
+                        if &expected.data.ty == &recveived_type {
                             return Ok(recveived);
                         }
 
-                        if recveived_type.implicitly_castable(&expected.data) {
-                            let target = expected.data.clone();
+                        if recveived_type.implicitly_castable(&expected.data.ty) {
+                            let target = expected.data.ty.clone();
                             let n_exp = Self::ImplicitCast {
                                 base: Box::new(recveived),
                                 target,
@@ -199,7 +214,10 @@ impl AExpression {
                         }
 
                         Err(SemanticError::MismatchedTypes {
-                            expected: expected.clone(),
+                            expected: SpanData {
+                                span: expected.span.clone(),
+                                data: expected.data.ty.clone(),
+                            },
                             received: SpanData {
                                 span: recveived.entire_span(),
                                 data: recveived_type,
@@ -231,6 +249,7 @@ impl AExpression {
 
                 let elem_ty = match base_ty {
                     AType::Array(arr) => arr.ty,
+                    AType::Pointer(inner) => inner,
                     other => {
                         dbg!(&other);
 
@@ -273,7 +292,53 @@ impl AExpression {
             Expression::SingleOperation { base, operation } => {
                 dbg!(&base, &operation);
 
-                todo!("Parse Single Operation")
+                let a_base = AExpression::parse(*base, vars)?;
+                dbg!(&a_base);
+
+                let a_op = UnaryOperator::from(operation);
+                dbg!(&a_op);
+
+                Ok(Self::UnaryOperator {
+                    base: Box::new(a_base),
+                    op: a_op,
+                })
+            }
+            Expression::Operation {
+                left,
+                right,
+                operation,
+            } => {
+                dbg!(&left, &right, &operation);
+
+                let left_a = Self::parse(*left, vars)?;
+                dbg!(&left_a);
+
+                let right_a = Self::parse(*right, vars)?;
+                dbg!(&right_a);
+
+                let op_a = AOperator::from(operation);
+                dbg!(&op_a);
+
+                match &op_a {
+                    AOperator::Comparison(_) => {
+                        // TODO
+                        // Check for Type Compatibility when comparing
+                    }
+                    AOperator::Combinator(_) => {
+                        // TODO
+                        // Check for Type Compatibility when combining logic
+                    }
+                    AOperator::Arithmetic(_) => {
+                        // TODO
+                        // Check for Type Compatibility when performing arithemtic on the ops
+                    }
+                };
+
+                Ok(Self::BinaryOperator {
+                    left: Box::new(left_a),
+                    right: Box::new(right_a),
+                    op: op_a,
+                })
             }
             unknown => panic!("Unknown Expression: {:?}", unknown),
         }
@@ -309,6 +374,18 @@ impl AExpression {
             Self::StructAccess { ty, .. } => ty.clone(),
             Self::FunctionCall { result_ty, .. } => result_ty.clone(),
             Self::ImplicitCast { target, .. } => target.clone(),
+            Self::BinaryOperator { op, left, right } => match op {
+                AOperator::Comparison(_) => AType::Primitve(APrimitive::Int),
+                AOperator::Combinator(_) => AType::Primitve(APrimitive::Int),
+                AOperator::Arithmetic(_) => {
+                    dbg!(&left, &right);
+
+                    todo!("Determine result type of Arithemtic Operand")
+                }
+            },
+            Self::UnaryOperator { op, .. } => match op {
+                UnaryOperator::Arithmetic(_) => AType::Primitve(APrimitive::Int),
+            },
         }
     }
     pub fn entire_span(&self) -> Span {
@@ -324,6 +401,18 @@ impl AExpression {
             Self::StructAccess { field, .. } => field.0.span.clone(),
             Self::FunctionCall { name, .. } => name.0.span.clone(),
             Self::ImplicitCast { base, .. } => base.entire_span(),
+            Self::BinaryOperator { left, right, .. } => {
+                let left_span = left.entire_span();
+                let right_span = right.entire_span();
+
+                let start = left_span.source_area().start;
+                let end = right_span.source_area().end;
+
+                let source = left_span.source().clone();
+
+                Span::new_arc_source(source, start..end)
+            }
+            Self::UnaryOperator { base, .. } => base.entire_span(),
         }
     }
 }

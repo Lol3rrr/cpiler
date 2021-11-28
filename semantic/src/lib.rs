@@ -28,10 +28,16 @@ pub struct VariableDeclaration {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct AFunctionArg {
+    name: Identifier,
+    ty: AType,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDeclaration {
     pub return_ty: AType,
     pub declaration: Span,
-    pub arguments: Vec<SpanData<AType>>,
+    pub arguments: Vec<SpanData<AFunctionArg>>,
     pub var_args: bool,
 }
 

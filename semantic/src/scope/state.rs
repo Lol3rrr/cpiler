@@ -3,13 +3,17 @@ use std::collections::HashMap;
 use general::{Span, SpanData};
 use syntax::Identifier;
 
-use crate::{AType, FunctionDeclaration, TypeDefinitions, VariableContainer, VariableDeclaration};
+use crate::{
+    AFunctionArg, AScope, AType, FunctionDeclaration, TypeDefinitions, VariableContainer,
+    VariableDeclaration,
+};
 
 #[derive(Debug)]
 pub struct ParseState {
     external_variables: Variables,
     local_variables: Variables,
     type_defs: TypeDefinitions,
+    function_definitions: HashMap<String, (FunctionDeclaration, AScope)>,
 }
 
 impl ParseState {
@@ -18,6 +22,7 @@ impl ParseState {
             external_variables: Variables::new(),
             local_variables: Variables::new(),
             type_defs: TypeDefinitions::new(),
+            function_definitions: HashMap::new(),
         }
     }
 
@@ -29,6 +34,7 @@ impl ParseState {
             external_variables: new_ext,
             local_variables: Variables::new(),
             type_defs,
+            function_definitions: HashMap::new(),
         }
     }
 
@@ -59,7 +65,7 @@ impl ParseState {
         &mut self,
         name: Identifier,
         declaration: Span,
-        arguments: Vec<SpanData<AType>>,
+        arguments: Vec<SpanData<AFunctionArg>>,
         var_args: bool,
         return_ty: AType,
     ) {
@@ -77,6 +83,19 @@ impl ParseState {
     pub fn add_variable_declaration(&mut self, name: Identifier, declaration: Span, ty: AType) {
         dbg!(&name);
         self.local_variables.declare_variable(name, ty, declaration);
+    }
+
+    pub fn add_function_definition(
+        &mut self,
+        name: String,
+        func_dec: FunctionDeclaration,
+        scope: AScope,
+    ) {
+        self.function_definitions.insert(name, (func_dec, scope));
+    }
+
+    pub fn destructure(self) -> HashMap<String, (FunctionDeclaration, AScope)> {
+        self.function_definitions
     }
 }
 

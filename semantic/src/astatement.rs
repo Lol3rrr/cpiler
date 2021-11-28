@@ -1,31 +1,12 @@
-use general::{Span, SpanData};
-use syntax::{AssignTarget, Identifier, Statement};
+use general::SpanData;
+use syntax::{AssignTarget, FunctionHead, Statement};
 
 use crate::{
-    AExpression, APrimitive, AScope, AType, ParseState, SemanticError, TypeDefinitions,
-    VariableContainer,
+    AExpression, AFunctionArg, AScope, AType, FunctionDeclaration, ParseState, SemanticError,
 };
 
-#[derive(Debug, PartialEq)]
-pub enum AAssignTarget {
-    Variable {
-        ident: Identifier,
-        /// The Type of the Variable itself
-        ty_info: SpanData<AType>,
-    },
-    ArrayAccess {
-        target: Box<Self>,
-        index: AExpression,
-        /// The Type of the Array-Element
-        ty_info: SpanData<AType>,
-    },
-    StructField {
-        target: Box<Self>,
-        field: Identifier,
-        /// The Type of the Field of the Struct
-        ty_info: SpanData<AType>,
-    },
-}
+mod target;
+pub use target::*;
 
 #[derive(Debug, PartialEq)]
 pub enum AStatement {
@@ -38,6 +19,12 @@ pub enum AStatement {
         condition: AExpression,
         body: AScope,
     },
+    ForLoop {
+        setups: Vec<Self>,
+        condition: AExpression,
+        updates: Vec<Self>,
+        body: AScope,
+    },
     Break,
     If {
         condition: AExpression,
@@ -48,128 +35,166 @@ pub enum AStatement {
     },
 }
 
-impl AAssignTarget {
-    pub fn parse<VC>(raw: AssignTarget, vars: &VC) -> Result<Self, SemanticError>
-    where
-        VC: VariableContainer,
-    {
-        match raw {
-            AssignTarget::Variable(ident) => {
-                let (ty, sp) = match vars.get_var(&ident) {
-                    Some(t) => t,
-                    None => return Err(SemanticError::UnknownIdentifier { name: ident }),
-                };
-
-                Ok(AAssignTarget::Variable {
-                    ident,
-                    ty_info: SpanData {
-                        span: sp.clone(),
-                        data: ty.clone(),
-                    },
-                })
-            }
-            AssignTarget::ArrayAccess { base, index } => {
-                let base_target = Self::parse(*base, vars)?;
-
-                let a_index = AExpression::parse(index, vars)?;
-
-                let index_type = a_index.result_type();
-                match index_type {
-                    AType::Primitve(APrimitive::Int) => {}
-                    i_type => {
-                        let i_span = a_index.entire_span();
-                        dbg!(&i_type, &i_span);
-
-                        todo!("Invalid Index-Type");
-                    }
-                };
-
-                let (arr_ty, arr_span) = base_target.get_expected_type();
-                let elem_ty = match arr_ty {
-                    AType::Array(base) => base.ty,
-                    other => {
-                        dbg!(&other);
-
-                        todo!("Indexed type is not an array");
-                    }
-                };
-
-                // TODO
-                // This span is actually pretty bad because as far as I can tell it just describes
-                // the name of the array Variable and not the underlying Type
-                let elem_span = arr_span;
-
-                Ok(AAssignTarget::ArrayAccess {
-                    target: Box::new(base_target),
-                    index: a_index,
-                    ty_info: SpanData {
-                        span: elem_span,
-                        data: *elem_ty,
-                    },
-                })
-            }
-            AssignTarget::StructAccess { base, field } => {
-                dbg!(&base, &field);
-
-                let base_target = Self::parse(*base, vars)?;
-                dbg!(&base_target);
-
-                let (base_ty, _) = base_target.get_expected_type();
-                let struct_def = match base_ty {
-                    AType::AnonStruct(def) => def,
-                    other => {
-                        dbg!(&other);
-
-                        todo!("Wrong Type, expected a struct");
-                    }
-                };
-                dbg!(&struct_def);
-
-                let (field_ty, field_span) = match struct_def.find_member(&field) {
-                    Some(f) => (f.data, f.span),
-                    None => {
-                        todo!("Unknown field")
-                    }
-                };
-                dbg!(&field_ty);
-
-                Ok(Self::StructField {
-                    target: Box::new(base_target),
-                    field,
-                    ty_info: SpanData {
-                        span: field_span,
-                        data: field_ty.clone(),
-                    },
-                })
-            }
-            unknown => panic!("Unexpected Assignment Target: {:?}", unknown),
-        }
-    }
-
-    pub fn get_expected_type(&self) -> (AType, Span) {
-        match &self {
-            Self::Variable { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
-            Self::ArrayAccess { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
-            Self::StructField { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
-        }
-    }
-}
-
 impl AStatement {
-    pub fn parse<VC>(
+    pub fn parse(
         raw: Statement,
-        parse_state: &ParseState,
-        vars: &VC,
-        types: &TypeDefinitions,
-    ) -> Result<Self, SemanticError>
-    where
-        VC: VariableContainer,
-    {
+        parse_state: &mut ParseState,
+    ) -> Result<Option<Self>, SemanticError> {
         match raw {
-            Statement::VariableAssignment { target, value } => {
-                let value_exp = AExpression::parse(value, vars)?;
+            Statement::TypeDef { name, base_type } => {
+                let target_ty =
+                    AType::parse_typedef(base_type, parse_state.type_defs(), parse_state)?;
 
-                let a_target = AAssignTarget::parse(target, vars)?;
+                dbg!(&name, &target_ty);
+
+                parse_state.mut_type_defs().add_definition(name, target_ty);
+
+                Ok(None)
+            }
+            Statement::FunctionDeclaration(FunctionHead {
+                name,
+                r_type,
+                arguments,
+                var_args,
+            }) => {
+                dbg!(&name, &r_type, &arguments);
+
+                if parse_state.is_declared(&name) {
+                    panic!("Redefinition Error");
+                }
+
+                let r_ty = AType::parse(r_type, parse_state.type_defs(), parse_state)?;
+
+                let arguments = {
+                    let mut tmp = Vec::new();
+                    for arg in arguments {
+                        let tmp_ty =
+                            AType::parse(arg.data.ty, parse_state.type_defs(), parse_state)?;
+                        tmp.push(SpanData {
+                            span: arg.span,
+                            data: AFunctionArg {
+                                name: arg.data.name,
+                                ty: tmp_ty,
+                            },
+                        });
+                    }
+                    tmp
+                };
+
+                let declaration = name.0.span.clone();
+                parse_state.add_function_declaration(name, declaration, arguments, var_args, r_ty);
+
+                Ok(None)
+            }
+            Statement::FunctionDefinition {
+                head:
+                    FunctionHead {
+                        name,
+                        r_type,
+                        arguments,
+                        var_args,
+                    },
+                body,
+            } => {
+                dbg!(&name, &r_type, &arguments, &var_args, &body);
+
+                if parse_state.is_defined(&name) {
+                    panic!("Redefinition Error");
+                }
+
+                let r_ty = AType::parse(r_type, parse_state.type_defs(), parse_state)?;
+
+                let arguments = {
+                    let mut tmp = Vec::new();
+                    for arg in arguments {
+                        let tmp_ty =
+                            AType::parse(arg.data.ty, parse_state.type_defs(), parse_state)?;
+                        let name = arg.data.name;
+
+                        tmp.push(SpanData {
+                            span: arg.span,
+                            data: AFunctionArg { name, ty: tmp_ty },
+                        });
+                    }
+                    tmp
+                };
+
+                if !parse_state.is_declared(&name) {
+                    let declaration = name.0.span.clone();
+                    parse_state.add_function_declaration(
+                        name.clone(),
+                        declaration,
+                        arguments.clone(),
+                        var_args,
+                        r_ty.clone(),
+                    );
+                }
+
+                let mut function_scope = ParseState::based(&parse_state);
+                for tmp_arg in arguments.iter() {
+                    let arg = &tmp_arg.data;
+
+                    function_scope.add_variable_declaration(
+                        arg.name.clone(),
+                        tmp_arg.span.clone(),
+                        arg.ty.clone(),
+                    );
+                }
+
+                let inner_scope = AScope::parse(&function_scope, body)?;
+
+                let declaration = name.0.span.clone();
+                parse_state.add_function_definition(
+                    name.0.data,
+                    FunctionDeclaration {
+                        arguments,
+                        declaration,
+                        return_ty: r_ty,
+                        var_args,
+                    },
+                    inner_scope,
+                );
+
+                Ok(None)
+            }
+            Statement::VariableDeclaration { ty, name } => {
+                let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
+
+                dbg!(&name, &ty);
+
+                if parse_state.is_declared(&name) {
+                    panic!("Redefintion Error");
+                }
+
+                let declaration = name.0.span.clone();
+                parse_state.add_variable_declaration(name, declaration, ty);
+
+                Ok(None)
+            }
+            Statement::VariableDeclarationAssignment { ty, name, value } => {
+                let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
+
+                dbg!(&name, &ty);
+
+                if parse_state.is_declared(&name) {
+                    panic!("Redefintion Error");
+                }
+
+                let declaration = name.0.span.clone();
+                parse_state.add_variable_declaration(name.clone(), declaration, ty);
+
+                // Handle the assign Part of this
+                let assign_statement = Statement::VariableAssignment {
+                    target: AssignTarget::Variable(name),
+                    value,
+                };
+
+                AStatement::parse(assign_statement, parse_state)
+            }
+            Statement::VariableAssignment { target, value } => {
+                let value_exp = AExpression::parse(value, parse_state)?;
+
+                let a_target = AAssignTarget::parse(target, parse_state)?;
 
                 let (var_type, var_span) = a_target.get_expected_type();
                 let exp_type = value_exp.result_type();
@@ -186,31 +211,70 @@ impl AStatement {
                     });
                 }
 
-                Ok(Self::Assignment {
+                Ok(Some(Self::Assignment {
                     target: a_target,
                     value: value_exp,
-                })
+                }))
             }
             Statement::SingleExpression(raw_exp) => {
-                let exp = AExpression::parse(raw_exp, vars)?;
+                let exp = AExpression::parse(raw_exp, parse_state)?;
 
-                Ok(Self::Expression(exp))
+                Ok(Some(Self::Expression(exp)))
             }
             Statement::WhileLoop { condition, scope } => {
                 dbg!(&condition, &scope);
 
-                let cond = AExpression::parse(condition, vars)?;
+                let cond = AExpression::parse(condition, parse_state)?;
                 dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
                 dbg!(&inner_scope);
 
-                Ok(Self::WhileLoop {
+                Ok(Some(Self::WhileLoop {
                     condition: cond,
                     body: inner_scope,
-                })
+                }))
             }
-            Statement::Break => Ok(Self::Break),
+            Statement::ForLoop {
+                setup,
+                condition,
+                update,
+                scope,
+            } => {
+                dbg!(&setup, &condition, &update, &scope);
+
+                let mut a_setups = Vec::new();
+                for tmp_setup in setup {
+                    if let Some(tmp_setup_a) = AStatement::parse(tmp_setup, parse_state)? {
+                        dbg!(&tmp_setup_a);
+
+                        a_setups.push(tmp_setup_a);
+                    }
+                }
+
+                let mut a_updates = Vec::new();
+                for tmp_update in update {
+                    if let Some(tmp_update_a) = AStatement::parse(tmp_update, parse_state)? {
+                        dbg!(&tmp_update_a);
+
+                        a_updates.push(tmp_update_a);
+                    }
+                }
+
+                let a_cond = AExpression::parse(condition, parse_state)?;
+
+                dbg!(&a_setups, &a_cond, &a_updates);
+
+                let inner_scope = AScope::parse(&parse_state, scope)?;
+
+                Ok(Some(Self::ForLoop {
+                    setups: a_setups,
+                    condition: a_cond,
+                    updates: a_updates,
+                    body: inner_scope,
+                }))
+            }
+            Statement::Break => Ok(Some(Self::Break)),
             Statement::If {
                 condition,
                 scope,
@@ -218,7 +282,7 @@ impl AStatement {
             } => {
                 dbg!(&condition, &scope, &elses);
 
-                let cond = AExpression::parse(condition, vars)?;
+                let cond = AExpression::parse(condition, parse_state)?;
                 dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
@@ -227,23 +291,23 @@ impl AStatement {
                 // TODO
                 // Parse Elses
 
-                Ok(Self::If {
+                Ok(Some(Self::If {
                     condition: cond,
                     body: inner_scope,
-                })
+                }))
             }
             Statement::Return(raw_val) => {
                 dbg!(&raw_val);
                 let r_value = match raw_val {
                     Some(raw) => {
-                        let value = AExpression::parse(raw, vars)?;
+                        let value = AExpression::parse(raw, parse_state)?;
 
                         Some(value)
                     }
                     None => None,
                 };
 
-                Ok(Self::Return { value: r_value })
+                Ok(Some(Self::Return { value: r_value }))
             }
             unknown => panic!("Unexpected Statement: {:?}", unknown),
         }
