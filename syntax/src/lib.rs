@@ -5,7 +5,9 @@ mod scope;
 pub use scope::Scope;
 
 mod statement;
-pub use statement::{AssignTarget, FunctionHead, Statement, TypeDefType};
+pub use statement::{
+    AssignTarget, EnumVariant, EnumVariants, FunctionHead, Statement, StructMembers, TypeDefType,
+};
 
 mod expression;
 pub use expression::{Expression, ExpressionOperator, SingleOperation};

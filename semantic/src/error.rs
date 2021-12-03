@@ -9,6 +9,11 @@ pub enum SemanticError {
         expected: SpanData<AType>,
         received: SpanData<AType>,
     },
+    InvalidType {},
+    Redeclaration {
+        name: Identifier,
+        previous_declaration: Span,
+    },
     Redefinition {
         name: Identifier,
         previous_definition: Span,

@@ -2,7 +2,7 @@ use general::SpanData;
 use syntax::{AssignTarget, FunctionHead, Statement};
 
 use crate::{
-    AExpression, AFunctionArg, AScope, AType, FunctionDeclaration, ParseState, SemanticError,
+    atype, AExpression, AFunctionArg, AScope, AType, FunctionDeclaration, ParseState, SemanticError,
 };
 
 mod target;
@@ -20,7 +20,6 @@ pub enum AStatement {
         body: AScope,
     },
     ForLoop {
-        setups: Vec<Self>,
         condition: AExpression,
         updates: Vec<Self>,
         body: AScope,
@@ -32,6 +31,9 @@ pub enum AStatement {
     },
     Return {
         value: Option<AExpression>,
+    },
+    SubScope {
+        inner: AScope,
     },
 }
 
@@ -49,6 +51,15 @@ impl AStatement {
 
                 parse_state.mut_type_defs().add_definition(name, target_ty);
 
+                Ok(None)
+            }
+            Statement::StructDefinition { name, members } => {
+                dbg!(&name, &members);
+
+                let ty = AType::parse_struct(members, parse_state.type_defs(), parse_state)?;
+                dbg!(&ty);
+
+                parse_state.mut_type_defs().add_definition(name, ty);
                 Ok(None)
             }
             Statement::FunctionDeclaration(FunctionHead {
@@ -177,7 +188,11 @@ impl AStatement {
                 dbg!(&name, &ty);
 
                 if parse_state.is_declared(&name) {
-                    panic!("Redefintion Error");
+                    let prev_dec = parse_state.get_declaration(&name).unwrap();
+                    return Err(SemanticError::Redeclaration {
+                        name,
+                        previous_declaration: prev_dec,
+                    });
                 }
 
                 let declaration = name.0.span.clone();
@@ -192,11 +207,17 @@ impl AStatement {
                 AStatement::parse(assign_statement, parse_state)
             }
             Statement::VariableAssignment { target, value } => {
-                let value_exp = AExpression::parse(value, parse_state)?;
+                let base_value_exp =
+                    AExpression::parse(value, parse_state.type_defs(), parse_state)?;
 
-                let a_target = AAssignTarget::parse(target, parse_state)?;
-
+                let a_target = AAssignTarget::parse(target, parse_state.type_defs(), parse_state)?;
                 let (var_type, var_span) = a_target.get_expected_type();
+
+                let value_exp =
+                    atype::assign_type::determine_type(base_value_exp, (&var_type, &var_span))?;
+
+                dbg!(&value_exp);
+
                 let exp_type = value_exp.result_type();
                 if var_type != exp_type {
                     return Err(SemanticError::MismatchedTypes {
@@ -217,14 +238,14 @@ impl AStatement {
                 }))
             }
             Statement::SingleExpression(raw_exp) => {
-                let exp = AExpression::parse(raw_exp, parse_state)?;
+                let exp = AExpression::parse(raw_exp, parse_state.type_defs(), parse_state)?;
 
                 Ok(Some(Self::Expression(exp)))
             }
             Statement::WhileLoop { condition, scope } => {
                 dbg!(&condition, &scope);
 
-                let cond = AExpression::parse(condition, parse_state)?;
+                let cond = AExpression::parse(condition, parse_state.type_defs(), parse_state)?;
                 dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
@@ -243,9 +264,11 @@ impl AStatement {
             } => {
                 dbg!(&setup, &condition, &update, &scope);
 
+                let mut loop_state = ParseState::based(&parse_state);
+
                 let mut a_setups = Vec::new();
                 for tmp_setup in setup {
-                    if let Some(tmp_setup_a) = AStatement::parse(tmp_setup, parse_state)? {
+                    if let Some(tmp_setup_a) = AStatement::parse(tmp_setup, &mut loop_state)? {
                         dbg!(&tmp_setup_a);
 
                         a_setups.push(tmp_setup_a);
@@ -254,25 +277,32 @@ impl AStatement {
 
                 let mut a_updates = Vec::new();
                 for tmp_update in update {
-                    if let Some(tmp_update_a) = AStatement::parse(tmp_update, parse_state)? {
+                    if let Some(tmp_update_a) = AStatement::parse(tmp_update, &mut loop_state)? {
                         dbg!(&tmp_update_a);
 
                         a_updates.push(tmp_update_a);
                     }
                 }
 
-                let a_cond = AExpression::parse(condition, parse_state)?;
+                let a_cond = AExpression::parse(condition, parse_state.type_defs(), &loop_state)?;
 
                 dbg!(&a_setups, &a_cond, &a_updates);
 
-                let inner_scope = AScope::parse(&parse_state, scope)?;
+                let inner_scope = AScope::parse(&loop_state, scope)?;
 
-                Ok(Some(Self::ForLoop {
-                    setups: a_setups,
+                let for_statement = Self::ForLoop {
                     condition: a_cond,
                     updates: a_updates,
                     body: inner_scope,
-                }))
+                };
+                let loop_statements: Vec<_> = a_setups
+                    .into_iter()
+                    .chain(std::iter::once(for_statement))
+                    .collect();
+
+                let loop_scope = AScope::from_parse_state(loop_state, loop_statements);
+
+                Ok(Some(Self::SubScope { inner: loop_scope }))
             }
             Statement::Break => Ok(Some(Self::Break)),
             Statement::If {
@@ -282,7 +312,7 @@ impl AStatement {
             } => {
                 dbg!(&condition, &scope, &elses);
 
-                let cond = AExpression::parse(condition, parse_state)?;
+                let cond = AExpression::parse(condition, parse_state.type_defs(), parse_state)?;
                 dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
@@ -300,7 +330,7 @@ impl AStatement {
                 dbg!(&raw_val);
                 let r_value = match raw_val {
                     Some(raw) => {
-                        let value = AExpression::parse(raw, parse_state)?;
+                        let value = AExpression::parse(raw, parse_state.type_defs(), parse_state)?;
 
                         Some(value)
                     }

@@ -9,6 +9,7 @@ pub enum Modifier {
     Const,
     Signed,
     Unsigned,
+    Long,
 }
 
 impl Modifier {
@@ -17,6 +18,7 @@ impl Modifier {
             TokenData::Keyword(Keyword::Const) => true,
             TokenData::Keyword(Keyword::DataType(DataType::Signed)) => true,
             TokenData::Keyword(Keyword::DataType(DataType::Unsigned)) => true,
+            TokenData::Keyword(Keyword::DataType(DataType::Long)) => true,
             _ => false,
         }
     }
@@ -26,6 +28,7 @@ impl Modifier {
             TokenData::Keyword(Keyword::Const) => Some(Self::Const),
             TokenData::Keyword(Keyword::DataType(DataType::Signed)) => Some(Self::Signed),
             TokenData::Keyword(Keyword::DataType(DataType::Unsigned)) => Some(Self::Unsigned),
+            TokenData::Keyword(Keyword::DataType(DataType::Long)) => Some(Self::Long),
             _ => None,
         }
     }
@@ -121,12 +124,85 @@ impl TypeToken {
     {
         let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
         match &peeked.data {
+            TokenData::Keyword(Keyword::DataType(DataType::Short)) => {
+                let next = tokens.next().unwrap();
+
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                match &peeked.data {
+                    TokenData::Literal { .. } => {}
+                    TokenData::Keyword(Keyword::DataType(DataType::Int)) => {
+                        let _ = tokens.next();
+                    }
+                    _ => {
+                        let next = tokens.next().unwrap();
+
+                        return Err(SyntaxError::UnexpectedToken {
+                            got: next.span,
+                            expected: None,
+                        });
+                    }
+                };
+
+                Ok(Self::Primitive(SpanData {
+                    data: DataType::Short,
+                    span: next.span,
+                }))
+            }
+            TokenData::Keyword(Keyword::DataType(DataType::Long)) => {
+                let next = tokens.next().unwrap();
+
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                match &peeked.data {
+                    TokenData::Literal { .. } => Ok(Self::Primitive(SpanData {
+                        data: DataType::Long,
+                        span: next.span,
+                    })),
+                    TokenData::Keyword(Keyword::DataType(DataType::Int)) => {
+                        let _ = tokens.next();
+
+                        Ok(Self::Primitive(SpanData {
+                            data: DataType::Long,
+                            span: next.span,
+                        }))
+                    }
+                    TokenData::Keyword(Keyword::DataType(DataType::Long)) => {
+                        let base = Self::parse(tokens)?;
+
+                        Ok(Self::Composition {
+                            base: Box::new(base),
+                            modifier: SpanData {
+                                span: next.span,
+                                data: Modifier::Long,
+                            },
+                        })
+                    }
+                    TokenData::Keyword(Keyword::DataType(DataType::Double)) => {
+                        let base = Self::parse(tokens)?;
+
+                        Ok(Self::Composition {
+                            base: Box::new(base),
+                            modifier: SpanData {
+                                span: next.span,
+                                data: Modifier::Long,
+                            },
+                        })
+                    }
+                    _ => {
+                        let next = tokens.next().unwrap();
+
+                        return Err(SyntaxError::UnexpectedToken {
+                            got: next.span,
+                            expected: None,
+                        });
+                    }
+                }
+            }
             data if Modifier::is_modifier(&data) => {
                 let next = tokens.next().unwrap();
 
                 let modif = Modifier::parse(next.data).unwrap();
 
-                let base = Self::parse_ty(tokens)?;
+                let base = Self::parse(tokens)?;
 
                 Ok(Self::Composition {
                     base: Box::new(base),

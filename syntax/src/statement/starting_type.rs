@@ -4,8 +4,9 @@ use tokenizer::{Assignment, Token, TokenData};
 
 use super::structs;
 use crate::{
-    statement::FunctionHead, ExpectedToken, Expression, ExpressionReason, FunctionArgument,
-    Identifier, Scope, Statement, SyntaxError, TypeToken,
+    statement::{enums, FunctionHead},
+    ExpectedToken, Expression, ExpressionReason, FunctionArgument, Identifier, Scope, Statement,
+    SyntaxError, TypeToken,
 };
 
 /// This gets called if we want to parse a new Statement and notice that it started with a
@@ -23,7 +24,37 @@ where
         (TypeToken::StructType { name }, TokenData::OpenBrace) => {
             let members = structs::StructMembers::parse(tokens)?;
 
+            let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            match end_tok.data {
+                TokenData::Semicolon => {}
+                _ => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        got: end_tok.span,
+                        expected: Some(vec![ExpectedToken::Semicolon]),
+                    });
+                }
+            };
+
             return Ok(Statement::StructDefinition { name, members });
+        }
+        (TypeToken::EnumType { name }, TokenData::OpenBrace) => {
+            dbg!(&name);
+
+            let variants = enums::EnumVariants::parse(tokens)?;
+            dbg!(&variants);
+
+            let end_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            match end_token.data {
+                TokenData::Semicolon => {}
+                _ => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        got: end_token.span,
+                        expected: Some(vec![ExpectedToken::Semicolon]),
+                    });
+                }
+            };
+
+            return Ok(Statement::EnumDefinition { name, variants });
         }
         (t, _) => t,
     };

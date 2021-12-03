@@ -46,4 +46,13 @@ impl AScope {
             function_definitions: func_definitions,
         })
     }
+
+    pub fn from_parse_state(state: ParseState, statements: Vec<AStatement>) -> Self {
+        let func_definitions = state.destructure();
+
+        Self {
+            statements,
+            function_definitions: func_definitions,
+        }
+    }
 }

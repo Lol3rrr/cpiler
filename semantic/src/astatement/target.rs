@@ -1,7 +1,7 @@
 use general::{Span, SpanData};
 use syntax::{AssignTarget, Identifier};
 
-use crate::{AExpression, APrimitive, AType, SemanticError, VariableContainer};
+use crate::{AExpression, APrimitive, AType, SemanticError, TypeDefinitions, VariableContainer};
 
 #[derive(Debug, PartialEq)]
 pub enum AAssignTarget {
@@ -25,7 +25,19 @@ pub enum AAssignTarget {
 }
 
 impl AAssignTarget {
-    pub fn parse<VC>(raw: AssignTarget, vars: &VC) -> Result<Self, SemanticError>
+    fn base_ty(&self) -> &AType {
+        match self {
+            Self::Variable { ty_info, .. } => &ty_info.data,
+            Self::ArrayAccess { ty_info, .. } => &ty_info.data,
+            Self::StructField { ty_info, .. } => &ty_info.data,
+        }
+    }
+
+    pub fn parse<VC>(
+        raw: AssignTarget,
+        ty_defs: &TypeDefinitions,
+        vars: &VC,
+    ) -> Result<Self, SemanticError>
     where
         VC: VariableContainer,
     {
@@ -45,9 +57,9 @@ impl AAssignTarget {
                 })
             }
             AssignTarget::ArrayAccess { base, index } => {
-                let base_target = Self::parse(*base, vars)?;
+                let base_target = Self::parse(*base, ty_defs, vars)?;
 
-                let a_index = AExpression::parse(index, vars)?;
+                let a_index = AExpression::parse(index, ty_defs, vars)?;
 
                 let index_type = a_index.result_type();
                 match index_type {
@@ -63,6 +75,7 @@ impl AAssignTarget {
                 let (arr_ty, arr_span) = base_target.get_expected_type();
                 let elem_ty = match arr_ty {
                     AType::Array(base) => base.ty,
+                    AType::Pointer(base) => base,
                     other => {
                         dbg!(&other);
 
@@ -87,16 +100,17 @@ impl AAssignTarget {
             AssignTarget::StructAccess { base, field } => {
                 dbg!(&base, &field);
 
-                let base_target = Self::parse(*base, vars)?;
+                let base_target = Self::parse(*base, ty_defs, vars)?;
                 dbg!(&base_target);
 
                 let (base_ty, _) = base_target.get_expected_type();
-                let struct_def = match base_ty {
-                    AType::AnonStruct(def) => def,
-                    other => {
-                        dbg!(&other);
 
-                        todo!("Wrong Type, expected a struct");
+                let struct_def = match base_ty.get_struct_def() {
+                    Some(s) => s,
+                    None => {
+                        dbg!(&base_ty);
+
+                        todo!("Expected Struct");
                     }
                 };
                 dbg!(&struct_def);
@@ -105,6 +119,46 @@ impl AAssignTarget {
                     Some(f) => (f.data, f.span),
                     None => {
                         todo!("Unknown field")
+                    }
+                };
+                dbg!(&field_ty);
+
+                Ok(Self::StructField {
+                    target: Box::new(base_target),
+                    field,
+                    ty_info: SpanData {
+                        span: field_span,
+                        data: field_ty.clone(),
+                    },
+                })
+            }
+            AssignTarget::StructPtrAccess { base, field } => {
+                dbg!(&base, &field);
+
+                let base_target = Self::parse(*base, ty_defs, vars)?;
+                dbg!(&base_target);
+
+                let struct_def = match base_target.base_ty() {
+                    AType::Pointer(inner) => match inner.get_struct_def() {
+                        Some(s) => s,
+                        None => {
+                            dbg!(&inner);
+
+                            todo!("Expected a Struct-Pointer");
+                        }
+                    },
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Expected a Struct-Pointer");
+                    }
+                };
+                dbg!(&struct_def);
+
+                let (field_ty, field_span) = match struct_def.find_member(&field) {
+                    Some(f) => (f.data, f.span),
+                    None => {
+                        todo!("Unknown field");
                     }
                 };
                 dbg!(&field_ty);

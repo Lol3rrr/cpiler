@@ -120,13 +120,44 @@ where
                             .print(sources)
                             .unwrap();
                     }
+                    SemanticError::InvalidType {} => {
+                        todo!("Invalid Type")
+                    }
+                    SemanticError::Redeclaration {
+                        name,
+                        previous_declaration,
+                    } => {
+                        dbg!(&name, &previous_declaration);
+
+                        let mut sources = SourceCache::from([&previous_declaration]);
+                        if previous_declaration.source().name() != name.0.span.source().name() {
+                            sources.add_source(&name.0.span);
+                        }
+
+                        Report::build(ReportKind::Error, &previous_declaration, 0)
+                            .with_message(format!("{:?} was declared again", name.0.data))
+                            .with_label(
+                                Label::new((
+                                    &previous_declaration,
+                                    previous_declaration.source_area().clone(),
+                                ))
+                                .with_message("Previously declared here"),
+                            )
+                            .with_label(
+                                Label::new((&name.0.span, name.0.span.source_area().clone()))
+                                    .with_message("Was redeclared here"),
+                            )
+                            .finish()
+                            .print(sources)
+                            .unwrap();
+                    }
                     SemanticError::Redefinition {
                         name,
                         previous_definition,
                     } => {
                         dbg!(&name, &previous_definition);
 
-                        todo!("Handle redefinition error");
+                        todo!("Redefinition");
                     }
                     SemanticError::MismatchedFunctionArgsCount { expected, received } => {
                         dbg!(&expected, &received);

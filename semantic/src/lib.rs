@@ -29,8 +29,8 @@ pub struct VariableDeclaration {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AFunctionArg {
-    name: Identifier,
-    ty: AType,
+    pub name: Identifier,
+    pub ty: AType,
 }
 
 #[derive(Debug, PartialEq, Clone)]

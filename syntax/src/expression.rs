@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use general::{Source, Span, SpanData};
 use itertools::PeekNth;
-use tokenizer::{Assignment, Operator, Token, TokenData};
+use tokenizer::{Assignment, Keyword, Operator, Token, TokenData};
 
 use crate::{ExpectedToken, Identifier, SyntaxError, TypeToken};
 
@@ -61,6 +61,9 @@ pub enum Expression {
     StructAccess {
         base: Box<Self>,
         field: Identifier,
+    },
+    SizeOf {
+        ty: TypeToken,
     },
 }
 
@@ -277,6 +280,30 @@ impl Expression {
                     let entry = Self::parse_single_token(current)?;
 
                     state.add_expression(entry);
+                }
+                (TokenData::Keyword(Keyword::SizeOf), _) => {
+                    let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                    match &peeked.data {
+                        TokenData::OpenParen => {
+                            let _ = tokens.next();
+                        }
+                        _ => {}
+                    };
+
+                    let ty = TypeToken::parse(tokens)?;
+                    dbg!(&ty);
+
+                    if let Some(after_peeked) = tokens.peek() {
+                        match &after_peeked.data {
+                            TokenData::CloseParen => {
+                                let _ = tokens.next();
+                            }
+                            _ => {}
+                        };
+                    }
+
+                    let inner = Expression::SizeOf { ty };
+                    state.add_expression(inner);
                 }
                 (TokenData::Operator(op), _) => {
                     match op {
@@ -543,6 +570,7 @@ impl Expression {
 mod tests {
     use general::{Source, Span};
     use itertools::peek_nth;
+    use tokenizer::DataType;
 
     use crate::ExpressionReason;
 
@@ -1066,5 +1094,44 @@ mod tests {
         );
 
         // The ones that are mainly alone
+    }
+
+    #[test]
+    fn size_without_paren_simple() {
+        let input = "sizeof int";
+        let source = Source::new("test", input);
+        let tokens = tokenizer::tokenize(source.clone().into());
+
+        let expected = Ok(Expression::SizeOf {
+            ty: TypeToken::Primitive(SpanData {
+                span: Span::new_source(source.clone(), 7..10),
+                data: DataType::Int,
+            }),
+        });
+
+        let mut iter = peek_nth(tokens);
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
+        assert_eq!(expected, result);
+    }
+    #[test]
+    fn size_with_paren_simple() {
+        let input = "sizeof(int)";
+        let source = Source::new("test", input);
+        let tokens = tokenizer::tokenize(source.clone().into());
+
+        let expected = Ok(Expression::SizeOf {
+            ty: TypeToken::Primitive(SpanData {
+                span: Span::new_source(source.clone(), 7..10),
+                data: DataType::Int,
+            }),
+        });
+
+        let mut iter = peek_nth(tokens);
+        let result = Expression::parse(&mut iter);
+
+        assert_eq!(None, iter.next());
+        assert_eq!(expected, result);
     }
 }

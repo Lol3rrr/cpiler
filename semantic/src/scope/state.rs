@@ -52,6 +52,23 @@ impl ParseState {
 
         self.external_variables.is_declared(ident)
     }
+    pub fn get_declaration(&self, ident: &Identifier) -> Option<Span> {
+        if let Some(dec) = self.local_variables.get_declared(ident) {
+            match dec {
+                Declared::Variable(var) => return Some(var.declaration.clone()),
+                Declared::Function(func) => return Some(func.declaration.clone()),
+            };
+        }
+
+        if let Some(dec) = self.external_variables.get_declared(ident) {
+            match dec {
+                Declared::Variable(var) => return Some(var.declaration.clone()),
+                Declared::Function(func) => return Some(func.declaration.clone()),
+            };
+        }
+
+        None
+    }
 
     pub fn is_defined(&self, ident: &Identifier) -> bool {
         if self.local_variables.is_defined(ident) {

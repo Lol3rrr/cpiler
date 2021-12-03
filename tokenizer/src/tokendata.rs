@@ -353,6 +353,7 @@ impl<'r, 'a> From<&'r SpanRef<'a>> for TokenData {
             "return" => Self::Keyword(Keyword::ControlFlow(ControlFlow::Return)),
 
             "typedef" => Self::Keyword(Keyword::TypeDef),
+            "sizeof" => Self::Keyword(Keyword::SizeOf),
 
             "+" => Self::Operator(Operator::Add),
             "++" => Self::Operator(Operator::Increment),

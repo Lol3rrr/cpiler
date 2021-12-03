@@ -3,9 +3,16 @@
 //#include <stdlib.h>
 
 // Because we dont include these standard Headers we just need to declare these functions
-void printf(char* content);
+void printf(char* content, ...);
 void strcpy(char *dest, const char *src);
 int scanf(const char* format, ...);
+int* stdin;
+int* stdout;
+int* stderr;
+char* fgets(char *str, int n, int* stream);
+void* malloc(unsigned int size);
+void free(void* ptr);
+// End of STD Files
 
 void addCourses();
 

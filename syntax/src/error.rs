@@ -45,4 +45,6 @@ pub enum ExpectedToken {
     Colon,
     /// if
     If,
+    Literal,
+    IntegerLiteral,
 }

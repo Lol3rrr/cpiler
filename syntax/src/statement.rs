@@ -12,7 +12,11 @@ pub use assign_target::AssignTarget;
 
 mod starting_literal;
 mod starting_type;
+
 mod structs;
+pub use structs::StructMembers;
+mod enums;
+pub use enums::*;
 
 #[derive(Debug, PartialEq)]
 pub enum TypeDefType {
@@ -46,7 +50,11 @@ pub enum Statement {
         /// The Name of the Struct
         name: Identifier,
         /// The members of the Struct
-        members: structs::StructMembers,
+        members: StructMembers,
+    },
+    EnumDefinition {
+        name: Identifier,
+        variants: EnumVariants,
     },
     VariableDeclaration {
         ty: TypeToken,
@@ -497,7 +505,7 @@ mod tests {
         let input_content = "struct test {
             int first;
             int second;
-        }";
+        };";
         let source = Source::new("test", input_content);
         let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
