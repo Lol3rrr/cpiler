@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use general::{Span, SpanData};
+use ir::{BasicBlock, Constant, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{atype, APrimitive, AType, SemanticError, TypeDefinitions, VariableContainer};
@@ -51,6 +54,12 @@ pub enum AExpression {
     UnaryOperator {
         base: Box<Self>,
         op: UnaryOperator,
+    },
+    InlineAssembly {
+        template: SpanData<String>,
+        input_vars: Vec<(Identifier, SpanData<AType>)>,
+        output_var: (Identifier, SpanData<AType>),
+        span: Span,
     },
 }
 
@@ -172,12 +181,83 @@ impl AExpression {
             }
             Expression::SingleOperation {
                 base,
-                operation: SingleOperation::FuntionCall(raw_args),
+                operation: SingleOperation::FuntionCall(mut raw_args),
             } => {
                 let name = match *base {
                     Expression::Identifier { ident } => ident,
                     other => unreachable!("The Function-Call Operation should always only be applied to an identifier: {:?}", other),
                 };
+
+                if name.0.data == "asm" {
+                    dbg!(&raw_args);
+
+                    if raw_args.len() != 3 {
+                        panic!("Expected exactly 3 Arguments");
+                    }
+
+                    let raw_template_arg = raw_args.remove(0);
+                    let template_arg = AExpression::parse(raw_template_arg, ty_defs, vars)?;
+
+                    let template = match template_arg {
+                        AExpression::Literal(Literal::StringLiteral(data)) => data,
+                        _ => panic!("Expected String Literal"),
+                    };
+                    dbg!(&template);
+
+                    let raw_input_args = raw_args.remove(0);
+                    let input_vars = match raw_input_args {
+                        Expression::ArrayLiteral { parts } => {
+                            let mut tmp: Vec<(Identifier, SpanData<AType>)> = Vec::new();
+                            for part in parts.data {
+                                let ident = match part {
+                                    Expression::Identifier { ident } => ident,
+                                    unexpected => panic!("Expected Identifier: {:?}", unexpected),
+                                };
+
+                                let ty_info = match vars.get_var(&ident) {
+                                    Some(v) => SpanData {
+                                        span: v.1.clone(),
+                                        data: v.0.clone(),
+                                    },
+                                    None => panic!("Unknown Variable: {:?}", &ident),
+                                };
+
+                                tmp.push((ident, ty_info));
+                            }
+
+                            tmp
+                        }
+                        _ => panic!("Expected ArrayLiteral of Variables"),
+                    };
+                    dbg!(&input_vars);
+
+                    let raw_output_arg = raw_args.remove(0);
+                    let output_var = match raw_output_arg {
+                        Expression::Identifier { ident } => {
+                            dbg!(&ident);
+
+                            match vars.get_var(&ident) {
+                                Some(v) => (
+                                    ident,
+                                    SpanData {
+                                        span: v.1.clone(),
+                                        data: v.0.clone(),
+                                    },
+                                ),
+                                None => panic!("Unknown Variable: {:?}", &ident),
+                            }
+                        }
+                        _ => panic!("Expected Variable Identifier for output"),
+                    };
+                    dbg!(&output_var);
+
+                    return Ok(Self::InlineAssembly {
+                        span: name.0.span,
+                        template,
+                        output_var,
+                        input_vars,
+                    });
+                }
 
                 let args = {
                     let mut tmp = Vec::new();
@@ -360,7 +440,7 @@ impl AExpression {
     pub fn result_type(&self) -> AType {
         match self {
             Self::Literal(lit) => match lit {
-                Literal::Integer(_) => AType::Primitve(APrimitive::Int),
+                Literal::Integer(_) => AType::Primitve(APrimitive::LongInt),
                 Literal::FloatingPoint(_) => AType::Primitve(APrimitive::Float),
                 Literal::StringLiteral(_) => {
                     AType::Pointer(Box::new(AType::Primitve(APrimitive::Char)))
@@ -387,6 +467,7 @@ impl AExpression {
                 UnaryOperator::Arithmetic(_) => AType::Primitve(APrimitive::Int),
                 UnaryOperator::Logic(_) => AType::Primitve(APrimitive::Int),
             },
+            Self::InlineAssembly { .. } => AType::Primitve(APrimitive::Void),
         }
     }
     pub fn entire_span(&self) -> Span {
@@ -416,6 +497,109 @@ impl AExpression {
                 Span::new_arc_source(source, start..end)
             }
             Self::UnaryOperator { base, .. } => base.entire_span(),
+            Self::InlineAssembly { span, .. } => span.clone(),
+        }
+    }
+
+    fn val_to_operand(value: Value, block: &Arc<BasicBlock>) -> ir::Operand {
+        match value {
+            Value::Unknown => {
+                todo!("Unknown Value as Operand")
+            }
+            Value::Phi { sources } => {
+                dbg!(&sources);
+
+                todo!("Phi as Operand")
+            }
+            Value::Constant(constant) => ir::Operand::Constant(constant),
+            Value::Variable(var) => ir::Operand::Variable(var),
+            Value::Expression(exp) => {
+                dbg!(&exp);
+
+                match &exp {
+                    ir::Expression::Cast { base, target } => {
+                        dbg!(&base, &target);
+
+                        let tmp_name = block.get_next_tmp_name();
+                        dbg!(&tmp_name);
+
+                        let tmp_var = ir::Variable::new(tmp_name, 0, target.clone());
+                        dbg!(&tmp_var);
+
+                        let assign_statement = ir::Statement::Assignment {
+                            target: tmp_var.clone(),
+                            value: Value::Expression(exp),
+                        };
+                        block.add_statement(assign_statement);
+
+                        ir::Operand::Variable(tmp_var)
+                    }
+                    other => panic!("{:?} as Operand", other),
+                }
+            }
+        }
+    }
+
+    /// Converts the Expression to the corresponding IR
+    pub fn to_ir(self, block: &Arc<BasicBlock>) -> Value {
+        match self {
+            AExpression::Literal(lit) => match lit {
+                Literal::Integer(SpanData { data, .. }) => Value::Constant(Constant::I64(data)),
+                other => {
+                    dbg!(&other);
+
+                    todo!("Convert Literal");
+                }
+            },
+            AExpression::Variable { ident, ty } => {
+                dbg!(&ident, &ty);
+
+                let var = block.definition(&ident.0.data).unwrap();
+                Value::Variable(var)
+            }
+            AExpression::BinaryOperator { op, left, right } => {
+                dbg!(&op, &left, &right);
+
+                let ir_op = op.to_ir();
+                dbg!(&ir_op);
+
+                let left_value = left.to_ir(block);
+                dbg!(&left_value);
+                let left_operand = Self::val_to_operand(left_value, block);
+                dbg!(&left_operand);
+
+                let right_value = right.to_ir(block);
+                dbg!(&right_value);
+                let right_operand = Self::val_to_operand(right_value, block);
+                dbg!(&right_operand);
+
+                Value::Expression(ir::Expression::BinaryOp {
+                    op: ir_op,
+                    left: left_operand,
+                    right: right_operand,
+                })
+            }
+            AExpression::ImplicitCast { base, target } => {
+                dbg!(&base, &target);
+
+                let target_ty = target.to_ir();
+                dbg!(&target_ty);
+
+                let value = base.to_ir(block);
+                dbg!(&value);
+                let val_operand = Self::val_to_operand(value, block);
+                dbg!(&val_operand);
+
+                Value::Expression(ir::Expression::Cast {
+                    target: target_ty,
+                    base: val_operand,
+                })
+            }
+            other => {
+                dbg!(&other);
+
+                todo!("Convert Expression");
+            }
         }
     }
 }

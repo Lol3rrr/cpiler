@@ -33,6 +33,10 @@ name = "general"
 version = "0.1.0"
 
 [[package]]
+name = "ir"
+version = "0.1.0"
+
+[[package]]
 name = "itertools"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -54,6 +58,7 @@ name = "semantic"
 version = "0.1.0"
 dependencies = [
  "general",
+ "ir",
  "syntax",
  "tokenizer",
 ]

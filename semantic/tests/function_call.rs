@@ -71,7 +71,7 @@ void other() {
 #[test]
 fn valid() {
     let input_content = "
-void testing(int test);
+void testing(long int test);
 
 void other() {
     testing(13);
@@ -91,18 +91,18 @@ void other() {
                 (
                     FunctionDeclaration {
                         arguments: vec![],
-                        declaration: Span::new_source(input_source.clone(), 31..36),
+                        declaration: Span::new_source(input_source.clone(), 36..41),
                         return_ty: AType::Primitve(APrimitive::Void),
                         var_args: false,
                     },
                     AScope {
                         statements: vec![AStatement::Expression(AExpression::FunctionCall {
                             name: Identifier(SpanData {
-                                span: Span::new_source(input_source.clone(), 45..52),
+                                span: Span::new_source(input_source.clone(), 50..57),
                                 data: "testing".to_string(),
                             }),
                             arguments: vec![AExpression::Literal(Literal::Integer(SpanData {
-                                span: Span::new_source(input_source.clone(), 53..55),
+                                span: Span::new_source(input_source.clone(), 58..60),
                                 data: 13,
                             }))],
                             result_ty: AType::Primitve(APrimitive::Void),
@@ -117,7 +117,6 @@ void other() {
     });
 
     let result = semantic::parse(input_ast);
-
     dbg!(&result);
 
     assert_eq!(expected, result);

@@ -73,12 +73,40 @@ pub fn determine_types(
         (left_prim, right_prim) if left_prim.is_unsigned() && right_prim.is_unsigned() => {
             dbg!(&left_prim, &right_prim);
 
-            todo!("Different unsigned Primitives");
+            if left_prim.rank() > right_prim.rank() {
+                let n_exp = AExpression::ImplicitCast {
+                    target: AType::Primitve(left_prim),
+                    base: Box::new(right),
+                };
+
+                Ok((left, n_exp))
+            } else {
+                let n_exp = AExpression::ImplicitCast {
+                    target: AType::Primitve(right_prim),
+                    base: Box::new(left),
+                };
+
+                Ok((n_exp, right))
+            }
         }
         (left_prim, right_prim) if left_prim.is_signed() && right_prim.is_signed() => {
             dbg!(&left_prim, &right_prim);
 
-            todo!("Different signed Primitives");
+            if left_prim.rank() > right_prim.rank() {
+                let n_exp = AExpression::ImplicitCast {
+                    target: AType::Primitve(left_prim),
+                    base: Box::new(right),
+                };
+
+                Ok((left, n_exp))
+            } else {
+                let n_exp = AExpression::ImplicitCast {
+                    target: AType::Primitve(right_prim),
+                    base: Box::new(left),
+                };
+
+                Ok((n_exp, right))
+            }
         }
         (left_prim, right_prim) => {
             dbg!(&left_prim, &right_prim);
@@ -174,12 +202,12 @@ mod tests {
                 span: Span::new_source(source.clone(), 0..12),
                 data: 2,
             }))),
-            target: AType::Primitve(APrimitive::UnsignedInt),
+            target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
 
         let expected_left = AExpression::ImplicitCast {
             base: Box::new(left_in.clone()),
-            target: AType::Primitve(APrimitive::UnsignedInt),
+            target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
         let expected_right = right_in.clone();
         let expected = Ok((expected_left, expected_right));
@@ -201,12 +229,12 @@ mod tests {
                 span: Span::new_source(source.clone(), 0..12),
                 data: 2,
             }))),
-            target: AType::Primitve(APrimitive::UnsignedInt),
+            target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
 
         let expected_right = AExpression::ImplicitCast {
             base: Box::new(right_in.clone()),
-            target: AType::Primitve(APrimitive::UnsignedInt),
+            target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
         let expected_left = left_in.clone();
         let expected = Ok((expected_left, expected_right));

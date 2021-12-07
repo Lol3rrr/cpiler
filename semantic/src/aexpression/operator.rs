@@ -46,3 +46,19 @@ impl From<ExpressionOperator> for AOperator {
         }
     }
 }
+
+impl AOperator {
+    pub fn to_ir(self) -> ir::BinaryOp {
+        match self {
+            Self::Arithmetic(arith_op) => match arith_op {
+                ArithemticOp::Add => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                ArithemticOp::Multiply => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
+            },
+            other => {
+                dbg!(&other);
+
+                todo!("Parsing Operator");
+            }
+        }
+    }
+}

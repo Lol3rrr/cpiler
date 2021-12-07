@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 
+use general::SpanData;
 use syntax::{DataType, Identifier, Modifier, StructMembers, TypeDefType, TypeToken};
 
 use crate::{AExpression, EvaluationValue, SemanticError, TypeDefinitions, VariableContainer};
@@ -11,6 +12,9 @@ mod arith_type;
 pub use arith_type::*;
 
 pub mod assign_type;
+
+mod base;
+use base::BaseTypes;
 
 #[derive(Debug, Clone)]
 pub enum AType {
@@ -83,30 +87,6 @@ impl APrimitive {
             Self::Int | Self::UnsignedInt => Some(3),
             Self::LongInt | Self::UnsignedLongInt => Some(4),
             Self::LongLongInt | Self::UnsignedLongLongInt => Some(5),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum BaseTypes {
-    Char,
-    Short,
-    Int,
-    Long,
-    Float,
-    Double,
-}
-
-impl BaseTypes {
-    pub fn parse(prim: DataType) -> Option<Self> {
-        match prim {
-            DataType::Char => Some(Self::Char),
-            DataType::Short => Some(Self::Short),
-            DataType::Int => Some(Self::Int),
-            DataType::Long => Some(Self::Long),
-            DataType::Float => Some(Self::Float),
-            DataType::Double => Some(Self::Double),
             _ => None,
         }
     }
@@ -186,6 +166,72 @@ impl AType {
         }))
     }
 
+    fn parse_composition<VC>(
+        modifier: SpanData<Modifier>,
+        base: Box<TypeToken>,
+        ty_defs: &TypeDefinitions,
+        vars: &VC,
+    ) -> Result<Self, SemanticError>
+    where
+        VC: VariableContainer,
+    {
+        dbg!(&base, &modifier);
+
+        match (*base, modifier.data) {
+            (base, Modifier::Signed) => {
+                let base_ty = BaseTypes::parse(base).unwrap();
+
+                match base_ty {
+                    BaseTypes::Char => Ok(Self::Primitve(APrimitive::Char)),
+                    BaseTypes::Short => Ok(Self::Primitve(APrimitive::Short)),
+                    BaseTypes::Int => Ok(Self::Primitve(APrimitive::Int)),
+                    BaseTypes::Long => Ok(Self::Primitve(APrimitive::LongInt)),
+                    BaseTypes::LongLong => Ok(Self::Primitve(APrimitive::LongLongInt)),
+                    BaseTypes::Float => panic!("Cant have a signed Float"),
+                    BaseTypes::Double => panic!("Cant have a signed Double"),
+                    BaseTypes::LongDouble => panic!("Cant have a signed LongDouble"),
+                }
+            }
+            (base, Modifier::Unsigned) => {
+                let base_ty = BaseTypes::parse(base).unwrap();
+
+                match base_ty {
+                    BaseTypes::Char => Ok(Self::Primitve(APrimitive::UnsignedChar)),
+                    BaseTypes::Short => Ok(Self::Primitve(APrimitive::UnsignedShort)),
+                    BaseTypes::Int => Ok(Self::Primitve(APrimitive::UnsignedInt)),
+                    BaseTypes::Long => Ok(Self::Primitve(APrimitive::UnsignedLongInt)),
+                    BaseTypes::LongLong => Ok(Self::Primitve(APrimitive::UnsignedLongLongInt)),
+                    BaseTypes::Float => panic!("Cant have a unsigned Float"),
+                    BaseTypes::Double => panic!("Cant have a unsigned Double"),
+                    BaseTypes::LongDouble => panic!("Cant have a unsigned LongDouble"),
+                }
+            }
+            (raw_ty, Modifier::Const) => {
+                dbg!(&raw_ty);
+
+                let ty = AType::parse(raw_ty, ty_defs, vars)?;
+                dbg!(&ty);
+
+                Ok(Self::Const(Box::new(ty)))
+            }
+            (base, Modifier::Long) => {
+                let tmp_tok = TypeToken::Composition {
+                    base: Box::new(base),
+                    modifier: SpanData {
+                        span: modifier.span,
+                        data: Modifier::Long,
+                    },
+                };
+
+                let base_ty = BaseTypes::parse(tmp_tok).unwrap();
+
+                let prim = base_ty.to_primitive();
+                Ok(Self::Primitve(prim))
+            }
+            (base, modif) => panic!("Unknown Combination of {:?} with {:?}", modif, base),
+        }
+    }
+
     pub fn parse<VC>(
         raw: TypeToken,
         ty_defs: &TypeDefinitions,
@@ -261,55 +307,7 @@ impl AType {
                 }
             }
             TypeToken::Composition { base, modifier } => {
-                dbg!(&base, &modifier);
-
-                match (*base, modifier.data) {
-                    (TypeToken::Primitive(base_span), Modifier::Signed) => {
-                        let base_ty = BaseTypes::parse(base_span.data).unwrap();
-
-                        match base_ty {
-                            BaseTypes::Char => Ok(Self::Primitve(APrimitive::Char)),
-                            BaseTypes::Short => Ok(Self::Primitve(APrimitive::Short)),
-                            BaseTypes::Int => Ok(Self::Primitve(APrimitive::Int)),
-                            BaseTypes::Long => Ok(Self::Primitve(APrimitive::LongInt)),
-                            BaseTypes::Float => panic!("Cant have a signed Float"),
-                            BaseTypes::Double => panic!("Cant have a signed Double"),
-                        }
-                    }
-                    (TypeToken::Primitive(base_span), Modifier::Unsigned) => {
-                        let base_ty = BaseTypes::parse(base_span.data).unwrap();
-
-                        match base_ty {
-                            BaseTypes::Char => Ok(Self::Primitve(APrimitive::UnsignedChar)),
-                            BaseTypes::Short => Ok(Self::Primitve(APrimitive::UnsignedShort)),
-                            BaseTypes::Int => Ok(Self::Primitve(APrimitive::UnsignedInt)),
-                            BaseTypes::Long => Ok(Self::Primitve(APrimitive::LongInt)),
-                            BaseTypes::Float => panic!("Cant have a unsigned Float"),
-                            BaseTypes::Double => panic!("Cant have a unsigned Double"),
-                        }
-                    }
-                    (TypeToken::Primitive(base_span), Modifier::Long) => {
-                        let base_ty = BaseTypes::parse(base_span.data).unwrap();
-
-                        match base_ty {
-                            BaseTypes::Char => panic!("Cant have a long char"),
-                            BaseTypes::Short => panic!("Cant have a long short"),
-                            BaseTypes::Int => Ok(Self::Primitve(APrimitive::LongInt)),
-                            BaseTypes::Long => Ok(Self::Primitve(APrimitive::LongInt)),
-                            BaseTypes::Float => panic!("Cant have a long Float"),
-                            BaseTypes::Double => Ok(Self::Primitve(APrimitive::LongDouble)),
-                        }
-                    }
-                    (raw_ty, Modifier::Const) => {
-                        dbg!(&raw_ty);
-
-                        let ty = AType::parse(raw_ty, ty_defs, vars)?;
-                        dbg!(&ty);
-
-                        Ok(Self::Const(Box::new(ty)))
-                    }
-                    (base, modif) => panic!("Unknown Combination of {:?} with {:?}", modif, base),
-                }
+                Self::parse_composition(modifier, base, ty_defs, vars)
             }
             TypeToken::StructType { name } => {
                 dbg!(&name);
@@ -371,6 +369,25 @@ impl AType {
                 }
             }
             unknown => panic!("Unknown TypeDefType: {:?}", unknown),
+        }
+    }
+
+    pub fn to_ir(self) -> ir::Type {
+        match self {
+            Self::Primitve(prim) => match prim {
+                APrimitive::Int => ir::Type::I32,
+                APrimitive::LongInt => ir::Type::I64,
+                other => {
+                    dbg!(&other);
+
+                    todo!("Unkown Primitve Conversion")
+                }
+            },
+            other => {
+                dbg!(&other);
+
+                todo!("Unknown type conversion")
+            }
         }
     }
 }

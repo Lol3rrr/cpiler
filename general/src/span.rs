@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    ops::Range,
+    ops::{Range, Shr},
     sync::Arc,
 };
 
@@ -42,6 +42,9 @@ impl Span {
     }
 
     pub fn new_arc_source(source: Arc<Source>, range: Range<usize>) -> Self {
+        assert!(range.end <= source.content().len());
+        assert!(range.end >= range.start);
+
         Self {
             source,
             source_area: range,
@@ -50,6 +53,9 @@ impl Span {
     }
 
     pub fn new_arc_source_og(source: Arc<Source>, range: Range<usize>, og: Span) -> Self {
+        assert!(range.end <= source.content().len());
+        assert!(range.end >= range.start);
+
         Self {
             source,
             source_area: range,

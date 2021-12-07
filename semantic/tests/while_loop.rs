@@ -50,10 +50,18 @@ void other() {
                                             data: AType::Primitve(APrimitive::Int),
                                         },
                                     },
-                                    value: AExpression::Literal(Literal::Integer(SpanData {
-                                        span: Span::new_source(input_source.clone(), 60..61),
-                                        data: 1,
-                                    })),
+                                    value: AExpression::ImplicitCast {
+                                        base: Box::new(AExpression::Literal(Literal::Integer(
+                                            SpanData {
+                                                span: Span::new_source(
+                                                    input_source.clone(),
+                                                    60..61,
+                                                ),
+                                                data: 1,
+                                            },
+                                        ))),
+                                        target: AType::Primitve(APrimitive::Int),
+                                    },
                                 }],
                                 function_definitions: vec![].into_iter().collect(),
                             },

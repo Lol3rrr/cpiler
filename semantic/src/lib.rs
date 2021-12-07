@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use general::{Span, SpanData};
+use ir::Program;
 use syntax::{Identifier, AST};
 
 mod scope;
@@ -20,6 +21,8 @@ pub use type_definitions::TypeDefinitions;
 
 mod error;
 pub use error::*;
+
+mod conversion;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration {
@@ -78,5 +81,11 @@ impl VariableContainer for HashMap<String, FuncOrVar> {
             FuncOrVar::Function(f) => Some(f),
             _ => None,
         })
+    }
+}
+
+impl AAST {
+    pub fn convert_to_ir(self) -> Program {
+        conversion::convert(self)
     }
 }

@@ -87,7 +87,7 @@ mod tests {
                     data: 0,
                 })),
                 (
-                    &AType::Primitve(APrimitive::Int),
+                    &AType::Primitve(APrimitive::LongInt),
                     &Span::new_source(input_source.clone(), 0..1)
                 )
             )

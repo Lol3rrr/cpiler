@@ -22,13 +22,21 @@ int int_1;
 signed int int_2;
 unsigned int int_3;
 
-// All the Long related Stuff
+// All the single Long related Stuff
 long long_1;
 signed long long_2;
 unsigned long long_3;
 long int long_4;
 signed long int long_5;
 unsigned long int long_6;
+
+// All the double Long related Stuff
+long long dlong_1;
+signed long long dlong_2;
+unsigned long long dlong_3;
+long long int dlong_4;
+signed long long int dlong_5;
+unsigned long long int dlong_6;
 
 // All the Float related Stuff
 float float_1;
