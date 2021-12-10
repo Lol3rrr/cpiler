@@ -10,6 +10,7 @@ use crate::{
 mod assign_target;
 pub use assign_target::AssignTarget;
 
+mod else_block;
 mod starting_literal;
 mod starting_type;
 
@@ -91,7 +92,7 @@ pub enum Statement {
     If {
         condition: Expression,
         scope: Scope,
-        elses: Vec<(Option<Expression>, Scope)>,
+        elses: Option<Scope>,
     },
     Continue,
     Break,
@@ -237,39 +238,24 @@ impl Statement {
 
                 dbg!(&condition_exp, &inner_scope);
 
-                let mut elses = Vec::new();
-                while let Some(peeked) = tokens.peek() {
+                let else_block = if let Some(peeked) = tokens.peek() {
                     match &peeked.data {
-                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Else)) => {}
-                        _ => break,
-                    };
+                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Else)) => {
+                            tokens.next();
 
-                    // Consume the Else Token
-                    let _ = tokens.next();
-
-                    let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
-                    match next_tok.data {
-                        TokenData::OpenBrace => {
-                            let scope = Scope::parse(tokens)?;
-
-                            elses.push((None, scope));
+                            let else_scope = else_block::parse(tokens)?;
+                            Some(else_scope)
                         }
-                        TokenData::Keyword(Keyword::ControlFlow(ControlFlow::If)) => {
-                            todo!("Conditional Else");
-                        }
-                        _ => {
-                            return Err(SyntaxError::UnexpectedToken {
-                                expected: Some(vec![ExpectedToken::OpenBrace, ExpectedToken::If]),
-                                got: next_tok.span,
-                            })
-                        }
+                        _ => None,
                     }
-                }
+                } else {
+                    None
+                };
 
                 Ok(Statement::If {
                     condition: condition_exp,
                     scope: inner_scope,
-                    elses,
+                    elses: else_block,
                 })
             }
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::While)) => {

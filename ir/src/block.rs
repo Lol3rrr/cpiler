@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock, Weak};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock, Weak},
+};
 
 use crate::{PhiEntry, Statement, Type, Value, Variable};
 
@@ -62,6 +65,11 @@ impl BasicBlock {
         Arc::downgrade(self)
     }
 
+    pub fn add_predecessor(&self, pred: Weak<Self>) {
+        let mut tmp = self.predecessor.write().unwrap();
+        tmp.push(pred);
+    }
+
     /// Appends the given Statement to the current List of Statements
     pub fn add_statement(&self, statement: Statement) {
         let mut tmp = self.parts.write().unwrap();
@@ -96,7 +104,7 @@ impl BasicBlock {
             }
         } else {
             let tmp_var_name = self.get_next_tmp_name();
-            let tmp_var = Variable::new(&tmp_var_name, 0, Type::Void);
+            let tmp_var = Variable::new(&tmp_var_name, Type::Void);
             let phi_stmnt = Statement::Assignment {
                 target: tmp_var,
                 value: Value::Phi { sources: vec![] },
@@ -119,19 +127,22 @@ impl BasicBlock {
                     Some(var) => {
                         sources.push(PhiEntry { var, block: c_pred });
                     }
-                    None => {
-                        todo!("No definition in pred");
-                    }
+                    None => {}
                 };
             }
 
             if sources.is_empty() {
-                panic!("No definitions found");
+                {
+                    let mut tmp = self.parts.write().unwrap();
+                    tmp.pop();
+                }
+
+                return None;
             }
 
             let ty = sources.get(0).unwrap().var.ty.clone();
 
-            let final_var = Variable::new(tmp_var_name, 0, ty);
+            let final_var = Variable::new(tmp_var_name, ty);
             let tmp_stmnt = Statement::Assignment {
                 target: final_var.clone(),
                 value: Value::Phi { sources },
@@ -140,6 +151,7 @@ impl BasicBlock {
             {
                 let mut tmp = self.parts.write().unwrap();
                 let last = tmp.last_mut().unwrap();
+
                 *last = tmp_stmnt;
             }
 
@@ -173,6 +185,45 @@ impl BasicBlock {
             None => "__t_0".to_string(),
         }
     }
+
+    /// Generates the .dot Graphviz stuff
+    pub fn to_dot(
+        self: &Arc<Self>,
+        lines: &mut Vec<String>,
+        drawn: &mut HashSet<*const BasicBlock>,
+    ) -> String {
+        let self_ptr = Arc::as_ptr(&self);
+        let block_name = format!("block_{}", self_ptr as usize);
+        if drawn.contains(&self_ptr) {
+            return block_name;
+        }
+        drawn.insert(self_ptr);
+
+        lines.push(format!(
+            "{} [label = \"{} - Block Start\"]",
+            block_name, block_name
+        ));
+
+        {
+            let mut src = block_name.clone();
+
+            let parts = self.parts.read().unwrap();
+            for (numb, part) in parts.iter().enumerate() {
+                src = part.to_dot(lines, drawn, self_ptr, numb, &src);
+            }
+        }
+
+        {
+            let preds = self.predecessor.read().unwrap();
+            for pred in preds.iter() {
+                let pred_name = format!("block_{}", pred.as_ptr() as usize);
+                let pred_line = format!("{} -> {} [style=dashed]", block_name, pred_name);
+                lines.push(pred_line);
+            }
+        }
+
+        block_name
+    }
 }
 
 #[cfg(test)]
@@ -195,12 +246,12 @@ mod tests {
     #[test]
     fn get_last_definition_single() {
         let parts = vec![Statement::Assignment {
-            target: Variable::new("test", 0, Type::I8),
+            target: Variable::new_test("test", 0, Type::I8),
             value: Value::Constant(Constant::I8(0)),
         }];
         let block = BasicBlock::initial(parts);
 
-        let expected = Some(Variable::new("test", 0, Type::I8));
+        let expected = Some(Variable::new_test("test", 0, Type::I8));
 
         let result = block.definition("test");
 
@@ -210,17 +261,17 @@ mod tests {
     fn get_last_definition_multiple() {
         let parts = vec![
             Statement::Assignment {
-                target: Variable::new("test", 0, Type::I8),
+                target: Variable::new_test("test", 0, Type::I8),
                 value: Value::Constant(Constant::I8(0)),
             },
             Statement::Assignment {
-                target: Variable::new("test", 1, Type::I8),
+                target: Variable::new_test("test", 1, Type::I8),
                 value: Value::Constant(Constant::I8(1)),
             },
         ];
         let block = BasicBlock::initial(parts);
 
-        let expected = Some(Variable::new("test", 1, Type::I8));
+        let expected = Some(Variable::new_test("test", 1, Type::I8));
 
         let result = block.definition("test");
 
@@ -230,14 +281,14 @@ mod tests {
     #[test]
     fn definition_in_single_predecessor() {
         let predecessor = BasicBlock::initial(vec![Statement::Assignment {
-            target: Variable::new("test", 0, Type::I8),
+            target: Variable::new_test("test", 0, Type::I8),
             value: Value::Constant(Constant::I8(1)),
         }]);
 
         let pred = Arc::downgrade(&predecessor);
         let block = BasicBlock::new(vec![pred], vec![]);
 
-        let expected = Some(Variable::new("test", 0, Type::I8));
+        let expected = Some(Variable::new_test("test", 0, Type::I8));
 
         let result = block.definition("test");
 
@@ -247,31 +298,31 @@ mod tests {
     #[test]
     fn definition_in_multiple_predecessors() {
         let predecessor_1 = BasicBlock::initial(vec![Statement::Assignment {
-            target: Variable::new("test", 0, Type::I8),
+            target: Variable::new_test("test", 0, Type::I8),
             value: Value::Constant(Constant::I8(1)),
         }]);
         let pred_1 = Arc::downgrade(&predecessor_1);
 
         let predecessor_2 = BasicBlock::initial(vec![Statement::Assignment {
-            target: Variable::new("test", 1, Type::I8),
+            target: Variable::new_test("test", 1, Type::I8),
             value: Value::Constant(Constant::I8(2)),
         }]);
         let pred_2 = Arc::downgrade(&predecessor_2);
 
         let block = BasicBlock::new(vec![pred_1.clone(), pred_2.clone()], vec![]);
 
-        let expected = Some(Variable::new("__t_0", 0, Type::I8));
+        let expected = Some(Variable::new_test("__t_0", 0, Type::I8));
         let expected_block_stmnts = vec![Statement::Assignment {
-            target: Variable::new("__t_0", 0, Type::I8),
+            target: Variable::new_test("__t_0", 0, Type::I8),
             value: Value::Phi {
                 sources: vec![
                     PhiEntry {
                         block: pred_1,
-                        var: Variable::new("test", 0, Type::I8),
+                        var: Variable::new_test("test", 0, Type::I8),
                     },
                     PhiEntry {
                         block: pred_2,
-                        var: Variable::new("test", 1, Type::I8),
+                        var: Variable::new_test("test", 1, Type::I8),
                     },
                 ],
             },

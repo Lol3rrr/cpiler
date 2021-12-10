@@ -1,6 +1,6 @@
 use std::sync::Weak;
 
-use crate::{BasicBlock, Expression, Variable};
+use crate::{BasicBlock, Expression, Type, Variable};
 
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct PhiEntry {
 
 impl PartialEq for PhiEntry {
     fn eq(&self, other: &Self) -> bool {
-        self.block.as_ptr() == other.block.as_ptr() && self.var == other.var
+        self.var == other.var
     }
 }
 
@@ -41,6 +41,7 @@ impl PartialEq for Value {
         match (self, other) {
             (Self::Unknown, Self::Unknown) => true,
             (Self::Constant(s_c), Self::Constant(o_c)) => s_c == o_c,
+            (Self::Variable(s_var), Self::Variable(o_var)) => s_var == o_var,
             (Self::Phi { sources: s_sources }, Self::Phi { sources: o_sources }) => {
                 s_sources == o_sources
             }
@@ -69,4 +70,20 @@ pub enum Constant {
     U32(u32),
     /// 64 bit unsigned integer
     U64(u64),
+}
+
+impl Constant {
+    /// Returns the Type corresponding to the Constant
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::I8(_) => Type::I8,
+            Self::I16(_) => Type::I16,
+            Self::I32(_) => Type::I32,
+            Self::I64(_) => Type::I64,
+            Self::U8(_) => Type::U8,
+            Self::U16(_) => Type::U16,
+            Self::U32(_) => Type::U32,
+            Self::U64(_) => Type::U64,
+        }
+    }
 }

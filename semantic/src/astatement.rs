@@ -28,6 +28,7 @@ pub enum AStatement {
     If {
         condition: AExpression,
         body: AScope,
+        else_: Option<AScope>,
     },
     Return {
         value: Option<AExpression>,
@@ -320,10 +321,20 @@ impl AStatement {
 
                 // TODO
                 // Parse Elses
+                let else_block = match elses {
+                    Some(else_inner) => {
+                        dbg!(&else_inner);
+
+                        let else_scope = AScope::parse(&parse_state, else_inner)?;
+                        Some(else_scope)
+                    }
+                    None => None,
+                };
 
                 Ok(Some(Self::If {
                     condition: cond,
                     body: inner_scope,
+                    else_: else_block,
                 }))
             }
             Statement::Return(raw_val) => {

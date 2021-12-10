@@ -523,7 +523,7 @@ impl AExpression {
                         let tmp_name = block.get_next_tmp_name();
                         dbg!(&tmp_name);
 
-                        let tmp_var = ir::Variable::new(tmp_name, 0, target.clone());
+                        let tmp_var = ir::Variable::new(tmp_name, target.clone());
                         dbg!(&tmp_var);
 
                         let assign_statement = ir::Statement::Assignment {

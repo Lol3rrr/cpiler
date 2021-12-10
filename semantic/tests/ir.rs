@@ -27,32 +27,37 @@ void test() {
         let global_block = BasicBlock::initial(vec![]);
         let global_weak = Arc::downgrade(&global_block);
 
+        let x_var = Variable::new("x", Type::I64);
+        let x1_var = x_var.next_gen();
+        let y_var = Variable::new("y", Type::I64);
+        let y1_var = y_var.next_gen();
+
         let initial_block = BasicBlock::new(vec![global_weak], vec![]);
         let initial_weak = Arc::downgrade(&initial_block);
         let inner_block = BasicBlock::new(
             vec![initial_weak],
             vec![
                 Statement::Assignment {
-                    target: Variable::new("x", 0, Type::I64),
+                    target: x_var.clone(),
                     value: Value::Constant(Constant::I64(13)),
                 },
                 Statement::Assignment {
-                    target: Variable::new("y", 0, Type::I64),
+                    target: y_var.clone(),
                     value: Value::Expression(Expression::BinaryOp {
                         op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                        left: Operand::Variable(Variable::new("x", 0, Type::I64)),
+                        left: Operand::Variable(x_var.clone()),
                         right: Operand::Constant(Constant::I64(5)),
                     }),
                 },
                 Statement::Assignment {
-                    target: Variable::new("x", 1, Type::I64),
+                    target: x1_var.clone(),
                     value: Value::Constant(Constant::I64(12)),
                 },
                 Statement::Assignment {
-                    target: Variable::new("y", 1, Type::I64),
+                    target: y1_var.clone(),
                     value: Value::Expression(Expression::BinaryOp {
                         op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
-                        left: Operand::Variable(Variable::new("y", 0, Type::I64)),
+                        left: Operand::Variable(y_var.clone()),
                         right: Operand::Constant(Constant::I64(1)),
                     }),
                 },
@@ -63,11 +68,16 @@ void test() {
 
         let expected = Program {
             global: global_block,
-            functions: vec![FunctionDefinition {
-                arguments: vec![],
-                return_ty: Type::Void,
-                block: initial_block,
-            }],
+            functions: vec![(
+                "test".to_string(),
+                FunctionDefinition {
+                    arguments: vec![],
+                    return_ty: Type::Void,
+                    block: initial_block,
+                },
+            )]
+            .into_iter()
+            .collect(),
         };
 
         let result = input.convert_to_ir();
@@ -93,10 +103,14 @@ void test(int arg) {
 
         let global_block = BasicBlock::initial(vec![]);
 
+        let arg_var = Variable::new("arg", Type::I32);
+        let x_var = Variable::new("x", Type::I32);
+        let y_var = Variable::new("y", Type::I32);
+
         let func_initial_block = BasicBlock::new(
             vec![global_block.weak_ptr()],
             vec![Statement::Assignment {
-                target: Variable::new("arg", 0, Type::I32),
+                target: arg_var.clone(),
                 value: Value::Unknown,
             }],
         );
@@ -105,18 +119,18 @@ void test(int arg) {
             vec![func_initial_block.weak_ptr()],
             vec![
                 Statement::Assignment {
-                    target: Variable::new("x", 0, Type::I32),
+                    target: x_var.clone(),
                     value: Value::Expression(Expression::Cast {
                         target: Type::I32,
                         base: Operand::Constant(Constant::I64(13)),
                     }),
                 },
                 Statement::Assignment {
-                    target: Variable::new("y", 0, Type::I32),
+                    target: y_var.clone(),
                     value: Value::Expression(Expression::BinaryOp {
                         op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                        left: Operand::Variable(Variable::new("arg", 0, Type::I32)),
-                        right: Operand::Variable(Variable::new("x", 0, Type::I32)),
+                        left: Operand::Variable(arg_var.clone()),
+                        right: Operand::Variable(x_var.clone()),
                     }),
                 },
                 Statement::Return(None),
@@ -126,17 +140,176 @@ void test(int arg) {
 
         let expected = Program {
             global: global_block,
-            functions: vec![FunctionDefinition {
-                arguments: vec![("arg".to_string(), Type::I32)],
-                return_ty: Type::Void,
-                block: func_initial_block,
-            }],
+            functions: vec![(
+                "test".to_string(),
+                FunctionDefinition {
+                    arguments: vec![("arg".to_string(), Type::I32)],
+                    return_ty: Type::Void,
+                    block: func_initial_block,
+                },
+            )]
+            .into_iter()
+            .collect(),
         };
 
         let result = aast.convert_to_ir();
         dbg!(&result);
 
         assert_eq!(expected, result);
+    }
+}
+
+mod ifs {
+    use general::{Source, Span};
+    use ir::{
+        BasicBlock, Constant, Expression, FunctionDefinition, Operand, PhiEntry, Program,
+        Statement, Type, Value, Variable,
+    };
+
+    #[test]
+    fn single_if() {
+        let content = "
+void test() {
+    int x = 0;
+    if (2) {
+        x = 2;
+    }
+    
+    int y = x;
+
+    return;
+}
+            ";
+        let source = Source::new("test", content);
+        let span: Span = source.clone().into();
+        let tokens = tokenizer::tokenize(span);
+        let syntax_ast = syntax::parse(tokens).unwrap();
+        let input = semantic::parse(syntax_ast).unwrap();
+
+        let global_block = BasicBlock::initial(vec![]);
+
+        let x_var = Variable::new("x", Type::I32);
+        let t0_64_var = Variable::new("__t_0", Type::I64);
+        let t0_32_var = Variable::new("__t_0", Type::I32);
+        let x1_var = x_var.next_gen();
+        let y_var = Variable::new("y", Type::I32);
+
+        let function_arg_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
+
+        let function_first_block = BasicBlock::new(
+            vec![function_arg_block.weak_ptr()],
+            vec![
+                Statement::Assignment {
+                    target: x_var.clone(),
+                    value: Value::Expression(Expression::Cast {
+                        target: Type::I32,
+                        base: Operand::Constant(Constant::I64(0)),
+                    }),
+                },
+                Statement::Assignment {
+                    target: t0_64_var.clone(),
+                    value: Value::Constant(Constant::I64(2)),
+                },
+            ],
+        );
+        function_arg_block.add_statement(Statement::Jump(function_first_block.clone()));
+
+        let inner_if_block = BasicBlock::new(
+            vec![function_first_block.weak_ptr()],
+            vec![Statement::Assignment {
+                target: x1_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(2)),
+                }),
+            }],
+        );
+        function_first_block.add_statement(Statement::JumpTrue(
+            t0_64_var.clone(),
+            inner_if_block.clone(),
+        ));
+
+        let end_block = BasicBlock::new(
+            vec![inner_if_block.weak_ptr(), function_first_block.weak_ptr()],
+            vec![
+                Statement::Assignment {
+                    target: t0_32_var.clone(),
+                    value: Value::Phi {
+                        sources: vec![
+                            PhiEntry {
+                                block: function_first_block.weak_ptr(),
+                                var: x1_var.clone(),
+                            },
+                            PhiEntry {
+                                block: inner_if_block.weak_ptr(),
+                                var: x_var.clone(),
+                            },
+                        ],
+                    },
+                },
+                Statement::Assignment {
+                    target: y_var.clone(),
+                    value: Value::Variable(t0_32_var.clone()),
+                },
+                Statement::Return(None),
+            ],
+        );
+        function_first_block.add_statement(Statement::Jump(end_block.clone()));
+        inner_if_block.add_statement(Statement::Jump(end_block.clone()));
+
+        let expected = Program {
+            global: global_block,
+            functions: vec![(
+                "test".to_string(),
+                FunctionDefinition {
+                    arguments: vec![],
+                    return_ty: Type::Void,
+                    block: function_arg_block,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+
+        let result = input.convert_to_ir();
+        dbg!(&result);
+
+        std::fs::write("./result.dot", result.to_dot());
+        std::fs::write("./expected.dot", expected.to_dot());
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn if_else_blocks() {
+        let content = "
+void test() {
+    int x = 0;
+    if (2) {
+        x = 2;
+    } else {
+        x = 3;
+    }
+    
+    int y = x;
+
+    return;
+}
+            ";
+        let source = Source::new("test", content);
+        let span: Span = source.clone().into();
+        let tokens = tokenizer::tokenize(span);
+        let syntax_ast = syntax::parse(tokens).unwrap();
+        let input = semantic::parse(syntax_ast).unwrap();
+
+        dbg!(&input);
+
+        let result = input.convert_to_ir();
+        dbg!(&result);
+
+        std::fs::write("./result.dot", result.to_dot());
+
+        assert!(false);
     }
 }
 

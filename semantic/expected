@@ -1,0 +1,36 @@
+digraph G {
+  block_105553178886928 [label = "block_105553178886928 - Block Start"];
+  block_105553178886928_s0 [label = "Jump"];
+  block_105553178886928 -> block_105553178886928_s0;
+  block_105553178887024 [label = "block_105553178887024 - Block Start"];
+  block_105553178887024_s0 [label = "Variable { name: \"x\", generation: 0, ty: I32, current_version: 2 } = Expression(Cast { base: Constant(I32(0)), target: I32 })"];
+  block_105553178887024 -> block_105553178887024_s0;
+  block_105553178887024_s1 [label = "Variable { name: \"__t_0\", generation: 0, ty: I64, current_version: 1 } = Constant(I64(2))"];
+  block_105553178887024_s0 -> block_105553178887024_s1;
+  block_105553178887024_s2 [label = "JumpTrue"];
+  block_105553178887024_s1 -> block_105553178887024_s2;
+  block_105553178887120 [label = "block_105553178887120 - Block Start"];
+  block_105553178887120_s0 [label = "Variable { name: \"x\", generation: 1, ty: I32, current_version: 2 } = Expression(Cast { base: Constant(I64(2)), target: I32 })"];
+  block_105553178887120 -> block_105553178887120_s0;
+  block_105553178887120_s1 [label = "Jump"];
+  block_105553178887120_s0 -> block_105553178887120_s1;
+  block_105553178887216 [label = "block_105553178887216 - Block Start"];
+  block_105553178887216_s0 [label = "Variable { name: \"__t_0\", generation: 0, ty: I32, current_version: 1 } = Phi { sources: [PhiEntry { block: (Weak), var: Variable { name: \"x\", generation: 1, ty: I32, current_version: 2 } }, PhiEntry { block: (Weak), var: Variable { name: \"x\", generation: 0, ty: I32, current_version: 2 } }] }"];
+  block_105553178887216 -> block_105553178887216_s0;
+  block_105553178887216_s1 [label = "Variable { name: \"y\", generation: 0, ty: I32, current_version: 1 } = Variable(Variable { name: \"__t_0\", generation: 0, ty: I32, current_version: 1 })"];
+  block_105553178887216_s0 -> block_105553178887216_s1;
+  block_105553178887216_s2 [label = "return None"];
+  block_105553178887216_s1 -> block_105553178887216_s2;
+  block_105553178887216 -> block_105553178887120 [style=dashed];
+  block_105553178887216 -> block_105553178887024 [style=dashed];
+  block_105553178887120_s1 -> block_105553178887216;
+  block_105553178887120 -> block_105553178887024 [style=dashed];
+  block_105553178887024_s2 -> block_105553178887120 [label = "Variable { name: \"__t_0\", generation: 0, ty: I64, current_version: 1 }"];
+  block_105553178887024_s3 [label = "Jump"];
+  block_105553178887024_s2 -> block_105553178887024_s3;
+  block_105553178887024_s3 -> block_105553178887216;
+  block_105553178887024 -> block_105553178886928 [style=dashed];
+  block_105553178886928_s0 -> block_105553178887024;
+  block_105553178886928 -> block_105553178886832 [style=dashed];
+  func_test -> block_105553178886928;
+}
