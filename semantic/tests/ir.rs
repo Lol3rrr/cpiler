@@ -302,14 +302,109 @@ void test() {
         let syntax_ast = syntax::parse(tokens).unwrap();
         let input = semantic::parse(syntax_ast).unwrap();
 
-        dbg!(&input);
+        let global_block = BasicBlock::initial(vec![]);
+
+        let function_start_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
+
+        let x0_var = Variable::new("x", Type::I32);
+        let x1_var = x0_var.next_gen();
+        let x2_var = x1_var.next_gen();
+        let t0_var = Variable::new("__t_0", Type::I64);
+        let t0_phi_var = Variable::new("__t_0", Type::I32);
+        let y_var = Variable::new("y", Type::I32);
+
+        let function_first = BasicBlock::new(
+            vec![function_start_block.weak_ptr()],
+            vec![
+                Statement::Assignment {
+                    target: x0_var.clone(),
+                    value: Value::Expression(Expression::Cast {
+                        target: Type::I32,
+                        base: Operand::Constant(Constant::I64(0)),
+                    }),
+                },
+                Statement::Assignment {
+                    target: t0_var.clone(),
+                    value: Value::Constant(Constant::I64(2)),
+                },
+            ],
+        );
+        function_start_block.add_statement(Statement::Jump(function_first.clone()));
+
+        let true_block = BasicBlock::new(
+            vec![function_first.weak_ptr()],
+            vec![Statement::Assignment {
+                target: x1_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(2)),
+                }),
+            }],
+        );
+        function_first.add_statement(Statement::JumpTrue(t0_var.clone(), true_block.clone()));
+
+        let false_block = BasicBlock::new(
+            vec![function_first.weak_ptr()],
+            vec![Statement::Assignment {
+                target: x2_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(3)),
+                }),
+            }],
+        );
+        function_first.add_statement(Statement::Jump(false_block.clone()));
+
+        let function_second = BasicBlock::new(
+            vec![true_block.weak_ptr(), false_block.weak_ptr()],
+            vec![
+                Statement::Assignment {
+                    target: t0_phi_var.clone(),
+                    value: Value::Phi {
+                        sources: vec![
+                            PhiEntry {
+                                block: true_block.weak_ptr(),
+                                var: x1_var.clone(),
+                            },
+                            PhiEntry {
+                                block: false_block.weak_ptr(),
+                                var: x2_var.clone(),
+                            },
+                        ],
+                    },
+                },
+                Statement::Assignment {
+                    target: y_var.clone(),
+                    value: Value::Variable(t0_phi_var.clone()),
+                },
+                Statement::Return(None),
+            ],
+        );
+
+        true_block.add_statement(Statement::Jump(function_second.clone()));
+        false_block.add_statement(Statement::Jump(function_second.clone()));
+
+        let expected = Program {
+            global: global_block,
+            functions: vec![(
+                "test".to_string(),
+                FunctionDefinition {
+                    arguments: vec![],
+                    return_ty: Type::Void,
+                    block: function_start_block,
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
 
         let result = input.convert_to_ir();
         dbg!(&result);
 
         std::fs::write("./result.dot", result.to_dot());
+        std::fs::write("./expected.dot", expected.to_dot());
 
-        assert!(false);
+        assert_eq!(expected, result);
     }
 }
 
