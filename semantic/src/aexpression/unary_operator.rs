@@ -3,6 +3,7 @@ use syntax::SingleOperation;
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnaryArithmeticOp {
     SuffixIncrement,
+    SuffixDecrement,
     Negate,
 }
 
@@ -22,6 +23,9 @@ impl From<SingleOperation> for UnaryOperator {
         match op {
             SingleOperation::SuffixIncrement => {
                 Self::Arithmetic(UnaryArithmeticOp::SuffixIncrement)
+            }
+            SingleOperation::SuffixDecrement => {
+                Self::Arithmetic(UnaryArithmeticOp::SuffixDecrement)
             }
             SingleOperation::Negative => Self::Arithmetic(UnaryArithmeticOp::Negate),
             SingleOperation::LogicalNot => Self::Logic(UnaryLogicOp::Not),

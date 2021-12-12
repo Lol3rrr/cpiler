@@ -17,9 +17,17 @@
 //! This simplifies the overall Structure as we dont need to track any extra Data depending on what
 //! type of Variable it is, but also means that we lost some optimization opportunities and also
 //! likely produce less efficient code as we have to reread them more often
+//!
+//! # References
+//! These are a couple of Resources that inspired this IR design or include potential improvements
+//! to the IR in Future iterations:
+//! * [SSA Construction](https://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf)
+//! * [Array SSA Form](https://www.cs.purdue.edu/homes/suresh/590s-Fall2002/papers/ArraySSApopl98.pdf)
+//! * [Extended SSA: Pointers etc.](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.17.1802&rep=rep1&type=pdf)
 
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -45,7 +53,7 @@ mod statement;
 pub use statement::*;
 
 /// The overall Program Structure that contains all the needed information about the Program itself
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Program {
     /// This contains definitions for Global Variables that need to be usable by the function
     /// definitions
@@ -55,12 +63,14 @@ pub struct Program {
 }
 
 impl Program {
+    /// Generates the needed Dot Graphviz Representation to allow for easier visualization of the
+    /// Program
     pub fn to_dot(&self) -> String {
         let mut lines = Vec::new();
         let mut drawn = HashSet::new();
 
         for (func_name, func_def) in self.functions.iter() {
-            func_def.to_dot(&func_name, &mut lines, &mut drawn);
+            func_def.to_dot(func_name, &mut lines, &mut drawn);
         }
 
         let mut result = "digraph G {\n".to_string();
@@ -69,8 +79,19 @@ impl Program {
             result.push_str(&line);
             result.push_str(";\n");
         }
-        result.push_str("}");
+        result.push('}');
 
         result
+    }
+}
+
+impl Debug for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut f_struct = f.debug_struct("Program");
+
+        f_struct.field("global", &format!("{:?}", self.global));
+        f_struct.field("functions", &self.functions);
+
+        Ok(())
     }
 }

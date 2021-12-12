@@ -16,7 +16,11 @@ where
 
     let aast = semantic::parse(basic_ast).map_err(|e| Error::Semantic(e))?;
 
-    dbg!(aast);
+    dbg!(&aast);
+
+    let ir = aast.convert_to_ir();
+
+    std::fs::write("./program.dot", ir.to_dot()).expect("");
 
     Ok(())
 }

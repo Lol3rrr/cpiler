@@ -1,10 +1,10 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
 
 use crate::{BasicBlock, Expression, Value, Variable};
 
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
 /// storing its result in a new Variable or jumping to a different Point in the Program
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Statement {
     /// An Assignment of the given Value to the provided Variable-Instance
     Assignment {
@@ -36,15 +36,37 @@ impl PartialEq for Statement {
                     value: o_value,
                 },
             ) => s_target == o_target && s_value == o_value,
-            (Self::Expression(s_exp), Self::Expression(o_exp)) => {
-                todo!()
-            }
+            (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
             (Self::Jump(s_next), Self::Jump(o_next)) => s_next == o_next,
             (Self::JumpTrue(s_var, s_next), Self::JumpTrue(o_var, o_next)) => {
                 s_var == o_var && s_next == o_next
             }
             _ => false,
+        }
+    }
+}
+
+impl Debug for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Assignment { target, value } => {
+                write!(f, "Assignment({:?} = {:?})", target, value)
+            }
+            Self::Expression(exp) => {
+                write!(f, "Expression({:?})", exp)
+            }
+            Self::Return(val) => write!(f, "Return({:?})", val),
+            Self::Jump(target) => {
+                let ptr = Arc::as_ptr(target);
+
+                write!(f, "Jump(0x{:x})", ptr as usize)
+            }
+            Self::JumpTrue(var, target) => {
+                let ptr = Arc::as_ptr(target);
+
+                write!(f, "JumpTrue({:?}, 0x{:x})", var, ptr as usize)
+            }
         }
     }
 }
@@ -87,7 +109,7 @@ impl Statement {
                 lines.push(line);
             }
             Self::Jump(target) => {
-                let content = format!("Jump");
+                let content = "Jump".to_string();
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
                 lines.push(node_line);
 
@@ -100,7 +122,7 @@ impl Statement {
                 lines.push(target_line);
             }
             Self::JumpTrue(cond, target) => {
-                let content = format!("JumpTrue");
+                let content = "JumpTrue".to_string();
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
                 lines.push(node_line);
 

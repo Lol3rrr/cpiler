@@ -1,9 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::RemAssign, sync::Arc};
 
 use ir::{BasicBlock, Statement, Type, Variable};
 use syntax::Scope;
 
-use crate::{AAssignTarget, AStatement, FunctionDeclaration, SemanticError};
+use crate::{AAssignTarget, AExpression, AStatement, FunctionDeclaration, SemanticError};
 
 mod state;
 pub use state::*;
@@ -66,7 +66,6 @@ impl AScope {
         let mut block = block.clone();
 
         for tmp_stmnt in self.statements {
-            dbg!(&tmp_stmnt);
             match tmp_stmnt {
                 AStatement::Assignment { target, value } => {
                     dbg!(&target, &value);
@@ -103,7 +102,25 @@ impl AScope {
                 AStatement::Expression(exp) => {
                     dbg!(&exp);
 
-                    todo!("Parse Single  Expression");
+                    // TODO
+                    // No idea how I might go about doing this
+
+                    match exp {
+                        AExpression::FunctionCall {
+                            name,
+                            arguments,
+                            result_ty,
+                        } => {
+                            dbg!(&name, &arguments, &result_ty);
+
+                            todo!("Handle raw FunctionCall");
+                        }
+                        other => {
+                            dbg!(&other);
+
+                            todo!("Unknown Standalone Expression")
+                        }
+                    };
                 }
                 AStatement::Return { value } => {
                     dbg!(&value);
@@ -159,6 +176,43 @@ impl AScope {
                         end_block.add_predecessor(block.weak_ptr());
                     }
 
+                    block = end_block;
+                }
+                AStatement::WhileLoop { condition, body } => {
+                    dbg!(&condition, &body);
+
+                    let start_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                    let inner_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
+                    let end_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
+
+                    // Generate the first iteration of the start Block
+                    {
+                        let cond_value = condition.to_ir(&start_block);
+                        let tmp_var_name = start_block.get_next_tmp_name();
+                        let cond_var = Variable::new(tmp_var_name, Type::I64);
+
+                        let cond_statement = ir::Statement::Assignment {
+                            target: cond_var.clone(),
+                            value: cond_value,
+                        };
+                        start_block.add_statement(cond_statement);
+
+                        start_block
+                            .add_statement(Statement::JumpTrue(cond_var, inner_block.clone()));
+                        start_block.add_statement(Statement::Jump(end_block.clone()));
+                    }
+
+                    // Generate the inner Part of the Loop
+                    {
+                        let inner_end_block = body.to_ir(&inner_block);
+                        inner_end_block.add_statement(Statement::Jump(start_block.clone()));
+                        start_block.add_predecessor(inner_end_block.weak_ptr());
+                    }
+
+                    // TODO
+                    // Regenerate the condition of the Loop
+
+                    block.add_statement(Statement::Jump(start_block));
                     block = end_block;
                 }
                 other => {

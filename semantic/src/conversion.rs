@@ -30,7 +30,6 @@ pub fn convert(ast: AAST) -> Program {
         };
 
         let func_block = convert_function(&global_block, name.clone(), func_dec, func_scope);
-        dbg!(&func_block);
 
         functions.insert(
             name,

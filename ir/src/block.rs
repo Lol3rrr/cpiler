@@ -1,5 +1,6 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    fmt::Debug,
     sync::{Arc, RwLock, Weak},
 };
 
@@ -12,9 +13,9 @@ use crate::{PhiEntry, Statement, Type, Value, Variable};
 #[derive(Debug)]
 pub struct BasicBlock {
     /// The List of Predecessors from which you can jump to this Block
-    pub predecessor: RwLock<Vec<Weak<BasicBlock>>>,
+    predecessor: RwLock<Vec<Weak<BasicBlock>>>,
     /// The actual Statements in this Block
-    pub parts: RwLock<Vec<Statement>>,
+    parts: RwLock<Vec<Statement>>,
 }
 
 impl PartialEq for BasicBlock {
@@ -65,6 +66,7 @@ impl BasicBlock {
         Arc::downgrade(self)
     }
 
+    /// Adds a new Predecessor to this Block
     pub fn add_predecessor(&self, pred: Weak<Self>) {
         let mut tmp = self.predecessor.write().unwrap();
         tmp.push(pred);
@@ -87,6 +89,10 @@ impl BasicBlock {
         })
     }
 
+    /// Finds the Definition for the given Variable Name in this block any of its Predecessors
+    /// using a recursive look-up.
+    /// Returns the Variable where it was defined, if there is only one definition or creates a new
+    /// temporary Variable that combines the different definitions using a Phi-Node
     pub fn definition(&self, name: &str) -> Option<Variable> {
         if let Some(var) = self.local_definition(name) {
             return Some(var);
@@ -95,12 +101,12 @@ impl BasicBlock {
         let preds = self.predecessor.read().unwrap();
 
         if preds.len() == 0 {
-            return None;
+            None
         } else if preds.len() == 1 {
             let single_pred = preds.get(0).unwrap();
             match single_pred.upgrade() {
-                Some(pred) => return pred.definition(name),
-                None => return None,
+                Some(pred) => pred.definition(name),
+                None => None,
             }
         } else {
             let tmp_var_name = self.get_next_tmp_name();
@@ -123,12 +129,9 @@ impl BasicBlock {
                     None => continue,
                 };
 
-                match pred.definition(name) {
-                    Some(var) => {
-                        sources.push(PhiEntry { var, block: c_pred });
-                    }
-                    None => {}
-                };
+                if let Some(var) = pred.definition(name) {
+                    sources.push(PhiEntry { var, block: c_pred });
+                }
             }
 
             if sources.is_empty() {
@@ -192,7 +195,7 @@ impl BasicBlock {
         lines: &mut Vec<String>,
         drawn: &mut HashSet<*const BasicBlock>,
     ) -> String {
-        let self_ptr = Arc::as_ptr(&self);
+        let self_ptr = Arc::as_ptr(self);
         let block_name = format!("block_{}", self_ptr as usize);
         if drawn.contains(&self_ptr) {
             return block_name;
@@ -223,6 +226,30 @@ impl BasicBlock {
         }
 
         block_name
+    }
+
+    /// Loads all the direct Successors of this Block
+    pub fn successors(&self) -> HashMap<*const Self, Arc<Self>> {
+        let mut result = HashMap::new();
+
+        let parts = self.parts.read().unwrap();
+        for tmp in parts.iter() {
+            match tmp {
+                Statement::Jump(target) => {
+                    let target_ptr = Arc::as_ptr(target);
+
+                    result.insert(target_ptr, target.clone());
+                }
+                Statement::JumpTrue(_, target) => {
+                    let target_ptr = Arc::as_ptr(target);
+
+                    result.insert(target_ptr, target.clone());
+                }
+                _ => {}
+            };
+        }
+
+        result
     }
 }
 

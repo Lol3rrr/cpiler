@@ -41,6 +41,7 @@ impl Variable {
         }
     }
 
+    /// Returns the Generation of the Variable
     pub fn generation(&self) -> usize {
         self.generation
     }

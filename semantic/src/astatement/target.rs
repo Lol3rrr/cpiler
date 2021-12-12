@@ -63,7 +63,7 @@ impl AAssignTarget {
 
                 let index_type = a_index.result_type();
                 match index_type {
-                    AType::Primitve(APrimitive::Int) => {}
+                    AType::Primitve(APrimitive::Int) | AType::Primitve(APrimitive::LongInt) => {}
                     i_type => {
                         let i_span = a_index.entire_span();
                         dbg!(&i_type, &i_span);
