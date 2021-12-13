@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
+    comp::CompareGraph,
     dot::{Context, DrawnBlocks, Lines},
     BasicBlock, Expression, ToDot, Value, Variable,
 };
@@ -26,8 +27,13 @@ pub enum Statement {
     JumpTrue(Variable, BasicBlock),
 }
 
-impl PartialEq for Statement {
-    fn eq(&self, other: &Self) -> bool {
+impl CompareGraph for Statement {
+    fn compare(
+        &self,
+        other: &Self,
+        blocks: &mut std::collections::HashMap<*const crate::InnerBlock, usize>,
+        current_block: usize,
+    ) -> bool {
         match (self, other) {
             (
                 Self::Assignment {
@@ -41,9 +47,15 @@ impl PartialEq for Statement {
             ) => s_target == o_target && s_value == o_value,
             (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
-            (Self::Jump(s_next), Self::Jump(o_next)) => s_next == o_next,
+            (Self::Jump(s_next), Self::Jump(o_next)) => {
+                s_next.compare(o_next, blocks, current_block)
+            }
             (Self::JumpTrue(s_var, s_next), Self::JumpTrue(o_var, o_next)) => {
-                s_var == o_var && s_next == o_next
+                if s_var != o_var {
+                    return false;
+                }
+
+                s_next.compare(o_next, blocks, current_block)
             }
             _ => false,
         }

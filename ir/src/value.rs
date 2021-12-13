@@ -1,6 +1,4 @@
-use std::sync::Weak;
-
-use crate::{BasicBlock, Expression, Type, Variable, WeakBlockPtr};
+use crate::{Expression, Type, Variable, WeakBlockPtr};
 
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]

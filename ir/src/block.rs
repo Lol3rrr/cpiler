@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    comp::CompareGraph,
     dot::{Context, DrawnBlocks, Lines},
     PhiEntry, Statement, ToDot, Type, Value, Variable,
 };
@@ -24,6 +25,33 @@ pub struct BasicBlock(Arc<InnerBlock>);
 
 impl PartialEq for BasicBlock {
     fn eq(&self, other: &Self) -> bool {
+        let mut blocks = HashMap::new();
+
+        self.compare(other, &mut blocks, 0)
+    }
+}
+
+impl CompareGraph for BasicBlock {
+    fn compare(
+        &self,
+        other: &Self,
+        blocks: &mut HashMap<*const InnerBlock, usize>,
+        current_block: usize,
+    ) -> bool {
+        let self_ptr = self.as_ptr();
+        let other_ptr = other.as_ptr();
+        match (blocks.get(&self_ptr), blocks.get(&other_ptr)) {
+            (Some(own_index), Some(other_index)) => {
+                return own_index == other_index;
+            }
+            (None, None) => {}
+            _ => {
+                todo!()
+            }
+        };
+        blocks.insert(self_ptr, current_block);
+        blocks.insert(other_ptr, current_block);
+
         let self_pred_count = {
             let tmp = self.0.predecessor.read().unwrap();
             tmp.len()
@@ -46,9 +74,15 @@ impl PartialEq for BasicBlock {
             return false;
         }
 
-        for (own_s, other_s) in s_vec.iter().zip(o_vec.iter()) {}
+        for (own_s, other_s) in s_vec.iter().zip(o_vec.iter()) {
+            dbg!(&own_s, &other_s);
 
-        s_vec.eq(o_vec)
+            if !own_s.compare(other_s, blocks, current_block + 1) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -232,7 +266,7 @@ impl BasicBlock {
 }
 
 impl ToDot for BasicBlock {
-    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
+    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, _: &Context) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         let block_name = format!("block_{}", self_ptr as usize);
         if drawn.contains(&(self_ptr as *const ())) {
@@ -246,12 +280,10 @@ impl ToDot for BasicBlock {
         ));
 
         {
-            let mut src = block_name.clone();
-
             let parts = self.0.parts.read().unwrap();
             let mut parts_context = Context::new();
             parts_context.set("block_ptr", self_ptr as usize);
-            parts_context.set("block_src", src);
+            parts_context.set("block_src", block_name.clone());
 
             for (numb, part) in parts.iter().enumerate() {
                 parts_context.set("block_number", numb);
@@ -378,7 +410,13 @@ mod tests {
         let result = block.definition("test");
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
 
-        assert_eq!(expected_block_stmnts, result_block_stmnts);
+        let mut tmp_map = HashMap::new();
+        for (expected_stmnt, result_stmnt) in expected_block_stmnts
+            .into_iter()
+            .zip(result_block_stmnts.into_iter())
+        {
+            assert!(expected_stmnt.compare(&result_stmnt, &mut tmp_map, 0));
+        }
         assert_eq!(expected, result);
     }
 }

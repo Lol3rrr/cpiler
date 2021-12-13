@@ -22,3 +22,9 @@ impl Context {
         self.inner.get(name)
     }
 }
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -25,10 +25,7 @@
 //! * [Array SSA Form](https://www.cs.purdue.edu/homes/suresh/590s-Fall2002/papers/ArraySSApopl98.pdf)
 //! * [Extended SSA: Pointers etc.](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.17.1802&rep=rep1&type=pdf)
 
-// TODO
-// Fix PartialEq implementation for IR Blocks with cycles in them
-
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug};
 
 mod variable;
 use dot::{Context, DrawnBlocks, Lines};
@@ -54,6 +51,8 @@ pub use function::*;
 
 mod statement;
 pub use statement::*;
+
+mod comp;
 
 /// The overall Program Structure that contains all the needed information about the Program itself
 #[derive(Clone, PartialEq)]

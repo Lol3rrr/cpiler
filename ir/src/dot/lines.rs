@@ -16,8 +16,14 @@ impl Lines {
     }
 }
 
-impl Into<Vec<String>> for Lines {
-    fn into(self) -> Vec<String> {
-        self.inner
+impl From<Lines> for Vec<String> {
+    fn from(src: Lines) -> Self {
+        src.inner
+    }
+}
+
+impl Default for Lines {
+    fn default() -> Self {
+        Self::new()
     }
 }

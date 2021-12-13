@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Debug, sync::Arc};
+use std::{collections::HashSet, fmt::Debug};
 
 use crate::{BasicBlock, ToDot, Type};
 

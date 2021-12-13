@@ -21,3 +21,9 @@ impl DrawnBlocks {
         self.inner.contains(&ptr)
     }
 }
+
+impl Default for DrawnBlocks {
+    fn default() -> Self {
+        Self::new()
+    }
+}
