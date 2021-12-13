@@ -86,13 +86,10 @@ impl EnumVariants {
         let mut members = Vec::new();
         loop {
             let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
-            match &peeked.data {
-                TokenData::CloseBrace => {
-                    let _ = tokens.next();
-                    break;
-                }
-                _ => {}
-            };
+            if peeked.data == TokenData::CloseBrace {
+                let _ = tokens.next();
+                break;
+            }
 
             let variant = EnumVariant::parse(tokens)?;
             members.push(variant);

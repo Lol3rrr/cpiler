@@ -3,7 +3,7 @@ use std::fmt::Display;
 use general::{ParseSpan, SpanRef};
 
 impl ParseSpan for TokenData {
-    fn parse<'s>(source: &SpanRef<'s>) -> Option<Self> {
+    fn parse(source: &SpanRef<'_>) -> Option<Self> {
         Some(Self::from(source))
     }
 }

@@ -68,7 +68,7 @@ where
 
             let tmp_peeked = tokens.peek();
             match tmp_peeked {
-                Some(tok) if &tok.data == &TokenData::CloseBracket => {
+                Some(tok) if tok.data == TokenData::CloseBracket => {
                     let _ = tokens.next();
 
                     TypeToken::ArrayType {
@@ -159,12 +159,9 @@ where
                 });
 
                 let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
-                match &peeked.data {
-                    TokenData::Comma => {
-                        let _ = tokens.next();
-                    }
-                    _ => {}
-                };
+                if peeked.data == TokenData::Comma {
+                    let _ = tokens.next();
+                }
             }
 
             let f_head = FunctionHead {

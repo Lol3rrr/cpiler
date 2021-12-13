@@ -36,7 +36,12 @@ pub enum OpItem<O> {
     Op(O),
 }
 
-pub fn parse<I, II, O>(inputs: II) -> Result<O::Value, ()>
+#[derive(Debug, PartialEq)]
+pub enum ParseError {
+    EmptyResult,
+}
+
+pub fn parse<I, II, O>(inputs: II) -> Result<O::Value, ParseError>
 where
     II: IntoIterator<IntoIter = I, Item = Inputs<O, O::Value>>,
     I: Iterator<Item = Inputs<O, O::Value>>,
@@ -114,7 +119,10 @@ where
             OpItem::Op(op) => {
                 output.push(Intermediate::Operator(op));
             }
-            other => panic!("Unexpected Op-Item"),
+            other => {
+                dbg!(&other);
+                panic!("Unexpected Op-Item")
+            }
         };
     }
 
@@ -140,5 +148,5 @@ where
         };
     }
 
-    result.pop().ok_or(())
+    result.pop().ok_or(ParseError::EmptyResult)
 }

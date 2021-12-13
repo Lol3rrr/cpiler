@@ -41,10 +41,11 @@ where
     I: IntoIterator<Item = Token, IntoIter = IT>,
     IT: Iterator<Item = Token>,
 {
-    let mut tokens = peek_nth(tokens.into_iter().filter(|t| match &t.data {
-        TokenData::Comment { .. } => false,
-        _ => true,
-    }));
+    let mut tokens = peek_nth(
+        tokens
+            .into_iter()
+            .filter(|t| matches!(&t.data, TokenData::Comment { .. })),
+    );
 
     let global_scope = Scope::parse(&mut tokens)?;
 

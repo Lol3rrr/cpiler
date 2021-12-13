@@ -14,13 +14,13 @@ pub enum Modifier {
 
 impl Modifier {
     pub fn is_modifier(token: &TokenData) -> bool {
-        match &token {
-            TokenData::Keyword(Keyword::Const) => true,
-            TokenData::Keyword(Keyword::DataType(DataType::Signed)) => true,
-            TokenData::Keyword(Keyword::DataType(DataType::Unsigned)) => true,
-            TokenData::Keyword(Keyword::DataType(DataType::Long)) => true,
-            _ => false,
-        }
+        matches!(
+            &token,
+            TokenData::Keyword(Keyword::Const)
+                | TokenData::Keyword(Keyword::DataType(DataType::Signed))
+                | TokenData::Keyword(Keyword::DataType(DataType::Unsigned))
+                | TokenData::Keyword(Keyword::DataType(DataType::Long))
+        )
     }
 
     pub fn parse(data: TokenData) -> Option<Self> {
@@ -190,14 +190,14 @@ impl TypeToken {
                     _ => {
                         let next = tokens.next().unwrap();
 
-                        return Err(SyntaxError::UnexpectedToken {
+                        Err(SyntaxError::UnexpectedToken {
                             got: next.span,
                             expected: None,
-                        });
+                        })
                     }
                 }
             }
-            data if Modifier::is_modifier(&data) => {
+            data if Modifier::is_modifier(data) => {
                 let next = tokens.next().unwrap();
 
                 let modif = Modifier::parse(next.data).unwrap();

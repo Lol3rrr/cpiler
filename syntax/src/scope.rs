@@ -18,13 +18,10 @@ impl Scope {
         let mut statements = Vec::new();
 
         while let Some(peeked) = tokens.peek() {
-            match &peeked.data {
-                TokenData::CloseBrace => {
-                    tokens.next();
-                    break;
-                }
-                _ => {}
-            };
+            if peeked.data == TokenData::CloseBrace {
+                let _ = tokens.next();
+                break;
+            }
 
             let statement = Statement::parse(tokens, &Statement::default_terminaton())?;
 

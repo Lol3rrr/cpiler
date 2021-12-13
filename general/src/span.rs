@@ -1,14 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    hash::Hash,
-    ops::{Range, Shr},
-    sync::Arc,
-};
-
-// TODO
-// Potentially switch the source String to an Arc<String> and then whenever
-// you construct a subspan you dont clone the String itself but rather only the
-// Arc which should be faster and more efficient
+use std::{fmt::Debug, hash::Hash, ops::Range, sync::Arc};
 
 mod char_iter;
 pub use char_iter::CharIndexIter;
@@ -16,7 +6,7 @@ pub use char_iter::CharIndexIter;
 use crate::Source;
 
 /// A Span describes a Part of some overall String, most likely source Code
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Span {
     /// The Source Content (most likely a File)
     source: Arc<Source>,
@@ -29,6 +19,14 @@ pub struct Span {
 impl Hash for Span {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write(self.content().as_bytes());
+    }
+}
+
+impl PartialEq for Span {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.source_area == other.source_area
+            && self.original == other.original
     }
 }
 
@@ -63,7 +61,7 @@ impl Span {
         }
     }
 
-    pub fn sub_span<'out>(&'out self, range: Range<usize>) -> Option<SpanRef<'out>> {
+    pub fn sub_span(&self, range: Range<usize>) -> Option<SpanRef<'_>> {
         let length = self.source_area.len();
         if range.start > length || range.end > length {
             return None;
@@ -88,10 +86,7 @@ impl Span {
         &self.source_area
     }
 
-    pub fn join<C>(self, other: Self, combinator: C) -> Self
-    where
-        C: Display,
-    {
+    pub fn join(self, other: Self) -> Self {
         let n_range = self.source_area.start..other.source_area.end;
 
         Self {
@@ -151,7 +146,7 @@ impl<'a> SpanRef<'a> {
         self.source.sub_content(self.source_area.clone()).expect("")
     }
 
-    pub fn sub_span<'out>(&'out self, range: Range<usize>) -> Option<SpanRef<'out>> {
+    pub fn sub_span(&self, range: Range<usize>) -> Option<SpanRef<'_>> {
         let length = self.source_area.len();
         if range.start > length || range.end > length {
             return None;
@@ -161,20 +156,20 @@ impl<'a> SpanRef<'a> {
         let sub_area = source_start + range.start..source_start + range.end;
 
         Some(SpanRef {
-            source: &self.source,
+            source: self.source,
             source_area: sub_area,
         })
     }
 }
 
-impl<'s> Into<Span> for SpanRef<'s> {
-    fn into(self) -> Span {
-        Span::new_arc_source(self.source.clone(), self.source_area)
+impl<'s> From<SpanRef<'s>> for Span {
+    fn from(src: SpanRef<'s>) -> Self {
+        Span::new_arc_source(src.source.clone(), src.source_area)
     }
 }
-impl<'s> Into<Span> for &SpanRef<'s> {
-    fn into(self) -> Span {
-        Span::new_arc_source(self.source.clone(), self.source_area.clone())
+impl<'s> From<&SpanRef<'s>> for Span {
+    fn from(src: &SpanRef<'s>) -> Self {
+        Span::new_arc_source(src.source.clone(), src.source_area.clone())
     }
 }
 impl<'o, 's> From<&'o Span> for SpanRef<'s>

@@ -26,14 +26,10 @@ impl StructMembers {
 
         let mut members = Vec::new();
         while let Some(peeked_tok) = tokens.peek() {
-            dbg!(&peeked_tok);
-            match &peeked_tok.data {
-                TokenData::CloseBrace => {
-                    let _ = tokens.next();
-                    break;
-                }
-                _ => {}
-            };
+            if peeked_tok.data == TokenData::CloseBrace {
+                let _ = tokens.next();
+                break;
+            }
 
             let (ty, name) = TypeToken::parse_type_identifier(tokens)?;
 

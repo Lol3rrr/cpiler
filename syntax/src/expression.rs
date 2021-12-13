@@ -183,10 +183,9 @@ impl Expression {
                     other => other,
                 };
 
-                match chars.next() {
-                    Some(_) => return Err(SyntaxError::UnexpectedEOF),
-                    _ => {}
-                };
+                if chars.next().is_some() {
+                    return Err(SyntaxError::UnexpectedEOF);
+                }
 
                 Ok(Self::CharLiteral {
                     content: SpanData {
@@ -212,7 +211,7 @@ impl Expression {
         let mut result = Vec::new();
 
         while let Some(peeked) = tokens.peek() {
-            if &peeked.data == &end_tok {
+            if peeked.data == end_tok {
                 break;
             }
 
@@ -283,23 +282,17 @@ impl Expression {
                 }
                 (TokenData::Keyword(Keyword::SizeOf), _) => {
                     let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
-                    match &peeked.data {
-                        TokenData::OpenParen => {
-                            let _ = tokens.next();
-                        }
-                        _ => {}
-                    };
+                    if peeked.data == TokenData::OpenParen {
+                        let _ = tokens.next();
+                    }
 
                     let ty = TypeToken::parse(tokens)?;
                     dbg!(&ty);
 
                     if let Some(after_peeked) = tokens.peek() {
-                        match &after_peeked.data {
-                            TokenData::CloseParen => {
-                                let _ = tokens.next();
-                            }
-                            _ => {}
-                        };
+                        if after_peeked.data == TokenData::CloseParen {
+                            let _ = tokens.next();
+                        }
                     }
 
                     let inner = Expression::SizeOf { ty };
@@ -554,14 +547,16 @@ impl Expression {
     where
         I: Iterator<Item = Token>,
     {
-        Self::parse_expressions(tokens, |data| match data {
-            TokenData::Comma
-            | TokenData::Semicolon
-            | TokenData::CloseParen
-            | TokenData::CloseBrace
-            | TokenData::CloseBracket
-            | TokenData::Colon => true,
-            _ => false,
+        Self::parse_expressions(tokens, |data| {
+            matches!(
+                data,
+                TokenData::Comma
+                    | TokenData::Semicolon
+                    | TokenData::CloseParen
+                    | TokenData::CloseBrace
+                    | TokenData::CloseBracket
+                    | TokenData::Colon
+            )
         })
     }
 }

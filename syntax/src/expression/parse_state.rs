@@ -180,26 +180,23 @@ impl ParseState {
         let new_assoc = op.assosication();
 
         loop {
-            match self.op_stack.last() {
-                Some((latest, _)) => {
-                    let latest_prec = latest.precedence();
+            if let Some((latest, _)) = self.op_stack.last() {
+                let latest_prec = latest.precedence();
 
-                    if new_prec < latest_prec {
+                if new_prec < latest_prec {
+                    let (popped, p_span) = self.op_stack.pop().unwrap();
+                    self.output.push(RPN::Operation(popped, p_span));
+                    continue;
+                }
+
+                if new_prec == latest_prec {
+                    if let Assosication::Left = new_assoc {
                         let (popped, p_span) = self.op_stack.pop().unwrap();
                         self.output.push(RPN::Operation(popped, p_span));
                         continue;
                     }
-
-                    if new_prec == latest_prec {
-                        if let Assosication::Left = new_assoc {
-                            let (popped, p_span) = self.op_stack.pop().unwrap();
-                            self.output.push(RPN::Operation(popped, p_span));
-                            continue;
-                        }
-                    }
                 }
-                None => {}
-            };
+            }
 
             break;
         }
@@ -298,18 +295,13 @@ impl ParseState {
                                         },
                                     ) => {
                                         let left_str = &left_content.data;
-                                        if left_str.chars().find(|c| !c.is_digit(10)).is_some() {
+                                        if left_str.chars().any(|c| !c.is_digit(10)) {
                                             todo!("Left side is not a number");
                                         }
 
                                         let right_span = {
                                             let tmp = &right_content.data;
-                                            if tmp.ends_with('f') {
-                                                right_content
-                                                    .span
-                                                    .sub_span(0..tmp.len() - 1)
-                                                    .unwrap()
-                                            } else if tmp.ends_with('d') {
+                                            if tmp.ends_with('f') || tmp.ends_with('d') {
                                                 right_content
                                                     .span
                                                     .sub_span(0..tmp.len() - 1)
@@ -319,17 +311,12 @@ impl ParseState {
                                             }
                                         };
 
-                                        if right_span
-                                            .content()
-                                            .chars()
-                                            .find(|c| !c.is_digit(10))
-                                            .is_some()
-                                        {
+                                        if right_span.content().chars().any(|c| !c.is_digit(10)) {
                                             todo!("Right side is not a number");
                                         }
 
                                         let combined_span =
-                                            left_content.span.join(right_span.into(), ".");
+                                            left_content.span.join(right_span.into());
 
                                         Expression::Literal {
                                             content: SpanData {

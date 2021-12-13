@@ -10,8 +10,8 @@ impl<D> SpanData<D>
 where
     D: ParseSpan,
 {
-    pub fn parse<'s>(source: &SpanRef<'s>) -> Option<Self> {
-        if source.content().trim().len() == 0 {
+    pub fn parse(source: &SpanRef<'_>) -> Option<Self> {
+        if source.content().trim().is_empty() {
             return None;
         }
 
@@ -28,5 +28,5 @@ pub trait ParseSpan
 where
     Self: Sized,
 {
-    fn parse<'s>(source: &SpanRef<'s>) -> Option<Self>;
+    fn parse(source: &SpanRef<'_>) -> Option<Self>;
 }
