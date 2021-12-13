@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use general::{Source, Span};
 use ir::{
     BasicBlock, BinaryArithmeticOp, BinaryOp, Constant, Expression, FunctionDefinition, Operand,
@@ -24,7 +22,7 @@ void test() {
     let input = semantic::parse(syntax_ast).unwrap();
 
     let global_block = BasicBlock::initial(vec![]);
-    let global_weak = Arc::downgrade(&global_block);
+    let global_weak = global_block.weak_ptr();
 
     let x_var = Variable::new("x", Type::I64);
     let x1_var = x_var.next_gen();
@@ -32,7 +30,7 @@ void test() {
     let y1_var = y_var.next_gen();
 
     let initial_block = BasicBlock::new(vec![global_weak], vec![]);
-    let initial_weak = Arc::downgrade(&initial_block);
+    let initial_weak = initial_block.weak_ptr();
     let inner_block = BasicBlock::new(
         vec![initial_weak],
         vec![
@@ -70,6 +68,7 @@ void test() {
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
+                name: "test".to_string(),
                 arguments: vec![],
                 return_ty: Type::Void,
                 block: initial_block,
@@ -142,6 +141,7 @@ void test(int arg) {
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
+                name: "test".to_string(),
                 arguments: vec![("arg".to_string(), Type::I32)],
                 return_ty: Type::Void,
                 block: func_initial_block,

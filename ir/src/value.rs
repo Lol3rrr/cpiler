@@ -1,12 +1,12 @@
 use std::sync::Weak;
 
-use crate::{BasicBlock, Expression, Type, Variable};
+use crate::{BasicBlock, Expression, Type, Variable, WeakBlockPtr};
 
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]
 pub struct PhiEntry {
     /// The Block in which this Variable definition can be found
-    pub block: Weak<BasicBlock>,
+    pub block: WeakBlockPtr,
     /// The Variable found
     pub var: Variable,
 }

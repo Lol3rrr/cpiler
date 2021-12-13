@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use ir::{BasicBlock, FunctionDefinition, Program, Statement, Type, Value, Variable};
 
@@ -32,8 +32,9 @@ pub fn convert(ast: AAST) -> Program {
         let func_block = convert_function(&global_block, name.clone(), func_dec, func_scope);
 
         functions.insert(
-            name,
+            name.clone(),
             FunctionDefinition {
+                name,
                 arguments: args,
                 return_ty,
                 block: func_block,
@@ -48,11 +49,11 @@ pub fn convert(ast: AAST) -> Program {
 }
 
 fn convert_function(
-    global: &Arc<BasicBlock>,
+    global: &BasicBlock,
     name: String,
     func_dec: FunctionDeclaration,
     inner_scope: AScope,
-) -> Arc<BasicBlock> {
+) -> BasicBlock {
     dbg!(&name, &func_dec, &inner_scope);
 
     // Put the Arguments into the first basic Block and then place a Jump as the last Statement
@@ -75,10 +76,10 @@ fn convert_function(
         tmp
     };
 
-    let global_weak = Arc::downgrade(global);
+    let global_weak = global.weak_ptr();
     let head_block = BasicBlock::new(vec![global_weak], arg_statements);
 
-    let head_weak = Arc::downgrade(&head_block);
+    let head_weak = head_block.weak_ptr();
     let func_block = BasicBlock::new(vec![head_weak], vec![]);
     inner_scope.to_ir(&func_block);
 

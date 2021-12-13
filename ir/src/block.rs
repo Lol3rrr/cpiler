@@ -1,87 +1,104 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::Debug,
-    sync::{Arc, RwLock, Weak},
+    sync::{Arc, RwLock},
 };
 
-use crate::{PhiEntry, Statement, Type, Value, Variable};
+use crate::{
+    dot::{Context, DrawnBlocks, Lines},
+    PhiEntry, Statement, ToDot, Type, Value, Variable,
+};
+
+mod inner;
+pub use inner::*;
+
+mod weak;
+pub use weak::*;
 
 /// A Basic-Block contains a linear series of Statements that will be executed one after another.
 ///
 /// A Block can have any number of predecessors and can have any number of following Blocks that
 /// can be jumped to using the appropriate Statements
-#[derive(Debug)]
-pub struct BasicBlock {
-    /// The List of Predecessors from which you can jump to this Block
-    predecessor: RwLock<Vec<Weak<BasicBlock>>>,
-    /// The actual Statements in this Block
-    parts: RwLock<Vec<Statement>>,
-}
+#[derive(Debug, Clone)]
+pub struct BasicBlock(Arc<InnerBlock>);
 
 impl PartialEq for BasicBlock {
     fn eq(&self, other: &Self) -> bool {
         let self_pred_count = {
-            let tmp = self.predecessor.read().unwrap();
+            let tmp = self.0.predecessor.read().unwrap();
             tmp.len()
         };
         let other_pred_count = {
-            let tmp = other.predecessor.read().unwrap();
+            let tmp = other.0.predecessor.read().unwrap();
             tmp.len()
         };
         if self_pred_count != other_pred_count {
             return false;
         }
 
-        let self_parts = self.parts.read().unwrap();
-        let other_parts = other.parts.read().unwrap();
+        let self_parts = self.0.parts.read().unwrap();
+        let other_parts = other.0.parts.read().unwrap();
 
         let s_vec: &[Statement] = &self_parts;
         let o_vec: &[Statement] = &other_parts;
+
+        if s_vec.len() != o_vec.len() {
+            return false;
+        }
+
+        for (own_s, other_s) in s_vec.iter().zip(o_vec.iter()) {}
+
         s_vec.eq(o_vec)
+    }
+}
+
+impl From<Arc<InnerBlock>> for BasicBlock {
+    fn from(inner: Arc<InnerBlock>) -> Self {
+        Self(inner)
     }
 }
 
 impl BasicBlock {
     /// Creates a new Block without any predecessors, this should only be used for the Global Block
     /// or similiar situations depending on your source language design
-    pub fn initial(parts: Vec<Statement>) -> Arc<Self> {
-        let instance = Self {
-            predecessor: RwLock::new(Vec::new()),
-            parts: RwLock::new(parts),
-        };
-
-        Arc::new(instance)
+    pub fn initial(parts: Vec<Statement>) -> Self {
+        Self::new(Vec::new(), parts)
     }
 
     /// Creates a new Block with the given predecessors and statements
-    pub fn new(predecessors: Vec<Weak<BasicBlock>>, parts: Vec<Statement>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn new(predecessors: Vec<WeakBlockPtr>, parts: Vec<Statement>) -> Self {
+        Self(Arc::new(InnerBlock {
             predecessor: RwLock::new(predecessors),
             parts: RwLock::new(parts),
-        })
+        }))
     }
 
     /// Obtains the Weak-Ptr for this Block
-    pub fn weak_ptr(self: &Arc<Self>) -> Weak<Self> {
-        Arc::downgrade(self)
+    pub fn weak_ptr(&self) -> WeakBlockPtr {
+        let inner = Arc::downgrade(&self.0);
+        inner.into()
+    }
+    /// Gets the Ptr to the Data
+    pub fn as_ptr(&self) -> *const InnerBlock {
+        Arc::as_ptr(&self.0)
     }
 
     /// Adds a new Predecessor to this Block
-    pub fn add_predecessor(&self, pred: Weak<Self>) {
-        let mut tmp = self.predecessor.write().unwrap();
+    pub fn add_predecessor(&self, pred: WeakBlockPtr) {
+        let mut tmp = self.0.predecessor.write().unwrap();
         tmp.push(pred);
     }
 
     /// Appends the given Statement to the current List of Statements
     pub fn add_statement(&self, statement: Statement) {
-        let mut tmp = self.parts.write().unwrap();
+        let mut tmp = self.0.parts.write().unwrap();
         tmp.push(statement);
     }
 
     /// Attempts to retrieve the latest defined Instance for a Variable with the given Name in this
     /// Block locally, meaning that it wont start a recursive Search in its predecessors
     fn local_definition(&self, name: &str) -> Option<Variable> {
-        let tmp = self.parts.read().unwrap();
+        let tmp = self.0.parts.read().unwrap();
 
         tmp.iter().rev().find_map(|stmnt| match stmnt {
             Statement::Assignment { target, .. } if target.name == name => Some(target.clone()),
@@ -98,7 +115,7 @@ impl BasicBlock {
             return Some(var);
         }
 
-        let preds = self.predecessor.read().unwrap();
+        let preds = self.0.predecessor.read().unwrap();
 
         if preds.len() == 0 {
             None
@@ -117,7 +134,7 @@ impl BasicBlock {
             };
 
             {
-                let mut tmp = self.parts.write().unwrap();
+                let mut tmp = self.0.parts.write().unwrap();
                 tmp.push(phi_stmnt);
             }
 
@@ -136,7 +153,7 @@ impl BasicBlock {
 
             if sources.is_empty() {
                 {
-                    let mut tmp = self.parts.write().unwrap();
+                    let mut tmp = self.0.parts.write().unwrap();
                     tmp.pop();
                 }
 
@@ -152,7 +169,7 @@ impl BasicBlock {
             };
 
             {
-                let mut tmp = self.parts.write().unwrap();
+                let mut tmp = self.0.parts.write().unwrap();
                 let last = tmp.last_mut().unwrap();
 
                 *last = tmp_stmnt;
@@ -168,7 +185,7 @@ impl BasicBlock {
     /// Loads the Name for the next Temporary Variable in this Block, which is particularly useful
     /// when breaking up nested Expressions or the like
     pub fn get_next_tmp_name(&self) -> String {
-        let tmp = self.parts.read().unwrap();
+        let tmp = self.0.parts.read().unwrap();
 
         let latest = tmp.iter().rev().find_map(|stmnt| match stmnt {
             Statement::Assignment { target, .. } if target.name.starts_with("__t_") => {
@@ -189,59 +206,20 @@ impl BasicBlock {
         }
     }
 
-    /// Generates the .dot Graphviz stuff
-    pub fn to_dot(
-        self: &Arc<Self>,
-        lines: &mut Vec<String>,
-        drawn: &mut HashSet<*const BasicBlock>,
-    ) -> String {
-        let self_ptr = Arc::as_ptr(self);
-        let block_name = format!("block_{}", self_ptr as usize);
-        if drawn.contains(&self_ptr) {
-            return block_name;
-        }
-        drawn.insert(self_ptr);
-
-        lines.push(format!(
-            "{} [label = \"{} - Block Start\"]",
-            block_name, block_name
-        ));
-
-        {
-            let mut src = block_name.clone();
-
-            let parts = self.parts.read().unwrap();
-            for (numb, part) in parts.iter().enumerate() {
-                src = part.to_dot(lines, drawn, self_ptr, numb, &src);
-            }
-        }
-
-        {
-            let preds = self.predecessor.read().unwrap();
-            for pred in preds.iter() {
-                let pred_name = format!("block_{}", pred.as_ptr() as usize);
-                let pred_line = format!("{} -> {} [style=dashed]", block_name, pred_name);
-                lines.push(pred_line);
-            }
-        }
-
-        block_name
-    }
-
     /// Loads all the direct Successors of this Block
-    pub fn successors(&self) -> HashMap<*const Self, Arc<Self>> {
+    pub fn successors(&self) -> HashMap<*const InnerBlock, Self> {
         let mut result = HashMap::new();
 
-        let parts = self.parts.read().unwrap();
+        let parts = self.0.parts.read().unwrap();
         for tmp in parts.iter() {
             match tmp {
                 Statement::Jump(target) => {
-                    let target_ptr = Arc::as_ptr(target);
+                    let target_ptr = target.as_ptr();
 
                     result.insert(target_ptr, target.clone());
                 }
                 Statement::JumpTrue(_, target) => {
-                    let target_ptr = Arc::as_ptr(target);
+                    let target_ptr = target.as_ptr();
 
                     result.insert(target_ptr, target.clone());
                 }
@@ -250,6 +228,48 @@ impl BasicBlock {
         }
 
         result
+    }
+}
+
+impl ToDot for BasicBlock {
+    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
+        let self_ptr = Arc::as_ptr(&self.0);
+        let block_name = format!("block_{}", self_ptr as usize);
+        if drawn.contains(&(self_ptr as *const ())) {
+            return block_name;
+        }
+        drawn.add_block(self_ptr);
+
+        lines.add_line(format!(
+            "{} [label = \"{} - Block Start\"]",
+            block_name, block_name
+        ));
+
+        {
+            let mut src = block_name.clone();
+
+            let parts = self.0.parts.read().unwrap();
+            let mut parts_context = Context::new();
+            parts_context.set("block_ptr", self_ptr as usize);
+            parts_context.set("block_src", src);
+
+            for (numb, part) in parts.iter().enumerate() {
+                parts_context.set("block_number", numb);
+                let n_src = part.to_dot(lines, drawn, &parts_context);
+                parts_context.set("block_src", n_src);
+            }
+        }
+
+        {
+            let preds = self.0.predecessor.read().unwrap();
+            for pred in preds.iter() {
+                let pred_name = format!("block_{}", pred.as_ptr() as usize);
+                let pred_line = format!("{} -> {} [style=dashed]", block_name, pred_name);
+                lines.add_line(pred_line);
+            }
+        }
+
+        block_name
     }
 }
 
@@ -312,7 +332,7 @@ mod tests {
             value: Value::Constant(Constant::I8(1)),
         }]);
 
-        let pred = Arc::downgrade(&predecessor);
+        let pred = predecessor.weak_ptr();
         let block = BasicBlock::new(vec![pred], vec![]);
 
         let expected = Some(Variable::new_test("test", 0, Type::I8));
@@ -328,13 +348,13 @@ mod tests {
             target: Variable::new_test("test", 0, Type::I8),
             value: Value::Constant(Constant::I8(1)),
         }]);
-        let pred_1 = Arc::downgrade(&predecessor_1);
+        let pred_1 = predecessor_1.weak_ptr();
 
         let predecessor_2 = BasicBlock::initial(vec![Statement::Assignment {
             target: Variable::new_test("test", 1, Type::I8),
             value: Value::Constant(Constant::I8(2)),
         }]);
-        let pred_2 = Arc::downgrade(&predecessor_2);
+        let pred_2 = predecessor_2.weak_ptr();
 
         let block = BasicBlock::new(vec![pred_1.clone(), pred_2.clone()], vec![]);
 
@@ -356,7 +376,7 @@ mod tests {
         }];
 
         let result = block.definition("test");
-        let result_block_stmnts = block.parts.read().unwrap().clone();
+        let result_block_stmnts = block.0.parts.read().unwrap().clone();
 
         assert_eq!(expected_block_stmnts, result_block_stmnts);
         assert_eq!(expected, result);

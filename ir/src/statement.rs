@@ -1,6 +1,9 @@
-use std::{collections::HashSet, fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-use crate::{BasicBlock, Expression, Value, Variable};
+use crate::{
+    dot::{Context, DrawnBlocks, Lines},
+    BasicBlock, Expression, ToDot, Value, Variable,
+};
 
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
 /// storing its result in a new Variable or jumping to a different Point in the Program
@@ -18,9 +21,9 @@ pub enum Statement {
     /// Returns the given Variable from the Function
     Return(Option<Variable>),
     /// Jumps to the given Block unconditionally
-    Jump(Arc<BasicBlock>),
+    Jump(BasicBlock),
     /// Jumps to the given Block if the Variable is true
-    JumpTrue(Variable, Arc<BasicBlock>),
+    JumpTrue(Variable, BasicBlock),
 }
 
 impl PartialEq for Statement {
@@ -58,12 +61,12 @@ impl Debug for Statement {
             }
             Self::Return(val) => write!(f, "Return({:?})", val),
             Self::Jump(target) => {
-                let ptr = Arc::as_ptr(target);
+                let ptr = target.as_ptr();
 
                 write!(f, "Jump(0x{:x})", ptr as usize)
             }
             Self::JumpTrue(var, target) => {
-                let ptr = Arc::as_ptr(target);
+                let ptr = target.as_ptr();
 
                 write!(f, "JumpTrue({:?}, 0x{:x})", var, ptr as usize)
             }
@@ -71,65 +74,73 @@ impl Debug for Statement {
     }
 }
 
-impl Statement {
-    /// Generates the .dot graphviz stuff
-    pub fn to_dot(
-        &self,
-        lines: &mut Vec<String>,
-        drawn: &mut HashSet<*const BasicBlock>,
-        block_ptr: *const BasicBlock,
-        number: usize,
-        src: &str,
-    ) -> String {
-        let name = format!("block_{}_s{}", block_ptr as usize, number);
+impl ToDot for Statement {
+    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
+        let block_ptr = *ctx
+            .get("block_ptr")
+            .expect("")
+            .downcast_ref::<usize>()
+            .expect("");
+        let number_in_block = *ctx
+            .get("block_number")
+            .expect("")
+            .downcast_ref::<usize>()
+            .expect("");
+        let src = ctx
+            .get("block_src")
+            .expect("")
+            .downcast_ref::<String>()
+            .expect("");
+
+        let name = format!("block_{}_s{}", block_ptr, number_in_block);
 
         match self {
             Self::Assignment { target, value } => {
                 let content = format!("{:?} = {:?}", target, value);
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.push(node_line);
+                lines.add_line(node_line);
 
                 let line = format!("{} -> {}", src, name);
-                lines.push(line);
+                lines.add_line(line);
             }
             Self::Expression(exp) => {
                 let content = format!("{:?}", exp);
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.push(node_line);
+                lines.add_line(node_line);
 
                 let line = format!("{} -> {}", src, name);
-                lines.push(line);
+                lines.add_line(line);
             }
             Self::Return(val) => {
                 let content = format!("return {:?}", val);
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.push(node_line);
+                lines.add_line(node_line);
 
                 let line = format!("{} -> {}", src, name);
-                lines.push(line);
+                lines.add_line(line);
             }
             Self::Jump(target) => {
                 let content = "Jump".to_string();
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.push(node_line);
+                lines.add_line(node_line);
 
                 let line = format!("{} -> {}", src, name);
-                lines.push(line);
+                lines.add_line(line);
 
-                let target_name = target.to_dot(lines, drawn);
+                let target_name = target.to_dot(lines, drawn, &Context::new());
 
                 let target_line = format!("{} -> {}", name, target_name);
-                lines.push(target_line);
+                lines.add_line(target_line);
             }
             Self::JumpTrue(cond, target) => {
                 let content = "JumpTrue".to_string();
                 let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.push(node_line);
+                lines.add_line(node_line);
 
                 let line = format!("{} -> {}", src, name);
-                lines.push(line);
+                lines.add_line(line);
 
-                let target_name = target.to_dot(lines, drawn);
+                let target_name = target.to_dot(lines, drawn, &Context::new());
 
                 let var_str = format!("{:?}", cond);
                 let target_line = format!(
@@ -138,7 +149,7 @@ impl Statement {
                     target_name,
                     var_str.replace('"', "\\\"")
                 );
-                lines.push(target_line);
+                lines.add_line(target_line);
             }
         };
 

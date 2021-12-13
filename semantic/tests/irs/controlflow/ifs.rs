@@ -100,6 +100,7 @@ void test() {
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
+                name: "test".to_string(),
                 arguments: vec![],
                 return_ty: Type::Void,
                 block: function_arg_block,
@@ -227,6 +228,7 @@ void test() {
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
+                name: "test".to_string(),
                 arguments: vec![],
                 return_ty: Type::Void,
                 block: function_start_block,

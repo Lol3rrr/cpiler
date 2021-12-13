@@ -25,14 +25,17 @@
 //! * [Array SSA Form](https://www.cs.purdue.edu/homes/suresh/590s-Fall2002/papers/ArraySSApopl98.pdf)
 //! * [Extended SSA: Pointers etc.](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.17.1802&rep=rep1&type=pdf)
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Debug,
-    sync::Arc,
-};
+// TODO
+// Fix PartialEq implementation for IR Blocks with cycles in them
+
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 mod variable;
+use dot::{Context, DrawnBlocks, Lines};
 pub use variable::*;
+
+mod dot;
+pub use dot::ToDot;
 
 mod ty;
 pub use ty::*;
@@ -57,7 +60,7 @@ pub use statement::*;
 pub struct Program {
     /// This contains definitions for Global Variables that need to be usable by the function
     /// definitions
-    pub global: Arc<BasicBlock>,
+    pub global: BasicBlock,
     /// The various Function Definitions in the Program
     pub functions: HashMap<String, FunctionDefinition>,
 }
@@ -66,15 +69,16 @@ impl Program {
     /// Generates the needed Dot Graphviz Representation to allow for easier visualization of the
     /// Program
     pub fn to_dot(&self) -> String {
-        let mut lines = Vec::new();
-        let mut drawn = HashSet::new();
+        let mut lines = Lines::new();
+        let mut drawn = DrawnBlocks::new();
 
-        for (func_name, func_def) in self.functions.iter() {
-            func_def.to_dot(func_name, &mut lines, &mut drawn);
+        for (_, func_def) in self.functions.iter() {
+            func_def.to_dot(&mut lines, &mut drawn, &Context::new());
         }
 
         let mut result = "digraph G {\n".to_string();
-        for line in lines {
+        let raw_lines: Vec<String> = lines.into();
+        for line in raw_lines {
             result.push_str("  ");
             result.push_str(&line);
             result.push_str(";\n");

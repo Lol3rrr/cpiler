@@ -501,7 +501,7 @@ impl AExpression {
         }
     }
 
-    fn val_to_operand(value: Value, block: &Arc<BasicBlock>) -> ir::Operand {
+    fn val_to_operand(value: Value, block: &BasicBlock) -> ir::Operand {
         match value {
             Value::Unknown => {
                 todo!("Unknown Value as Operand")
@@ -541,7 +541,7 @@ impl AExpression {
     }
 
     /// Converts the Expression to the corresponding IR
-    pub fn to_ir(self, block: &Arc<BasicBlock>) -> Value {
+    pub fn to_ir(self, block: &BasicBlock) -> Value {
         match self {
             AExpression::Literal(lit) => match lit {
                 Literal::Integer(SpanData { data, .. }) => Value::Constant(Constant::I64(data)),

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::RemAssign, sync::Arc};
+use std::collections::HashMap;
 
 use ir::{BasicBlock, Statement, Type, Variable};
 use syntax::Scope;
@@ -62,7 +62,7 @@ impl AScope {
     /// blocks produced as a result of this conversion (like with different control-flows)
     /// so the final BasicBlock will be returned and can then be used as a starting Point
     /// for the next Statements following this Scope
-    pub fn to_ir(self, block: &Arc<BasicBlock>) -> Arc<BasicBlock> {
+    pub fn to_ir(self, block: &BasicBlock) -> BasicBlock {
         let mut block = block.clone();
 
         for tmp_stmnt in self.statements {
