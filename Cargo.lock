@@ -35,6 +35,9 @@ version = "0.1.0"
 [[package]]
 name = "ir"
 version = "0.1.0"
+dependencies = [
+ "general",
+]
 
 [[package]]
 name = "itertools"

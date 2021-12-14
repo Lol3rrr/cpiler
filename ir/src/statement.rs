@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use general::dot;
+
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks, Lines},
@@ -87,7 +89,12 @@ impl Debug for Statement {
 }
 
 impl ToDot for Statement {
-    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
+    fn to_dot(
+        &self,
+        lines: &mut general::dot::Graph,
+        drawn: &mut DrawnBlocks,
+        ctx: &Context,
+    ) -> String {
         let block_ptr = *ctx
             .get("block_ptr")
             .expect("")
@@ -114,59 +121,55 @@ impl ToDot for Statement {
         match self {
             Self::Assignment { target, value } => {
                 let content = format!("{:?} = {:?}", target, value);
-                let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.add_line(node_line);
+                lines.add_node(
+                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                let line = format!("{} -> {}", src, name);
-                lines.add_line(line);
+                lines.add_edge(dot::Edge::new(src, &name));
             }
             Self::Expression(exp) => {
                 let content = format!("{:?}", exp);
-                let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.add_line(node_line);
+                lines.add_node(
+                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                let line = format!("{} -> {}", src, name);
-                lines.add_line(line);
+                lines.add_edge(dot::Edge::new(src, &name));
             }
             Self::Return(val) => {
                 let content = format!("return {:?}", val);
-                let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.add_line(node_line);
+                lines.add_node(
+                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                let line = format!("{} -> {}", src, name);
-                lines.add_line(line);
+                lines.add_edge(dot::Edge::new(src, &name));
             }
             Self::Jump(target) => {
                 let content = "Jump".to_string();
-                let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.add_line(node_line);
+                lines.add_node(
+                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                let line = format!("{} -> {}", src, name);
-                lines.add_line(line);
+                lines.add_edge(dot::Edge::new(src, &name));
 
                 let target_name = target.to_dot(lines, drawn, &Context::new());
 
-                let target_line = format!("{} -> {}", name, target_name);
-                lines.add_line(target_line);
+                lines.add_edge(dot::Edge::new(&name, target_name));
             }
             Self::JumpTrue(cond, target) => {
                 let content = "JumpTrue".to_string();
-                let node_line = format!("{} [label = \"{}\"]", name, content.replace('"', "\\\""));
-                lines.add_line(node_line);
+                lines.add_node(
+                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                let line = format!("{} -> {}", src, name);
-                lines.add_line(line);
+                lines.add_edge(dot::Edge::new(src, &name));
 
                 let target_name = target.to_dot(lines, drawn, &Context::new());
 
                 let var_str = format!("{:?}", cond);
-                let target_line = format!(
-                    "{} -> {} [label = \"{}\"]",
-                    name,
-                    target_name,
-                    var_str.replace('"', "\\\"")
+                lines.add_edge(
+                    dot::Edge::new(&name, target_name)
+                        .add_label("label", var_str.replace('"', "\\\"")),
                 );
-                lines.add_line(target_line);
             }
         };
 

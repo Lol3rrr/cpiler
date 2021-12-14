@@ -307,6 +307,7 @@ impl AStatement {
                 Ok(Some(Self::SubScope { inner: loop_scope }))
             }
             Statement::Break => Ok(Some(Self::Break)),
+            Statement::Continue => Ok(Some(Self::Continue)),
             Statement::If {
                 condition,
                 scope,

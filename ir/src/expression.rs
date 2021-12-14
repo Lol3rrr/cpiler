@@ -15,6 +15,16 @@ pub enum Operand {
     Constant(Constant),
 }
 
+impl Operand {
+    /// The result Type of the Operand
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::Variable(var) => var.ty.clone(),
+            Self::Constant(con) => con.ty(),
+        }
+    }
+}
+
 /// A simple Expression that performs some form of Operation on one or more Operands
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {

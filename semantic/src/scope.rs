@@ -230,9 +230,13 @@ impl AScope {
                     block.add_statement(Statement::Jump(loop_end_block.clone()));
                 }
                 AStatement::Continue => {
-                    dbg!(ctx);
+                    let loop_start_block = match ctx.get_loop_start() {
+                        Some(b) => b,
+                        None => panic!("Continue outside of loop"),
+                    };
 
-                    todo!()
+                    loop_start_block.add_predecessor(block.weak_ptr());
+                    block.add_statement(Statement::Jump(loop_start_block.clone()));
                 }
                 other => {
                     dbg!(&other);

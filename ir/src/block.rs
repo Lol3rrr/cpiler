@@ -11,6 +11,7 @@ use crate::{
 };
 
 mod inner;
+use general::dot;
 pub use inner::*;
 
 mod weak;
@@ -270,7 +271,7 @@ impl BasicBlock {
 }
 
 impl ToDot for BasicBlock {
-    fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, _: &Context) -> String {
+    fn to_dot(&self, lines: &mut dot::Graph, drawn: &mut DrawnBlocks, _: &Context) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         let block_name = format!("block_{}", self_ptr as usize);
         if drawn.contains(&block_name) {
@@ -278,10 +279,8 @@ impl ToDot for BasicBlock {
         }
         drawn.add_block(&block_name);
 
-        lines.add_line(format!(
-            "{} [label = \"{} - Block Start\"]",
-            block_name, block_name
-        ));
+        let label_content = format!("{} - Block Start", block_name);
+        lines.add_node(dot::Node::new(&block_name).add_label("label", label_content));
 
         {
             let parts = self.0.parts.read().unwrap();
@@ -301,7 +300,7 @@ impl ToDot for BasicBlock {
             for pred in preds.iter() {
                 let pred_name = format!("block_{}", pred.as_ptr() as usize);
                 let pred_line = format!("{} -> {} [style=dashed]", block_name, pred_name);
-                lines.add_line(pred_line);
+                lines.add_edge(dot::Edge::new(&block_name, pred_name).add_label("style", "dashed"));
             }
         }
 

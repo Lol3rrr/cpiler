@@ -19,6 +19,7 @@ pub enum LogicCombinator {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ArithemticOp {
     Add,
+    Sub,
     Multiply,
 }
 
@@ -41,6 +42,7 @@ impl From<ExpressionOperator> for AOperator {
             ExpressionOperator::LogicalOr => Self::Combinator(LogicCombinator::Or),
             ExpressionOperator::LogicalAnd => Self::Combinator(LogicCombinator::And),
             ExpressionOperator::Add => Self::Arithmetic(ArithemticOp::Add),
+            ExpressionOperator::Sub => Self::Arithmetic(ArithemticOp::Sub),
             ExpressionOperator::Multiply => Self::Arithmetic(ArithemticOp::Multiply),
             unknown => panic!("Unknown OP: {:?}", unknown),
         }
@@ -52,6 +54,7 @@ impl AOperator {
         match self {
             Self::Arithmetic(arith_op) => match arith_op {
                 ArithemticOp::Add => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                ArithemticOp::Sub => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Sub),
                 ArithemticOp::Multiply => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
             },
             other => {

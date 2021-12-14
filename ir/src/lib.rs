@@ -28,7 +28,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 mod variable;
-use dot::{Context, DrawnBlocks, Lines};
+use dot::{Context, DrawnBlocks};
 pub use variable::*;
 
 mod dot;
@@ -68,23 +68,14 @@ impl Program {
     /// Generates the needed Dot Graphviz Representation to allow for easier visualization of the
     /// Program
     pub fn to_dot(&self) -> String {
-        let mut lines = Lines::new();
+        let mut graph = general::dot::Graph::new();
         let mut drawn = DrawnBlocks::new();
 
         for (_, func_def) in self.functions.iter() {
-            func_def.to_dot(&mut lines, &mut drawn, &Context::new());
+            func_def.to_dot(&mut graph, &mut drawn, &Context::new());
         }
 
-        let mut result = "digraph G {\n".to_string();
-        let raw_lines: Vec<String> = lines.into();
-        for line in raw_lines {
-            result.push_str("  ");
-            result.push_str(&line);
-            result.push_str(";\n");
-        }
-        result.push('}');
-
-        result
+        graph.finalize()
     }
 }
 

@@ -8,3 +8,5 @@ mod spandata;
 pub use spandata::*;
 
 pub mod shunting_yard;
+
+pub mod dot;

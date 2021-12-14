@@ -532,6 +532,23 @@ impl AExpression {
 
                         ir::Operand::Variable(tmp_var)
                     }
+                    ir::Expression::BinaryOp { op, left, right } => {
+                        dbg!(&op, &left, &right);
+
+                        let tmp_name = block.get_next_tmp_name();
+                        dbg!(&tmp_name);
+
+                        let tmp_var = ir::Variable::new(tmp_name, left.ty());
+                        dbg!(&tmp_var);
+
+                        let assign_statement = ir::Statement::Assignment {
+                            target: tmp_var.clone(),
+                            value: Value::Expression(exp),
+                        };
+                        block.add_statement(assign_statement);
+
+                        ir::Operand::Variable(tmp_var)
+                    }
                     other => panic!("{:?} as Operand", other),
                 }
             }
@@ -592,6 +609,46 @@ impl AExpression {
                     target: target_ty,
                     base: val_operand,
                 })
+            }
+            AExpression::UnaryOperator { base, op } => {
+                dbg!(&base, &op);
+
+                let base_value = base.to_ir(block);
+                let base_operand = Self::val_to_operand(base_value, block);
+                dbg!(&base_operand);
+
+                match op {
+                    UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
+                        let base_var = match base_operand {
+                            ir::Operand::Variable(v) => v,
+                            other => {
+                                dbg!(&other);
+
+                                panic!("Suffix-Decrement only applyable for Variables");
+                            }
+                        };
+
+                        let result_val = Value::Variable(base_var.clone());
+                        dbg!(&result_val);
+
+                        let target_var = base_var.next_gen();
+                        let update_statement = ir::Statement::Assignment {
+                            target: target_var,
+                            value: ir::Value::Expression(ir::Expression::UnaryOp {
+                                op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Decrement),
+                                base: ir::Operand::Variable(base_var.clone()),
+                            }),
+                        };
+                        block.add_statement(update_statement);
+
+                        result_val
+                    }
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Handle UnaryOp");
+                    }
+                }
             }
             other => {
                 dbg!(&other);

@@ -25,3 +25,4 @@ of the AST for the FrontEnd containing Types
 
 ## Resources
 * C-Standard: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+* C-Types: https://en.wikipedia.org/wiki/C_data_types
