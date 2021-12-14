@@ -4,9 +4,6 @@ use ir::{BasicBlock, FunctionDefinition, Program, Statement, Type, Value, Variab
 
 use crate::{AScope, FunctionDeclaration, AAST};
 
-mod block;
-pub use block::*;
-
 mod expression;
 
 pub fn convert(ast: AAST) -> Program {

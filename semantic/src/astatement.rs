@@ -142,7 +142,7 @@ impl AStatement {
                     );
                 }
 
-                let mut function_scope = ParseState::based(&parse_state);
+                let mut function_scope = ParseState::based(parse_state);
                 for tmp_arg in arguments.iter() {
                     let arg = &tmp_arg.data;
 
@@ -265,7 +265,7 @@ impl AStatement {
             } => {
                 dbg!(&setup, &condition, &update, &scope);
 
-                let mut loop_state = ParseState::based(&parse_state);
+                let mut loop_state = ParseState::based(parse_state);
 
                 let mut a_setups = Vec::new();
                 for tmp_setup in setup {
@@ -325,7 +325,7 @@ impl AStatement {
                     Some(else_inner) => {
                         dbg!(&else_inner);
 
-                        let else_scope = AScope::parse(&parse_state, else_inner)?;
+                        let else_scope = AScope::parse(parse_state, else_inner)?;
                         Some(else_scope)
                     }
                     None => None,

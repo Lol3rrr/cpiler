@@ -23,3 +23,9 @@ impl State {
         self.included.insert(path);
     }
 }
+
+impl Default for State {
+    fn default() -> Self {
+        Self::new()
+    }
+}

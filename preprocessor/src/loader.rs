@@ -63,6 +63,12 @@ pub mod files {
         }
     }
 
+    impl Default for FileLoader {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     #[derive(Debug)]
     pub struct FileLoadError {
         target: LoadDirective,

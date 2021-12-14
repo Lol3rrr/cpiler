@@ -8,13 +8,13 @@ where
     L: Loader,
 {
     let preprocessed =
-        preprocessor::preprocess(&loader, source_file).map_err(|e| Error::Preprocessor(e))?;
+        preprocessor::preprocess(&loader, source_file).map_err(Error::Preprocessor)?;
 
-    let basic_ast = syntax::parse(preprocessed).map_err(|e| Error::Syntax(e))?;
+    let basic_ast = syntax::parse(preprocessed).map_err(Error::Syntax)?;
 
     dbg!(&basic_ast);
 
-    let aast = semantic::parse(basic_ast).map_err(|e| Error::Semantic(e))?;
+    let aast = semantic::parse(basic_ast).map_err(Error::Semantic)?;
 
     dbg!(&aast);
 

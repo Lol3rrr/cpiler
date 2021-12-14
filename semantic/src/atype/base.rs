@@ -49,7 +49,7 @@ impl BaseTypes {
         }
     }
 
-    pub fn to_primitive(self) -> APrimitive {
+    pub fn to_primitive(&self) -> APrimitive {
         match self {
             Self::Char => APrimitive::Char,
             Self::Short => APrimitive::Short,

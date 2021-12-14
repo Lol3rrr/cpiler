@@ -43,14 +43,11 @@ where
             }
         };
 
-        match &inner_token.data {
-            TokenData::Comma => {
-                result.push(current_param);
-                current_param = Vec::new();
-                continue;
-            }
-            _ => {}
-        };
+        if inner_token.data == TokenData::Comma {
+            result.push(current_param);
+            current_param = Vec::new();
+            continue;
+        }
 
         current_param.push(inner_token);
     }
@@ -78,12 +75,12 @@ impl Deref for MacroToken {
         }
     }
 }
-impl Into<Token> for MacroToken {
-    fn into(self) -> Token {
-        match self {
-            Self::Original(t) => t,
-            Self::Param(t) => t,
-            Self::Created(t) => t,
+impl From<MacroToken> for Token {
+    fn from(src: MacroToken) -> Self {
+        match src {
+            MacroToken::Original(t) => t,
+            MacroToken::Param(t) => t,
+            MacroToken::Created(t) => t,
         }
     }
 }
@@ -102,7 +99,7 @@ pub fn expand_function_macro(
 ) -> Vec<Token> {
     // TODO
     // Stringification
-    let stringified = stringify(macro_content.iter().map(|t| Token::clone(t)));
+    let stringified = stringify(macro_content.iter().map(Token::clone));
 
     // Replaced Parameters with their arguments
     let replaced_params = replace_params(stringified, &call_args);
@@ -113,9 +110,7 @@ pub fn expand_function_macro(
     let param_expanded = expand_params(og, concat_idents, macros);
 
     // Expand all the other Tokens
-    let all_expanded = expand_all(og, param_expanded, macros);
-
-    all_expanded
+    expand_all(og, param_expanded, macros)
 }
 
 fn stringify<I, IT>(input: I) -> Vec<MacroToken>
@@ -125,8 +120,8 @@ where
 {
     let mut result = Vec::new();
 
-    let mut prev_iter = input.into_iter();
-    while let Some(current) = prev_iter.next() {
+    let prev_iter = input.into_iter();
+    for current in prev_iter {
         result.push(MacroToken::Original(current));
     }
 
@@ -144,11 +139,7 @@ where
         match &m_tok.data {
             TokenData::Literal { content } if arguments.contains_key(content) => {
                 let replacement = arguments.get(content).unwrap();
-                result.extend(
-                    replacement
-                        .into_iter()
-                        .map(|t| MacroToken::Param(t.clone())),
-                );
+                result.extend(replacement.iter().map(|t| MacroToken::Param(t.clone())));
             }
             _ => {
                 result.push(m_tok);
@@ -222,7 +213,7 @@ where
         let source = Source::new("preprocessor", raw_new);
         let new = tokenizer::tokenize(source.into());
 
-        result.extend(new.into_iter().map(|t| MacroToken::Created(t)));
+        result.extend(new.into_iter().map(MacroToken::Created));
     }
 
     result
@@ -244,9 +235,9 @@ where
         match tmp {
             MacroToken::Param(t) => {
                 match &t.data {
-                    TokenData::Literal { content } if macros.is_defined(&content) => {
+                    TokenData::Literal { content } if macros.is_defined(content) => {
                         let macro_def = macros
-                            .get_defined(&content)
+                            .get_defined(content)
                             .expect("We just checked that a macro for this name exists");
 
                         let mut tmp_iter = prev_iter
@@ -305,12 +296,12 @@ where
     let mut prev_iter = input.into_iter();
     while let Some(current) = prev_iter.next() {
         match &current.data {
-            TokenData::Literal { content } if macros.is_defined(&content) => {
+            TokenData::Literal { content } if macros.is_defined(content) => {
                 let macro_def = macros
-                    .get_defined(&content)
+                    .get_defined(content)
                     .expect("We just checked that a Macro for this Name exists");
 
-                let mut tmp_iter = prev_iter.by_ref().map(|t| PIR::Token(t)).peekable();
+                let mut tmp_iter = prev_iter.by_ref().map(PIR::Token).peekable();
 
                 match expand(
                     (current.span.source(), current.span.source_area()),

@@ -14,7 +14,7 @@ where
     IT: Iterator<Item = tokenizer::Token>,
 {
     iter.into_iter().map(|t| match &t.data {
-        TokenData::CompilerDirective { content } => {
+        TokenData::CompilerDirective { .. } => {
             let dir = directive::Directive::parse((&t.span).into()).unwrap();
             PIR::Directive((t, dir))
         }

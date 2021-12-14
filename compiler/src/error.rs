@@ -75,7 +75,7 @@ where
 
                         let unknown_c = Color::Red;
 
-                        let identifier_str = format!("{}", name.0.data).fg(unknown_c);
+                        let identifier_str = name.0.data.fg(unknown_c);
 
                         Report::build(ReportKind::Error, &name.0.span, 0)
                             .with_message(format!("Unknown Identifier \"{}\" used", identifier_str))

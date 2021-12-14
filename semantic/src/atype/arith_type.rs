@@ -114,31 +114,22 @@ pub fn determine_types(
             let left_rank = left_prim.rank().unwrap();
             let right_rank = right_prim.rank().unwrap();
 
-            if left_rank >= right_rank && left_prim.is_unsigned() {
+            if left_rank >= right_rank && left_prim.is_unsigned() || left_rank > right_rank {
                 let n_right = AExpression::ImplicitCast {
                     base: Box::new(right),
                     target: AType::Primitve(left_prim),
                 };
 
                 return Ok((left, n_right));
-            } else if left_rank > right_rank {
-                let n_right = AExpression::ImplicitCast {
-                    base: Box::new(right),
-                    target: AType::Primitve(left_prim),
-                };
-
-                return Ok((left, n_right));
-            } else if right_rank >= left_rank && right_prim.is_unsigned() {
+            } else if right_rank >= left_rank && right_prim.is_unsigned() || right_rank > left_rank
+            {
                 let n_left = AExpression::ImplicitCast {
                     base: Box::new(left),
                     target: AType::Primitve(right_prim),
                 };
 
                 return Ok((n_left, right));
-            } else if right_rank > left_rank {
-                todo!("Right can store left regardless");
             }
-
             dbg!(left_prim.rank(), right_prim.rank());
 
             todo!("Different Primitives");

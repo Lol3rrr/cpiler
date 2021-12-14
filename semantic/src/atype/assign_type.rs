@@ -7,12 +7,14 @@ pub fn determine_type(
     target: (&AType, &Span),
 ) -> Result<AExpression, SemanticError> {
     let res_type = base.result_type();
-    if &res_type == target.0 {
+    if res_type == target.0 {
         return Ok(base);
     }
 
     match (&res_type, target.0) {
         (AType::Primitve(res_prim), AType::Primitve(target_prim)) => {
+            dbg!(&res_prim, &target_prim);
+
             // TODO
             // This currently allows for some very bad implicit casts, like float to int
             let casted = AExpression::ImplicitCast {

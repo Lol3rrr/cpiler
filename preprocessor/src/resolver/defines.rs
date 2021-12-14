@@ -60,6 +60,12 @@ impl DefineManager {
     }
 }
 
+impl Default for DefineManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn expand<I>(
     tok: (&Arc<Source>, &Range<usize>),
     tok_iter: &mut Peekable<I>,
@@ -107,7 +113,7 @@ where
                 .zip(called_args.into_iter())
                 .collect();
 
-            let expanded = function::expand_function_macro(tok, macros, arg_map, &content);
+            let expanded = function::expand_function_macro(tok, macros, arg_map, content);
 
             Some(expanded)
         }

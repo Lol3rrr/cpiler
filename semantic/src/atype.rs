@@ -63,21 +63,21 @@ pub enum APrimitive {
 
 impl APrimitive {
     pub fn is_unsigned(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::UnsignedChar
-            | Self::UnsignedShort
-            | Self::UnsignedInt
-            | Self::UnsignedLongInt
-            | Self::UnsignedLongLongInt => true,
-            _ => false,
-        }
+                | Self::UnsignedShort
+                | Self::UnsignedInt
+                | Self::UnsignedLongInt
+                | Self::UnsignedLongLongInt
+        )
     }
 
     pub fn is_signed(&self) -> bool {
-        match self {
-            Self::Char | Self::Short | Self::Int | Self::LongInt | Self::LongLongInt => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Char | Self::Short | Self::Int | Self::LongInt | Self::LongLongInt
+        )
     }
 
     pub fn rank(&self) -> Option<usize> {
@@ -114,7 +114,7 @@ impl AType {
 
     pub fn get_struct_def(&self) -> Option<&StructDef> {
         match self {
-            Self::Struct(def) => Some(&def),
+            Self::Struct(def) => Some(def),
             Self::TypeDef { ty, .. } => ty.get_struct_def(),
             Self::Pointer(inner) => inner.get_struct_def(),
             _ => None,
@@ -128,7 +128,7 @@ impl AType {
 
         match (self, target) {
             (Self::Array(arr), Self::Pointer(inner)) => &arr.ty == inner,
-            (base, Self::Const(inner_target)) => base.implicitly_castable(&inner_target),
+            (base, Self::Const(inner_target)) => base.implicitly_castable(inner_target),
             _ => false,
         }
     }
@@ -228,7 +228,6 @@ impl AType {
                 let prim = base_ty.to_primitive();
                 Ok(Self::Primitve(prim))
             }
-            (base, modif) => panic!("Unknown Combination of {:?} with {:?}", modif, base),
         }
     }
 
@@ -363,6 +362,7 @@ impl AType {
 
                 match name {
                     Some(n) => {
+                        dbg!(&n);
                         todo!("Named Struct");
                     }
                     None => Ok(Self::Struct(struct_def)),

@@ -12,7 +12,7 @@ pub enum AAssignTarget {
     },
     ArrayAccess {
         target: Box<Self>,
-        index: AExpression,
+        index: Box<AExpression>,
         /// The Type of the Array-Element
         ty_info: SpanData<AType>,
     },
@@ -90,7 +90,7 @@ impl AAssignTarget {
 
                 Ok(AAssignTarget::ArrayAccess {
                     target: Box::new(base_target),
-                    index: a_index,
+                    index: Box::new(a_index),
                     ty_info: SpanData {
                         span: elem_span,
                         data: *elem_ty,
@@ -128,7 +128,7 @@ impl AAssignTarget {
                     field,
                     ty_info: SpanData {
                         span: field_span,
-                        data: field_ty.clone(),
+                        data: field_ty,
                     },
                 })
             }
@@ -168,11 +168,10 @@ impl AAssignTarget {
                     field,
                     ty_info: SpanData {
                         span: field_span,
-                        data: field_ty.clone(),
+                        data: field_ty,
                     },
                 })
             }
-            unknown => panic!("Unexpected Assignment Target: {:?}", unknown),
         }
     }
 

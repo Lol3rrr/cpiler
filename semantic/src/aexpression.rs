@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use general::{Span, SpanData};
 use ir::{BasicBlock, Constant, Value};
 use syntax::{Expression, Identifier, SingleOperation};
@@ -358,7 +356,7 @@ impl AExpression {
                 };
 
                 let base_ty = a_base.result_type();
-                let target_ty = AType::Pointer(Box::new(base_ty.clone()));
+                let target_ty = AType::Pointer(Box::new(base_ty));
 
                 Ok(Self::AddressOf {
                     base: Box::new(a_base),

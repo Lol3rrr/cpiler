@@ -140,7 +140,7 @@ where
             ")" => Part::ClosingParen,
             "defined" => Part::Operator(ConditionalOp::Unary(ConditionalUnaryOp::Defined)),
             other => {
-                if s.content().chars().find(|c| !c.is_digit(10)).is_some() {
+                if s.content().chars().any(|c| !c.is_digit(10)) {
                     Part::Name(other.to_string())
                 } else {
                     Part::Value(other.to_string())

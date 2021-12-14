@@ -113,8 +113,8 @@ void test() {
     let result = input.convert_to_ir();
     dbg!(&result);
 
-    std::fs::write("./result.dot", result.to_dot());
-    std::fs::write("./expected.dot", expected.to_dot());
+    std::fs::write("./result.dot", result.to_dot()).unwrap();
+    std::fs::write("./expected.dot", expected.to_dot()).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -241,8 +241,8 @@ void test() {
     let result = input.convert_to_ir();
     dbg!(&result);
 
-    std::fs::write("./result.dot", result.to_dot());
-    std::fs::write("./expected.dot", expected.to_dot());
+    std::fs::write("./result.dot", result.to_dot()).unwrap();
+    std::fs::write("./expected.dot", expected.to_dot()).unwrap();
 
     assert_eq!(expected, result);
 }

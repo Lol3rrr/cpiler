@@ -37,3 +37,9 @@ impl TypeDefinitions {
         self.defined.get(&ident.0.data)
     }
 }
+
+impl Default for TypeDefinitions {
+    fn default() -> Self {
+        Self::new()
+    }
+}

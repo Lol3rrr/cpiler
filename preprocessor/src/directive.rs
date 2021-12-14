@@ -20,7 +20,7 @@ pub enum GnuExtesion {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Extensions {
-    GNU(GnuExtesion),
+    Gnu(GnuExtesion),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,7 +58,7 @@ pub enum ParseDirectiveError {
 }
 
 impl Directive {
-    pub fn parse<'s>(raw: SpanRef<'s>) -> Result<Self, ParseDirectiveError> {
+    pub fn parse(raw: SpanRef<'_>) -> Result<Self, ParseDirectiveError> {
         let (d_type, body) = match raw.content().find(' ') {
             Some(s_index) => {
                 let first = raw.sub_span(0..s_index).unwrap();
@@ -116,7 +116,7 @@ impl Directive {
                     }
                 });
 
-                Ok(Directive::Extensions(Extensions::GNU(
+                Ok(Directive::Extensions(Extensions::Gnu(
                     GnuExtesion::IncludeNext { path },
                 )))
             }
@@ -161,7 +161,7 @@ impl Directive {
                 condition: body.into(),
             })),
             ("endif", _) => Ok(Directive::EndIf),
-            (name, body) => Err(ParseDirectiveError::UnknownDirective {
+            (name, _) => Err(ParseDirectiveError::UnknownDirective {
                 raw: name.to_owned(),
             }),
         }

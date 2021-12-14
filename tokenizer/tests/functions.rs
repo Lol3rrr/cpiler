@@ -1,5 +1,5 @@
 use general::{Source, Span};
-use tokenizer::{tokenize, DataType, Keyword, Operator, Token, TokenData};
+use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
 #[test]
 fn func_dec() {

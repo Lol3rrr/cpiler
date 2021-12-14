@@ -43,10 +43,9 @@ impl<'i> Iterator for InnerConditionalIterator<'i> {
                             self.level += 1;
                         }
                         ConditionalDirective::Else if self.level == 0 => {
-                            while let Some(tmp) = self.inner.next() {
-                                match tmp {
-                                    PIR::Directive((_, Directive::EndIf)) => break,
-                                    _ => {}
+                            for tmp in self.inner.by_ref() {
+                                if let PIR::Directive((_, Directive::EndIf)) = tmp {
+                                    break;
                                 }
                             }
                             continue;

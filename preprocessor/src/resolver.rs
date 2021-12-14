@@ -21,20 +21,20 @@ where
         match current {
             PIR::Token(tok) => {
                 match &tok.data {
-                    TokenData::Literal { content } if state.defines.is_defined(&content) => {
+                    TokenData::Literal { content } if state.defines.is_defined(content) => {
                         let m_def = state
                             .defines
-                            .get_defined(&content)
+                            .get_defined(content)
                             .expect("We previously checked that this Key is defined");
 
                         match defines::expand(
                             (tok.span.source(), tok.span.source_area()),
                             &mut new_iter,
-                            &m_def,
+                            m_def,
                             &state.defines,
                         ) {
                             Some(replacements) => {
-                                result.extend(replacements.into_iter().map(|t| PIR::Token(t)));
+                                result.extend(replacements.into_iter().map(PIR::Token));
                             }
                             None => {
                                 result.push(PIR::Token(tok));
@@ -132,7 +132,7 @@ where
         resolve(inner_iter, loader, state).collect()
     } else {
         let mut load_inner = false;
-        while let Some(peeked) = iter.next() {
+        for peeked in iter.by_ref() {
             let directive = match peeked {
                 PIR::Directive((_, dir)) => dir,
                 _ => {

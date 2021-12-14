@@ -47,5 +47,5 @@ where
         })
         .collect();
 
-    return Ok(result);
+    Ok(result)
 }

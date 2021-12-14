@@ -116,12 +116,17 @@ impl ParseState {
     }
 }
 
+impl Default for ParseState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VariableContainer for ParseState {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
-        match self.local_variables.get_declared(ident) {
-            Some(Declared::Variable(var)) => return Some((&var.ty, &var.declaration)),
-            _ => {}
-        };
+        if let Some(Declared::Variable(var)) = self.local_variables.get_declared(ident) {
+            return Some((&var.ty, &var.declaration));
+        }
 
         self.external_variables
             .get_declared(ident)
@@ -133,12 +138,9 @@ impl VariableContainer for ParseState {
     }
 
     fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
-        match self.local_variables.get_declared(ident) {
-            Some(Declared::Function(func)) => {
-                return Some(func);
-            }
-            _ => {}
-        };
+        if let Some(Declared::Function(func)) = self.local_variables.get_declared(ident) {
+            return Some(func);
+        }
 
         self.external_variables
             .get_declared(ident)
@@ -203,5 +205,11 @@ impl Variables {
         }
 
         Self(declared, defined)
+    }
+}
+
+impl Default for Variables {
+    fn default() -> Self {
+        Self::new()
     }
 }
