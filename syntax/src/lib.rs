@@ -44,7 +44,7 @@ where
     let mut tokens = peek_nth(
         tokens
             .into_iter()
-            .filter(|t| matches!(&t.data, TokenData::Comment { .. })),
+            .filter(|t| !matches!(&t.data, TokenData::Comment { .. })),
     );
 
     let global_scope = Scope::parse(&mut tokens)?;
