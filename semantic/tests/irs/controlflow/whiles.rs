@@ -7,7 +7,6 @@ use ir::{
 };
 
 #[test]
-#[ignore = "Right now the Comparison of IR with loops does not work properly and causes a StackOverflow"]
 fn simple_while_loop() {
     let input = "
 void test() {

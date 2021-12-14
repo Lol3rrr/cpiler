@@ -269,10 +269,10 @@ impl ToDot for BasicBlock {
     fn to_dot(&self, lines: &mut Lines, drawn: &mut DrawnBlocks, _: &Context) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         let block_name = format!("block_{}", self_ptr as usize);
-        if drawn.contains(&(self_ptr as *const ())) {
+        if drawn.contains(&block_name) {
             return block_name;
         }
-        drawn.add_block(self_ptr);
+        drawn.add_block(&block_name);
 
         lines.add_line(format!(
             "{} [label = \"{} - Block Start\"]",

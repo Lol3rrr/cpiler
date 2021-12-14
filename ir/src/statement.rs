@@ -106,6 +106,11 @@ impl ToDot for Statement {
 
         let name = format!("block_{}_s{}", block_ptr, number_in_block);
 
+        if drawn.contains(&name) {
+            return name;
+        }
+        drawn.add_block(&name);
+
         match self {
             Self::Assignment { target, value } => {
                 let content = format!("{:?} = {:?}", target, value);

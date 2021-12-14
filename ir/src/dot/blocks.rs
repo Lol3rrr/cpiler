@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 pub struct DrawnBlocks {
-    inner: HashSet<*const ()>,
+    inner: HashSet<String>,
 }
 
 impl DrawnBlocks {
@@ -11,14 +11,18 @@ impl DrawnBlocks {
         }
     }
 
-    pub fn add_block<T>(&mut self, ptr: *const T) {
-        let ptr = ptr as *const ();
-        self.inner.insert(ptr);
+    pub fn add_block<T>(&mut self, name: T)
+    where
+        T: Into<String>,
+    {
+        self.inner.insert(name.into());
     }
 
-    pub fn contains<T>(&self, ptr: *const T) -> bool {
-        let ptr = ptr as *const ();
-        self.inner.contains(&ptr)
+    pub fn contains<T>(&self, name: T) -> bool
+    where
+        T: AsRef<str>,
+    {
+        self.inner.contains(name.as_ref())
     }
 }
 
