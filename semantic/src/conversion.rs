@@ -6,6 +6,9 @@ use crate::{AScope, FunctionDeclaration, AAST};
 
 mod expression;
 
+mod context;
+pub use context::*;
+
 pub fn convert(ast: AAST) -> Program {
     let global_block = BasicBlock::initial(vec![]);
 
@@ -76,9 +79,11 @@ fn convert_function(
     let global_weak = global.weak_ptr();
     let head_block = BasicBlock::new(vec![global_weak], arg_statements);
 
+    let context = ConvertContext::new();
+
     let head_weak = head_block.weak_ptr();
     let func_block = BasicBlock::new(vec![head_weak], vec![]);
-    inner_scope.to_ir(&func_block);
+    inner_scope.to_ir(&func_block, &context);
 
     // Update Head-Blocks last Jump to the next
     head_block.add_statement(Statement::Jump(func_block));

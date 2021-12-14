@@ -25,6 +25,7 @@ pub enum AStatement {
         body: AScope,
     },
     Break,
+    Continue,
     If {
         condition: AExpression,
         body: AScope,

@@ -120,6 +120,10 @@ impl BasicBlock {
     /// Adds a new Predecessor to this Block
     pub fn add_predecessor(&self, pred: WeakBlockPtr) {
         let mut tmp = self.0.predecessor.write().unwrap();
+
+        if tmp.iter().any(|tmp| tmp.as_ptr() == pred.as_ptr()) {
+            return;
+        }
         tmp.push(pred);
     }
 
