@@ -91,7 +91,7 @@ impl Debug for Statement {
 impl ToDot for Statement {
     fn to_dot(
         &self,
-        lines: &mut general::dot::Graph,
+        lines: &mut dyn general::dot::Graph,
         drawn: &mut DrawnBlocks,
         ctx: &Context,
     ) -> String {
@@ -151,7 +151,7 @@ impl ToDot for Statement {
 
                 lines.add_edge(dot::Edge::new(src, &name));
 
-                let target_name = target.to_dot(lines, drawn, &Context::new());
+                let target_name = target.name(ctx);
 
                 lines.add_edge(dot::Edge::new(&name, target_name));
             }
@@ -163,7 +163,7 @@ impl ToDot for Statement {
 
                 lines.add_edge(dot::Edge::new(src, &name));
 
-                let target_name = target.to_dot(lines, drawn, &Context::new());
+                let target_name = target.name(ctx);
 
                 let var_str = format!("{:?}", cond);
                 lines.add_edge(
@@ -174,5 +174,25 @@ impl ToDot for Statement {
         };
 
         name
+    }
+
+    fn name(&self, ctx: &Context) -> String {
+        let block_ptr = *ctx
+            .get("block_ptr")
+            .expect("")
+            .downcast_ref::<usize>()
+            .expect("");
+        let number_in_block = *ctx
+            .get("block_number")
+            .expect("")
+            .downcast_ref::<usize>()
+            .expect("");
+        let src = ctx
+            .get("block_src")
+            .expect("")
+            .downcast_ref::<String>()
+            .expect("");
+
+        format!("block_{}_s{}", block_ptr, number_in_block)
     }
 }

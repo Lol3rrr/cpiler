@@ -68,15 +68,24 @@ impl Debug for FunctionDefinition {
 impl ToDot for FunctionDefinition {
     fn to_dot(
         &self,
-        lines: &mut dot::Graph,
+        lines: &mut dyn dot::Graph,
         drawn: &mut crate::dot::DrawnBlocks,
         ctx: &crate::dot::Context,
     ) -> String {
-        let block_name = self.block.to_dot(lines, drawn, ctx);
-
         let dot_name = format!("func_{}", self.name);
+        let mut function_graph = dot::SubGraph::new(&dot_name)
+            .cluster()
+            .arg("label", format!("Function-{}", self.name));
+
+        let block_name = self.block.to_dot(&mut function_graph, drawn, ctx);
+        lines.add_subgraph(function_graph);
+
         lines.add_edge(dot::Edge::new(&dot_name, block_name));
 
         dot_name
+    }
+
+    fn name(&self, ctx: &crate::dot::Context) -> String {
+        format!("func_{}", self.name)
     }
 }

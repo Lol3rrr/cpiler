@@ -29,6 +29,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 mod variable;
 use dot::{Context, DrawnBlocks};
+use general::dot::Graph;
 pub use variable::*;
 
 mod dot;
@@ -68,11 +69,19 @@ impl Program {
     /// Generates the needed Dot Graphviz Representation to allow for easier visualization of the
     /// Program
     pub fn to_dot(&self) -> String {
-        let mut graph = general::dot::Graph::new();
+        let mut graph = general::dot::RootGraph::new();
         let mut drawn = DrawnBlocks::new();
 
+        let ctx = Context::new();
+
+        let mut global_graph = general::dot::SubGraph::new("global")
+            .cluster()
+            .arg("label", "Global");
+        self.global.to_dot(&mut global_graph, &mut drawn, &ctx);
+        graph.add_subgraph(global_graph);
+
         for (_, func_def) in self.functions.iter() {
-            func_def.to_dot(&mut graph, &mut drawn, &Context::new());
+            func_def.to_dot(&mut graph, &mut drawn, &ctx);
         }
 
         graph.finalize()

@@ -6,12 +6,12 @@ use std::{
 
 use crate::{
     comp::CompareGraph,
-    dot::{Context, DrawnBlocks, Lines},
+    dot::{Context, DrawnBlocks},
     PhiEntry, Statement, ToDot, Type, Value, Variable,
 };
 
 mod inner;
-use general::dot;
+use general::dot::{self, Graph};
 pub use inner::*;
 
 mod weak;
@@ -271,7 +271,7 @@ impl BasicBlock {
 }
 
 impl ToDot for BasicBlock {
-    fn to_dot(&self, lines: &mut dot::Graph, drawn: &mut DrawnBlocks, _: &Context) -> String {
+    fn to_dot(&self, lines: &mut dyn dot::Graph, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         let block_name = format!("block_{}", self_ptr as usize);
         if drawn.contains(&block_name) {
@@ -279,8 +279,16 @@ impl ToDot for BasicBlock {
         }
         drawn.add_block(&block_name);
 
+        {
+            let succs = self.successors();
+            for succ in succs.values() {
+                succ.to_dot(lines, drawn, ctx);
+            }
+        }
+
+        let mut block_graph = dot::SubGraph::new(&block_name).cluster();
         let label_content = format!("{} - Block Start", block_name);
-        lines.add_node(dot::Node::new(&block_name).add_label("label", label_content));
+        block_graph.add_node(dot::Node::new(&block_name).add_label("label", label_content));
 
         {
             let parts = self.0.parts.read().unwrap();
@@ -290,21 +298,26 @@ impl ToDot for BasicBlock {
 
             for (numb, part) in parts.iter().enumerate() {
                 parts_context.set("block_number", numb);
-                let n_src = part.to_dot(lines, drawn, &parts_context);
+                let n_src = part.to_dot(&mut block_graph, drawn, &parts_context);
                 parts_context.set("block_src", n_src);
             }
         }
+        lines.add_subgraph(block_graph);
 
         {
             let preds = self.0.predecessor.read().unwrap();
             for pred in preds.iter() {
                 let pred_name = format!("block_{}", pred.as_ptr() as usize);
-                let pred_line = format!("{} -> {} [style=dashed]", block_name, pred_name);
                 lines.add_edge(dot::Edge::new(&block_name, pred_name).add_label("style", "dashed"));
             }
         }
 
         block_name
+    }
+
+    fn name(&self, ctx: &Context) -> String {
+        let self_ptr = Arc::as_ptr(&self.0);
+        format!("block_{}", self_ptr as usize)
     }
 }
 
