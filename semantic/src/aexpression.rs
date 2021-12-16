@@ -636,7 +636,7 @@ impl AExpression {
                             target: target_var,
                             value: ir::Value::Expression(ir::Expression::UnaryOp {
                                 op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Decrement),
-                                base: ir::Operand::Variable(base_var.clone()),
+                                base: ir::Operand::Variable(base_var),
                             }),
                         };
                         block.add_statement(update_statement);

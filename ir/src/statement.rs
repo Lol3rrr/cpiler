@@ -4,7 +4,7 @@ use general::dot;
 
 use crate::{
     comp::CompareGraph,
-    dot::{Context, DrawnBlocks, Lines},
+    dot::{Context, DrawnBlocks},
     BasicBlock, Expression, ToDot, Value, Variable,
 };
 
@@ -186,11 +186,6 @@ impl ToDot for Statement {
             .get("block_number")
             .expect("")
             .downcast_ref::<usize>()
-            .expect("");
-        let src = ctx
-            .get("block_src")
-            .expect("")
-            .downcast_ref::<String>()
             .expect("");
 
         format!("block_{}_s{}", block_ptr, number_in_block)

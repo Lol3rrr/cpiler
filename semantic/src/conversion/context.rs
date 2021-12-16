@@ -25,3 +25,9 @@ impl ConvertContext {
         }
     }
 }
+
+impl Default for ConvertContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}

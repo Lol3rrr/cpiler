@@ -85,7 +85,7 @@ impl ToDot for FunctionDefinition {
         dot_name
     }
 
-    fn name(&self, ctx: &crate::dot::Context) -> String {
+    fn name(&self, _: &crate::dot::Context) -> String {
         format!("func_{}", self.name)
     }
 }

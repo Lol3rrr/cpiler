@@ -36,9 +36,9 @@ impl Edge {
             let mut result = String::new();
             result.push('[');
             for (arg_name, arg_value) in self.args.iter() {
-                result.push_str(&arg_name);
+                result.push_str(arg_name);
                 result.push_str("=\"");
-                result.push_str(&arg_value);
+                result.push_str(arg_value);
                 result.push_str("\" ");
             }
             result.push(']');

@@ -315,7 +315,7 @@ impl ToDot for BasicBlock {
         block_name
     }
 
-    fn name(&self, ctx: &Context) -> String {
+    fn name(&self, _: &Context) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         format!("block_{}", self_ptr as usize)
     }

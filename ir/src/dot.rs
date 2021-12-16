@@ -15,5 +15,6 @@ pub trait ToDot {
     /// that corresponds to this Item
     fn to_dot(&self, lines: &mut dyn Graph, drawn: &mut DrawnBlocks, ctx: &Context) -> String;
 
+    /// The Name of the Node generated for this Entitity
     fn name(&self, ctx: &Context) -> String;
 }

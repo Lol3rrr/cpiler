@@ -37,3 +37,9 @@ impl Graph for RootGraph {
         self.entries.push(Entry::SubGraph(graph));
     }
 }
+
+impl Default for RootGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
