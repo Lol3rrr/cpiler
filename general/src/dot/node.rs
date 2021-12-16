@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use super::args::Args;
 
 #[derive(Debug)]
 pub struct Node {
     pub(crate) name: String,
-    pub(crate) args: BTreeMap<String, String>,
+    pub(crate) args: Args,
 }
 
 impl Node {
@@ -13,7 +13,7 @@ impl Node {
     {
         Self {
             name: name.into(),
-            args: BTreeMap::new(),
+            args: Args::new(),
         }
     }
 
@@ -22,26 +22,12 @@ impl Node {
         N: Into<String>,
         V: Into<String>,
     {
-        self.args.insert(name.into(), value.into());
+        self.args.add(name, value);
         self
     }
 
     pub(crate) fn line(&self) -> String {
-        let args = if self.args.is_empty() {
-            String::new()
-        } else {
-            let mut result = String::new();
-            result.push('[');
-            for (arg_name, arg_value) in self.args.iter() {
-                result.push_str(arg_name);
-                result.push_str("=\"");
-                result.push_str(arg_value);
-                result.push_str("\" ");
-            }
-            result.push(']');
-            result
-        };
-
+        let args = self.args.line_string();
         format!("{} {};\n", self.name, args)
     }
 }

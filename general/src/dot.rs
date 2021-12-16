@@ -10,6 +10,8 @@ pub use subgraph::SubGraph;
 mod graph;
 pub use graph::RootGraph;
 
+mod args;
+
 #[derive(Debug)]
 enum Entry {
     Node(Node),

@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use super::args::Args;
 
 #[derive(Debug)]
 pub struct Edge {
     pub(crate) from: String,
     pub(crate) to: String,
-    pub(crate) args: BTreeMap<String, String>,
+    pub(crate) args: Args,
 }
 
 impl Edge {
@@ -16,7 +16,7 @@ impl Edge {
         Self {
             from: src.into(),
             to: dest.into(),
-            args: BTreeMap::new(),
+            args: Args::new(),
         }
     }
 
@@ -25,26 +25,13 @@ impl Edge {
         N: Into<String>,
         V: Into<String>,
     {
-        self.args.insert(name.into(), value.into());
+        self.args.add(name, value);
         self
     }
 
     pub(crate) fn line(&self) -> String {
-        let label = if self.args.is_empty() {
-            String::new()
-        } else {
-            let mut result = String::new();
-            result.push('[');
-            for (arg_name, arg_value) in self.args.iter() {
-                result.push_str(arg_name);
-                result.push_str("=\"");
-                result.push_str(arg_value);
-                result.push_str("\" ");
-            }
-            result.push(']');
-            result
-        };
+        let labels = self.args.line_string();
 
-        format!("{} -> {} {};\n", self.from, self.to, label)
+        format!("{} -> {} {};\n", self.from, self.to, labels)
     }
 }
