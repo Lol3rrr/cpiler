@@ -9,3 +9,10 @@ edition = "2021"
 general = { path = "../general" }
 
 itertools = { version = "0.10" }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmark"
+harness = false

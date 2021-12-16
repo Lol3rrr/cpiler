@@ -25,3 +25,9 @@ impl From<Weak<InnerBlock>> for WeakBlockPtr {
         Self(inner)
     }
 }
+
+impl PartialEq for WeakBlockPtr {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ptr() == other.as_ptr()
+    }
+}

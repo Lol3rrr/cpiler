@@ -118,6 +118,12 @@ impl BasicBlock {
         Arc::as_ptr(&self.0)
     }
 
+    /// Clones all the Predecessors of the current Block
+    pub fn get_predecessors(&self) -> Vec<WeakBlockPtr> {
+        let tmp = self.0.predecessor.read().unwrap();
+        tmp.clone()
+    }
+
     /// Adds a new Predecessor to this Block
     pub fn add_predecessor(&self, pred: WeakBlockPtr) {
         let mut tmp = self.0.predecessor.write().unwrap();
@@ -128,10 +134,35 @@ impl BasicBlock {
         tmp.push(pred);
     }
 
+    /// Removes the Predecessor from this Block
+    pub fn remove_predecessor(&self, pred: WeakBlockPtr) {
+        let mut tmp = self.0.predecessor.write().unwrap();
+
+        if let Some(index) =
+            tmp.iter()
+                .enumerate()
+                .find_map(|(index, ptr)| if ptr == &pred { Some(index) } else { None })
+        {
+            tmp.remove(index);
+        }
+    }
+
+    /// Clones all the Statements currently in the Bloc
+    pub fn get_statements(&self) -> Vec<Statement> {
+        let tmp = self.0.parts.read().unwrap();
+        tmp.clone()
+    }
+
     /// Appends the given Statement to the current List of Statements
     pub fn add_statement(&self, statement: Statement) {
         let mut tmp = self.0.parts.write().unwrap();
         tmp.push(statement);
+    }
+
+    /// Replaces the current Statements with the given Statements
+    pub fn set_statements(&self, statements: Vec<Statement>) {
+        let mut tmp = self.0.parts.write().unwrap();
+        *tmp = statements;
     }
 
     /// Attempts to retrieve the latest defined Instance for a Variable with the given Name in this
