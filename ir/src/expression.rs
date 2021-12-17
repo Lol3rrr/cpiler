@@ -56,4 +56,13 @@ pub enum Expression {
         /// The Operand to get the Address of
         base: Operand,
     },
+    /// A Call to some function
+    FunctionCall {
+        /// The Name of the function to call
+        name: String,
+        /// The given Arguments for this Call
+        arguments: Vec<Operand>,
+        /// The returned Type
+        return_ty: Type,
+    },
 }

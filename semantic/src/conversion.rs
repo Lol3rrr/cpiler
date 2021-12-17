@@ -79,7 +79,7 @@ fn convert_function(
     let global_weak = global.weak_ptr();
     let head_block = BasicBlock::new(vec![global_weak], arg_statements);
 
-    let context = ConvertContext::new();
+    let context = ConvertContext::base();
 
     let head_weak = head_block.weak_ptr();
     let func_block = BasicBlock::new(vec![head_weak], vec![]);

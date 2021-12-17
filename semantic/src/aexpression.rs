@@ -2,7 +2,10 @@ use general::{Span, SpanData};
 use ir::{BasicBlock, Constant, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
-use crate::{atype, APrimitive, AType, SemanticError, TypeDefinitions, VariableContainer};
+use crate::{
+    atype, conversion::ConvertContext, APrimitive, AType, SemanticError, TypeDefinitions,
+    VariableContainer,
+};
 
 mod operator;
 pub use operator::*;
@@ -499,7 +502,7 @@ impl AExpression {
         }
     }
 
-    fn val_to_operand(value: Value, block: &BasicBlock) -> ir::Operand {
+    fn val_to_operand(value: Value, block: &BasicBlock, ctx: &ConvertContext) -> ir::Operand {
         match value {
             Value::Unknown => {
                 todo!("Unknown Value as Operand")
@@ -518,10 +521,7 @@ impl AExpression {
                     ir::Expression::Cast { base, target } => {
                         dbg!(&base, &target);
 
-                        let tmp_name = block.get_next_tmp_name();
-                        dbg!(&tmp_name);
-
-                        let tmp_var = ir::Variable::new(tmp_name, target.clone());
+                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), target.clone());
                         dbg!(&tmp_var);
 
                         let assign_statement = ir::Statement::Assignment {
@@ -535,10 +535,7 @@ impl AExpression {
                     ir::Expression::BinaryOp { op, left, right } => {
                         dbg!(&op, &left, &right);
 
-                        let tmp_name = block.get_next_tmp_name();
-                        dbg!(&tmp_name);
-
-                        let tmp_var = ir::Variable::new(tmp_name, left.ty());
+                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), left.ty());
                         dbg!(&tmp_var);
 
                         let assign_statement = ir::Statement::Assignment {
@@ -556,7 +553,7 @@ impl AExpression {
     }
 
     /// Converts the Expression to the corresponding IR
-    pub fn to_ir(self, block: &BasicBlock) -> Value {
+    pub fn to_ir(self, block: &BasicBlock, ctx: &ConvertContext) -> Value {
         match self {
             AExpression::Literal(lit) => match lit {
                 Literal::Integer(SpanData { data, .. }) => Value::Constant(Constant::I64(data)),
@@ -569,7 +566,7 @@ impl AExpression {
             AExpression::Variable { ident, ty } => {
                 dbg!(&ident, &ty);
 
-                let var = block.definition(&ident.0.data).unwrap();
+                let var = block.definition(&ident.0.data, &|| ctx.next_tmp()).unwrap();
                 Value::Variable(var)
             }
             AExpression::BinaryOperator { op, left, right } => {
@@ -578,14 +575,14 @@ impl AExpression {
                 let ir_op = op.to_ir();
                 dbg!(&ir_op);
 
-                let left_value = left.to_ir(block);
+                let left_value = left.to_ir(block, ctx);
                 dbg!(&left_value);
-                let left_operand = Self::val_to_operand(left_value, block);
+                let left_operand = Self::val_to_operand(left_value, block, ctx);
                 dbg!(&left_operand);
 
-                let right_value = right.to_ir(block);
+                let right_value = right.to_ir(block, ctx);
                 dbg!(&right_value);
-                let right_operand = Self::val_to_operand(right_value, block);
+                let right_operand = Self::val_to_operand(right_value, block, ctx);
                 dbg!(&right_operand);
 
                 Value::Expression(ir::Expression::BinaryOp {
@@ -600,9 +597,9 @@ impl AExpression {
                 let target_ty = target.to_ir();
                 dbg!(&target_ty);
 
-                let value = base.to_ir(block);
+                let value = base.to_ir(block, ctx);
                 dbg!(&value);
-                let val_operand = Self::val_to_operand(value, block);
+                let val_operand = Self::val_to_operand(value, block, ctx);
                 dbg!(&val_operand);
 
                 Value::Expression(ir::Expression::Cast {
@@ -613,8 +610,8 @@ impl AExpression {
             AExpression::UnaryOperator { base, op } => {
                 dbg!(&base, &op);
 
-                let base_value = base.to_ir(block);
-                let base_operand = Self::val_to_operand(base_value, block);
+                let base_value = base.to_ir(block, ctx);
+                let base_operand = Self::val_to_operand(base_value, block, ctx);
                 dbg!(&base_operand);
 
                 match op {
@@ -649,6 +646,37 @@ impl AExpression {
                         todo!("Handle UnaryOp");
                     }
                 }
+            }
+            AExpression::FunctionCall {
+                name,
+                arguments,
+                result_ty,
+            } => {
+                dbg!(&name, &arguments, &result_ty);
+
+                let name = name.0.data;
+
+                let args = Vec::new();
+                for tmp_arg in arguments {
+                    dbg!(&tmp_arg);
+
+                    todo!("Handle Arguments");
+                }
+                let ty = result_ty.to_ir();
+
+                let tmp_var = ir::Variable::tmp(ctx.next_tmp(), ty.clone());
+
+                let func_statement = ir::Statement::Assignment {
+                    target: tmp_var.clone(),
+                    value: Value::Expression(ir::Expression::FunctionCall {
+                        name,
+                        arguments: args,
+                        return_ty: ty,
+                    }),
+                };
+                block.add_statement(func_statement);
+
+                Value::Variable(tmp_var)
             }
             other => {
                 dbg!(&other);

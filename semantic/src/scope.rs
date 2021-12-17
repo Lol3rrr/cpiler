@@ -78,7 +78,7 @@ impl AScope {
                             dbg!(&ident, &ty_info);
 
                             let var_name = ident.0.data;
-                            match block.definition(&var_name) {
+                            match block.definition(&var_name, &|| ctx.next_tmp()) {
                                 Some(var) => var.next_gen(),
                                 None => {
                                     let target_ty = ty_info.data.to_ir();
@@ -95,7 +95,7 @@ impl AScope {
                     };
                     dbg!(&next_var);
 
-                    let value_exp = value.to_ir(&block);
+                    let value_exp = value.to_ir(&block, ctx);
 
                     block.add_statement(ir::Statement::Assignment {
                         target: next_var,
@@ -146,9 +146,8 @@ impl AScope {
                 } => {
                     dbg!(&body, &condition);
 
-                    let cond_value = condition.to_ir(&block);
-                    let tmp_var_name = block.get_next_tmp_name();
-                    let cond_var = Variable::new(tmp_var_name, Type::I64);
+                    let cond_value = condition.to_ir(&block, ctx);
+                    let cond_var = Variable::tmp(ctx.next_tmp(), Type::I64);
 
                     let cond_statement = ir::Statement::Assignment {
                         target: cond_var.clone(),
@@ -190,9 +189,8 @@ impl AScope {
 
                     // Generate the first iteration of the start Block
                     {
-                        let cond_value = condition.to_ir(&start_block);
-                        let tmp_var_name = start_block.get_next_tmp_name();
-                        let cond_var = Variable::new(tmp_var_name, Type::I64);
+                        let cond_value = condition.to_ir(&start_block, ctx);
+                        let cond_var = Variable::tmp(ctx.next_tmp(), Type::I64);
 
                         let cond_statement = ir::Statement::Assignment {
                             target: cond_var.clone(),

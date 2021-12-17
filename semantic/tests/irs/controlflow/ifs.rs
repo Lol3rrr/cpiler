@@ -27,8 +27,8 @@ void test() {
     let global_block = BasicBlock::initial(vec![]);
 
     let x_var = Variable::new("x", Type::I32);
-    let t0_64_var = Variable::new("__t_0", Type::I64);
-    let t0_32_var = Variable::new("__t_0", Type::I32);
+    let t0_var = Variable::new("__t_0", Type::I64);
+    let t2_var = Variable::new("__t_2", Type::I32);
     let x1_var = x_var.next_gen();
     let y_var = Variable::new("y", Type::I32);
 
@@ -45,7 +45,7 @@ void test() {
                 }),
             },
             Statement::Assignment {
-                target: t0_64_var.clone(),
+                target: t0_var.clone(),
                 value: Value::Constant(Constant::I64(2)),
             },
         ],
@@ -62,16 +62,13 @@ void test() {
             }),
         }],
     );
-    function_first_block.add_statement(Statement::JumpTrue(
-        t0_64_var.clone(),
-        inner_if_block.clone(),
-    ));
+    function_first_block.add_statement(Statement::JumpTrue(t0_var.clone(), inner_if_block.clone()));
 
     let end_block = BasicBlock::new(
         vec![inner_if_block.weak_ptr(), function_first_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t0_32_var.clone(),
+                target: t2_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -87,7 +84,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t0_32_var.clone()),
+                value: Value::Variable(t2_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -149,7 +146,7 @@ void test() {
     let x1_var = x0_var.next_gen();
     let x2_var = x1_var.next_gen();
     let t0_var = Variable::new("__t_0", Type::I64);
-    let t0_phi_var = Variable::new("__t_0", Type::I32);
+    let t2_phi_var = Variable::new("__t_2", Type::I32);
     let y_var = Variable::new("y", Type::I32);
 
     let function_first = BasicBlock::new(
@@ -198,7 +195,7 @@ void test() {
         vec![true_block.weak_ptr(), false_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t0_phi_var.clone(),
+                target: t2_phi_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -214,7 +211,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t0_phi_var.clone()),
+                value: Value::Variable(t2_phi_var.clone()),
             },
             Statement::Return(None),
         ],

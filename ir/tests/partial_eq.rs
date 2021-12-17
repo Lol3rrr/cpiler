@@ -4,8 +4,10 @@ use ir::{BasicBlock, Constant, Statement, Type, Value, Variable};
 fn single_block_itself() {
     let x_var = Variable::new("x", Type::I8);
 
+    let global = BasicBlock::initial(vec![]);
+
     let block = BasicBlock::new(
-        vec![],
+        vec![global.weak_ptr()],
         vec![
             Statement::Assignment {
                 target: x_var.clone(),
@@ -16,7 +18,7 @@ fn single_block_itself() {
     );
 
     let block2 = BasicBlock::new(
-        vec![],
+        vec![global.weak_ptr()],
         vec![
             Statement::Assignment {
                 target: x_var.clone(),
@@ -31,14 +33,16 @@ fn single_block_itself() {
 
 #[test]
 fn two_blocks_with_jump() {
-    let initial_block1 = BasicBlock::new(vec![], vec![]);
+    let global = BasicBlock::initial(vec![]);
+
+    let initial_block1 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block1 = BasicBlock::new(
         vec![initial_block1.weak_ptr()],
         vec![Statement::Return(None)],
     );
     initial_block1.add_statement(Statement::Jump(second_block1));
 
-    let initial_block2 = BasicBlock::new(vec![], vec![]);
+    let initial_block2 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block2 = BasicBlock::new(
         vec![initial_block2.weak_ptr()],
         vec![Statement::Return(None)],
@@ -50,7 +54,9 @@ fn two_blocks_with_jump() {
 
 #[test]
 fn two_block_cycle_jumps() {
-    let initial_block1 = BasicBlock::new(vec![], vec![]);
+    let global = BasicBlock::initial(vec![]);
+
+    let initial_block1 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block1 = BasicBlock::new(
         vec![initial_block1.weak_ptr()],
         vec![
@@ -61,7 +67,7 @@ fn two_block_cycle_jumps() {
     initial_block1.add_statement(Statement::Jump(second_block1.clone()));
     initial_block1.add_predecessor(second_block1.weak_ptr());
 
-    let initial_block2 = BasicBlock::new(vec![], vec![]);
+    let initial_block2 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block2 = BasicBlock::new(
         vec![initial_block2.weak_ptr()],
         vec![
@@ -77,7 +83,9 @@ fn two_block_cycle_jumps() {
 
 #[test]
 fn two_block_cycle_jumps_no_equal() {
-    let initial_block1 = BasicBlock::new(vec![], vec![]);
+    let global = BasicBlock::initial(vec![]);
+
+    let initial_block1 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block1 = BasicBlock::new(
         vec![initial_block1.weak_ptr()],
         vec![
@@ -88,7 +96,7 @@ fn two_block_cycle_jumps_no_equal() {
     initial_block1.add_statement(Statement::Jump(second_block1.clone()));
     initial_block1.add_predecessor(second_block1.weak_ptr());
 
-    let initial_block2 = BasicBlock::new(vec![], vec![]);
+    let initial_block2 = BasicBlock::new(vec![global.weak_ptr()], vec![]);
     let second_block2 = BasicBlock::new(
         vec![initial_block2.weak_ptr()],
         vec![

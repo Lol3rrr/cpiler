@@ -28,6 +28,11 @@ impl Variable {
         }
     }
 
+    /// Creates a new Temporary Variable with the given number
+    pub fn tmp(number: usize, ty: Type) -> Self {
+        Self::new(format!("__t_{}", number), ty)
+    }
+
     #[cfg(test)]
     pub fn new_test<N>(name: N, generation: usize, ty: Type) -> Self
     where

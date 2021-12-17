@@ -2,7 +2,7 @@ use crate::Optimization;
 
 /// The Config used for running the optimizier
 pub struct Config {
-    passes: Vec<Box<dyn Optimization>>,
+    pub(crate) passes: Vec<Box<dyn Optimization>>,
 }
 
 impl Config {

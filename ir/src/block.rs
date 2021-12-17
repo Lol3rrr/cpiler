@@ -180,7 +180,10 @@ impl BasicBlock {
     /// using a recursive look-up.
     /// Returns the Variable where it was defined, if there is only one definition or creates a new
     /// temporary Variable that combines the different definitions using a Phi-Node
-    pub fn definition(&self, name: &str) -> Option<Variable> {
+    pub fn definition<T>(&self, name: &str, tmp_numb: &T) -> Option<Variable>
+    where
+        T: Fn() -> usize,
+    {
         if let Some(var) = self.local_definition(name) {
             return Some(var);
         }
@@ -192,12 +195,12 @@ impl BasicBlock {
         } else if preds.len() == 1 {
             let single_pred = preds.get(0).unwrap();
             match single_pred.upgrade() {
-                Some(pred) => pred.definition(name),
+                Some(pred) => pred.definition(name, tmp_numb),
                 None => None,
             }
         } else {
-            let tmp_var_name = self.get_next_tmp_name();
-            let tmp_var = Variable::new(&tmp_var_name, Type::Void);
+            let tmp_var_numb = tmp_numb();
+            let tmp_var = Variable::tmp(tmp_var_numb, Type::Void);
             let phi_stmnt = Statement::Assignment {
                 target: tmp_var,
                 value: Value::Phi { sources: vec![] },
@@ -216,7 +219,7 @@ impl BasicBlock {
                     None => continue,
                 };
 
-                if let Some(var) = pred.definition(name) {
+                if let Some(var) = pred.definition(name, tmp_numb) {
                     sources.push(PhiEntry { var, block: c_pred });
                 }
             }
@@ -232,7 +235,7 @@ impl BasicBlock {
 
             let ty = sources.get(0).unwrap().var.ty.clone();
 
-            let final_var = Variable::new(tmp_var_name, ty);
+            let final_var = Variable::tmp(tmp_var_numb, ty);
             let tmp_stmnt = Statement::Assignment {
                 target: final_var.clone(),
                 value: Value::Phi { sources },
@@ -246,33 +249,6 @@ impl BasicBlock {
             }
 
             Some(final_var)
-        }
-    }
-
-    // TODO
-    // Right now this does not look for previous tempoaries in its predecessors which can cause
-    // the existance of multiple temporaries with the same name
-    /// Loads the Name for the next Temporary Variable in this Block, which is particularly useful
-    /// when breaking up nested Expressions or the like
-    pub fn get_next_tmp_name(&self) -> String {
-        let tmp = self.0.parts.read().unwrap();
-
-        let latest = tmp.iter().rev().find_map(|stmnt| match stmnt {
-            Statement::Assignment { target, .. } if target.name.starts_with("__t_") => {
-                Some(target.name.clone())
-            }
-            _ => None,
-        });
-
-        match latest {
-            Some(raw_name) => {
-                let raw_numb = raw_name.strip_prefix("__t_").unwrap();
-                let last_numb: usize = raw_numb.parse().unwrap();
-
-                let n_numb = last_numb + 1;
-                format!("__t_{}", n_numb)
-            }
-            None => "__t_0".to_string(),
         }
     }
 
@@ -365,7 +341,7 @@ mod tests {
 
         let expected = None;
 
-        let result = block.definition("test");
+        let result = block.definition("test", &|| 0);
 
         assert_eq!(expected, result);
     }
@@ -379,7 +355,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 0, Type::I8));
 
-        let result = block.definition("test");
+        let result = block.definition("test", &|| 0);
 
         assert_eq!(expected, result);
     }
@@ -399,7 +375,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 1, Type::I8));
 
-        let result = block.definition("test");
+        let result = block.definition("test", &|| 0);
 
         assert_eq!(expected, result);
     }
@@ -416,7 +392,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 0, Type::I8));
 
-        let result = block.definition("test");
+        let result = block.definition("test", &|| 0);
 
         assert_eq!(expected, result);
     }
@@ -454,7 +430,7 @@ mod tests {
             },
         }];
 
-        let result = block.definition("test");
+        let result = block.definition("test", &|| 0);
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
 
         let mut tmp_map = HashMap::new();
