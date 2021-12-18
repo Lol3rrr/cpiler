@@ -2,6 +2,15 @@ use std::sync::{atomic, Arc};
 
 use crate::Type;
 
+/// Contains extra Metadata, for different kinds of Variables
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariableMetadata {
+    /// This is used to indicate that the Variable has no extra Metadata assosicated with it
+    Empty,
+    /// The Metadata for a Pointer
+    Pointer,
+}
+
 /// A single Variable that will only ever be assigned to once
 #[derive(Debug, Clone)]
 pub struct Variable {
@@ -11,6 +20,8 @@ pub struct Variable {
     generation: usize,
     /// The Type of this Variable
     pub ty: Type,
+    /// Extra Metadata for this Variable
+    pub meta: VariableMetadata,
     current_version: Arc<atomic::AtomicUsize>,
 }
 
@@ -20,10 +31,16 @@ impl Variable {
     where
         N: Into<String>,
     {
+        let meta = match &ty {
+            Type::Pointer(_) => VariableMetadata::Pointer,
+            _ => VariableMetadata::Empty,
+        };
+
         Self {
             name: name.into(),
             generation: 0,
             ty,
+            meta,
             current_version: Arc::new(atomic::AtomicUsize::new(1)),
         }
     }
@@ -38,12 +55,9 @@ impl Variable {
     where
         N: Into<String>,
     {
-        Self {
-            name: name.into(),
-            generation,
-            ty,
-            current_version: Arc::new(atomic::AtomicUsize::new(generation + 1)),
-        }
+        let mut tmp = Self::new(name, ty);
+        tmp.generation = generation;
+        tmp
     }
 
     /// Returns the Generation of the Variable
@@ -59,6 +73,7 @@ impl Variable {
             name: self.name.clone(),
             generation: gen,
             ty: self.ty.clone(),
+            meta: self.meta.clone(),
             current_version: self.current_version.clone(),
         }
     }
@@ -66,6 +81,9 @@ impl Variable {
 
 impl PartialEq for Variable {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.generation == other.generation && self.ty == other.ty
+        self.name == other.name
+            && self.generation == other.generation
+            && self.ty == other.ty
+            && self.meta == other.meta
     }
 }

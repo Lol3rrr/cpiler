@@ -1,6 +1,7 @@
 use general::{Source, Span};
 use ir::{
-    BasicBlock, Constant, Expression, FunctionDefinition, Operand, Statement, Type, Value, Variable,
+    BasicBlock, Constant, Expression, FunctionDefinition, Operand, Statement, Type, Value,
+    Variable, VariableMetadata,
 };
 
 #[test]
@@ -172,7 +173,8 @@ void test() {
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
 
-    let x_var = Variable::new("x", Type::Pointer(Box::new(Type::I32)));
+    let mut x_var = Variable::new("x", Type::Pointer(Box::new(Type::I32)));
+    x_var.meta = VariableMetadata::Pointer;
     let x_2_var = x_var.next_gen();
     let y_var = Variable::new("y", Type::I32);
     let t0_var = Variable::tmp(0, Type::I32);
