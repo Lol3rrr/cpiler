@@ -383,6 +383,10 @@ impl AType {
                     todo!("Unkown Primitve Conversion")
                 }
             },
+            Self::Pointer(raw_inner) => {
+                let inner = raw_inner.to_ir();
+                ir::Type::Pointer(Box::new(inner))
+            }
             other => {
                 dbg!(&other);
 

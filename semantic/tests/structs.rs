@@ -51,7 +51,7 @@ var.first = 1;
                         data: AType::Primitve(APrimitive::Int),
                     },
                 },
-                value: AExpression::ImplicitCast {
+                value: AExpression::Cast {
                     base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
                         span: Span::new_source(source.clone(), 61..62),
                         data: 1,

@@ -1,5 +1,5 @@
 use general::{Span, SpanData};
-use ir::{BasicBlock, Constant, Value};
+use ir::{BasicBlock, Constant, Operand, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
@@ -43,7 +43,7 @@ pub enum AExpression {
         arguments: Vec<AExpression>,
         result_ty: AType,
     },
-    ImplicitCast {
+    Cast {
         base: Box<Self>,
         target: AType,
     },
@@ -418,6 +418,20 @@ impl AExpression {
                     op: op_a,
                 })
             }
+            Expression::Cast { target_ty, exp } => {
+                dbg!(&target_ty, &exp);
+
+                let ty = AType::parse(target_ty, ty_defs, vars)?;
+                dbg!(&ty);
+
+                let inner_exp = Self::parse(*exp, ty_defs, vars)?;
+                dbg!(&inner_exp);
+
+                Ok(Self::Cast {
+                    target: ty,
+                    base: Box::new(inner_exp),
+                })
+            }
             unknown => panic!("Unknown Expression: {:?}", unknown),
         }
     }
@@ -454,7 +468,7 @@ impl AExpression {
             Self::ArrayAccess { ty, .. } => ty.clone(),
             Self::StructAccess { ty, .. } => ty.clone(),
             Self::FunctionCall { result_ty, .. } => result_ty.clone(),
-            Self::ImplicitCast { target, .. } => target.clone(),
+            Self::Cast { target, .. } => target.clone(),
             Self::BinaryOperator { op, left, right } => match op {
                 AOperator::Comparison(_) => AType::Primitve(APrimitive::Int),
                 AOperator::Combinator(_) => AType::Primitve(APrimitive::Int),
@@ -485,7 +499,7 @@ impl AExpression {
             Self::ArrayAccess { base, .. } => base.entire_span(),
             Self::StructAccess { field, .. } => field.0.span.clone(),
             Self::FunctionCall { name, .. } => name.0.span.clone(),
-            Self::ImplicitCast { base, .. } => base.entire_span(),
+            Self::Cast { base, .. } => base.entire_span(),
             Self::BinaryOperator { left, right, .. } => {
                 let left_span = left.entire_span();
                 let right_span = right.entire_span();
@@ -591,7 +605,7 @@ impl AExpression {
                     right: right_operand,
                 })
             }
-            AExpression::ImplicitCast { base, target } => {
+            AExpression::Cast { base, target } => {
                 dbg!(&base, &target);
 
                 let target_ty = target.to_ir();
@@ -656,15 +670,34 @@ impl AExpression {
 
                 let name = name.0.data;
 
-                let args = Vec::new();
+                let mut args = Vec::new();
                 for tmp_arg in arguments {
                     dbg!(&tmp_arg);
 
-                    todo!("Handle Arguments");
+                    let arg_value = tmp_arg.to_ir(block, ctx);
+                    dbg!(&arg_value);
+
+                    let arg_oper = Self::val_to_operand(arg_value, block, ctx);
+                    dbg!(&arg_oper);
+
+                    args.push(arg_oper);
                 }
                 let ty = result_ty.to_ir();
 
                 let tmp_var = ir::Variable::tmp(ctx.next_tmp(), ty.clone());
+
+                let mut cleanup_statements = Vec::new();
+                for arg in args.iter() {
+                    match arg {
+                        Operand::Variable(var) if var.ty.is_ptr() => {
+                            cleanup_statements.push(ir::Statement::Assignment {
+                                target: var.next_gen(),
+                                value: Value::Unknown,
+                            });
+                        }
+                        _ => {}
+                    };
+                }
 
                 let func_statement = ir::Statement::Assignment {
                     target: tmp_var.clone(),
@@ -675,6 +708,10 @@ impl AExpression {
                     }),
                 };
                 block.add_statement(func_statement);
+
+                for tmp in cleanup_statements {
+                    block.add_statement(tmp);
+                }
 
                 Value::Variable(tmp_var)
             }

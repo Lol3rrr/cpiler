@@ -23,7 +23,7 @@ pub fn determine_types(
 
     match (left_prim, right_prim) {
         (APrimitive::LongDouble, _) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(right),
                 target: AType::Primitve(APrimitive::LongDouble),
             };
@@ -31,7 +31,7 @@ pub fn determine_types(
             Ok((left, n_exp))
         }
         (_, APrimitive::LongDouble) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(left),
                 target: AType::Primitve(APrimitive::LongDouble),
             };
@@ -39,7 +39,7 @@ pub fn determine_types(
             Ok((n_exp, right))
         }
         (APrimitive::Double, _) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(right),
                 target: AType::Primitve(APrimitive::Double),
             };
@@ -47,7 +47,7 @@ pub fn determine_types(
             Ok((left, n_exp))
         }
         (_, APrimitive::Double) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(left),
                 target: AType::Primitve(APrimitive::Double),
             };
@@ -55,7 +55,7 @@ pub fn determine_types(
             Ok((n_exp, right))
         }
         (APrimitive::Float, _) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(right),
                 target: AType::Primitve(APrimitive::Float),
             };
@@ -63,7 +63,7 @@ pub fn determine_types(
             Ok((left, n_exp))
         }
         (_, APrimitive::Float) => {
-            let n_exp = AExpression::ImplicitCast {
+            let n_exp = AExpression::Cast {
                 base: Box::new(left),
                 target: AType::Primitve(APrimitive::Float),
             };
@@ -74,14 +74,14 @@ pub fn determine_types(
             dbg!(&left_prim, &right_prim);
 
             if left_prim.rank() > right_prim.rank() {
-                let n_exp = AExpression::ImplicitCast {
+                let n_exp = AExpression::Cast {
                     target: AType::Primitve(left_prim),
                     base: Box::new(right),
                 };
 
                 Ok((left, n_exp))
             } else {
-                let n_exp = AExpression::ImplicitCast {
+                let n_exp = AExpression::Cast {
                     target: AType::Primitve(right_prim),
                     base: Box::new(left),
                 };
@@ -93,14 +93,14 @@ pub fn determine_types(
             dbg!(&left_prim, &right_prim);
 
             if left_prim.rank() > right_prim.rank() {
-                let n_exp = AExpression::ImplicitCast {
+                let n_exp = AExpression::Cast {
                     target: AType::Primitve(left_prim),
                     base: Box::new(right),
                 };
 
                 Ok((left, n_exp))
             } else {
-                let n_exp = AExpression::ImplicitCast {
+                let n_exp = AExpression::Cast {
                     target: AType::Primitve(right_prim),
                     base: Box::new(left),
                 };
@@ -115,7 +115,7 @@ pub fn determine_types(
             let right_rank = right_prim.rank().unwrap();
 
             if left_rank >= right_rank && left_prim.is_unsigned() || left_rank > right_rank {
-                let n_right = AExpression::ImplicitCast {
+                let n_right = AExpression::Cast {
                     base: Box::new(right),
                     target: AType::Primitve(left_prim),
                 };
@@ -123,7 +123,7 @@ pub fn determine_types(
                 return Ok((left, n_right));
             } else if right_rank >= left_rank && right_prim.is_unsigned() || right_rank > left_rank
             {
-                let n_left = AExpression::ImplicitCast {
+                let n_left = AExpression::Cast {
                     base: Box::new(left),
                     target: AType::Primitve(right_prim),
                 };
@@ -180,7 +180,7 @@ mod tests {
         }));
 
         let expected_left = left_in.clone();
-        let expected_right = AExpression::ImplicitCast {
+        let expected_right = AExpression::Cast {
             base: Box::new(right_in.clone()),
             target: AType::Primitve(APrimitive::Float),
         };
@@ -199,7 +199,7 @@ mod tests {
             span: Span::new_source(source.clone(), 9..12),
             data: 1,
         }));
-        let right_in = AExpression::ImplicitCast {
+        let right_in = AExpression::Cast {
             base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
                 span: Span::new_source(source.clone(), 0..12),
                 data: 2,
@@ -207,7 +207,7 @@ mod tests {
             target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
 
-        let expected_left = AExpression::ImplicitCast {
+        let expected_left = AExpression::Cast {
             base: Box::new(left_in.clone()),
             target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
@@ -226,7 +226,7 @@ mod tests {
             span: Span::new_source(source.clone(), 9..12),
             data: 1,
         }));
-        let left_in = AExpression::ImplicitCast {
+        let left_in = AExpression::Cast {
             base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
                 span: Span::new_source(source.clone(), 0..12),
                 data: 2,
@@ -234,7 +234,7 @@ mod tests {
             target: AType::Primitve(APrimitive::UnsignedLongInt),
         };
 
-        let expected_right = AExpression::ImplicitCast {
+        let expected_right = AExpression::Cast {
             base: Box::new(right_in.clone()),
             target: AType::Primitve(APrimitive::UnsignedLongInt),
         };

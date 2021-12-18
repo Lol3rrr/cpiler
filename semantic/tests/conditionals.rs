@@ -47,7 +47,7 @@ void test() {
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 },
-                                value: AExpression::ImplicitCast {
+                                value: AExpression::Cast {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {
@@ -75,7 +75,7 @@ void test() {
                                                 data: AType::Primitve(APrimitive::Int),
                                             },
                                         },
-                                        value: AExpression::ImplicitCast {
+                                        value: AExpression::Cast {
                                             target: AType::Primitve(APrimitive::Int),
                                             base: Box::new(AExpression::Literal(Literal::Integer(
                                                 SpanData {
@@ -99,7 +99,7 @@ void test() {
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 },
-                                value: AExpression::ImplicitCast {
+                                value: AExpression::Cast {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {
@@ -168,7 +168,7 @@ void test() {
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 },
-                                value: AExpression::ImplicitCast {
+                                value: AExpression::Cast {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {
@@ -196,7 +196,7 @@ void test() {
                                                 data: AType::Primitve(APrimitive::Int),
                                             },
                                         },
-                                        value: AExpression::ImplicitCast {
+                                        value: AExpression::Cast {
                                             target: AType::Primitve(APrimitive::Int),
                                             base: Box::new(AExpression::Literal(Literal::Integer(
                                                 SpanData {
@@ -220,7 +220,7 @@ void test() {
                                                 data: AType::Primitve(APrimitive::Int),
                                             },
                                         },
-                                        value: AExpression::ImplicitCast {
+                                        value: AExpression::Cast {
                                             target: AType::Primitve(APrimitive::Int),
                                             base: Box::new(AExpression::Literal(Literal::Integer(
                                                 SpanData {
@@ -246,7 +246,7 @@ void test() {
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 },
-                                value: AExpression::ImplicitCast {
+                                value: AExpression::Cast {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {

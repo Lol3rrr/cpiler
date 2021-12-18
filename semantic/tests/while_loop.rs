@@ -50,7 +50,7 @@ void other() {
                                             data: AType::Primitve(APrimitive::Int),
                                         },
                                     },
-                                    value: AExpression::ImplicitCast {
+                                    value: AExpression::Cast {
                                         base: Box::new(AExpression::Literal(Literal::Integer(
                                             SpanData {
                                                 span: Span::new_source(

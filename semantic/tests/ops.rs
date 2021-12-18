@@ -157,10 +157,10 @@ void test(int arg_1, float arg_2) {
                                     data: AType::Primitve(APrimitive::Int),
                                 },
                             },
-                            value: AExpression::ImplicitCast {
+                            value: AExpression::Cast {
                                 base: Box::new(AExpression::BinaryOperator {
                                     op: AOperator::Arithmetic(ArithemticOp::Add),
-                                    left: Box::new(AExpression::ImplicitCast {
+                                    left: Box::new(AExpression::Cast {
                                         target: AType::Primitve(APrimitive::Float),
                                         base: Box::new(AExpression::Variable {
                                             ident: Identifier(SpanData {

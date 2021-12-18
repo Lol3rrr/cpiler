@@ -35,3 +35,14 @@ pub enum Type {
         members: Vec<(String, Type)>,
     },
 }
+
+impl Type {
+    /// Checks if the given Type is a Pointer Type, which would currently be either a Pointer
+    /// or an Array
+    pub fn is_ptr(&self) -> bool {
+        match self {
+            Self::Pointer(_) | Self::Array(_, _) => true,
+            _ => false,
+        }
+    }
+}

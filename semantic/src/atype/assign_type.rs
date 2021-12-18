@@ -17,7 +17,7 @@ pub fn determine_type(
 
             // TODO
             // This currently allows for some very bad implicit casts, like float to int
-            let casted = AExpression::ImplicitCast {
+            let casted = AExpression::Cast {
                 target: target.0.clone(),
                 base: Box::new(base),
             };
@@ -27,7 +27,7 @@ pub fn determine_type(
         (AType::Pointer(_), AType::Pointer(target_val))
             if *target_val.into_ty() == AType::Primitve(APrimitive::Void) =>
         {
-            let casted = AExpression::ImplicitCast {
+            let casted = AExpression::Cast {
                 target: target.0.clone(),
                 base: Box::new(base),
             };
@@ -37,7 +37,7 @@ pub fn determine_type(
         (AType::Pointer(target_val), AType::Pointer(_))
             if *target_val.into_ty() == AType::Primitve(APrimitive::Void) =>
         {
-            let casted = AExpression::ImplicitCast {
+            let casted = AExpression::Cast {
                 target: target.0.clone(),
                 base: Box::new(base),
             };
@@ -45,7 +45,7 @@ pub fn determine_type(
             Ok(casted)
         }
         (AType::Array(arr_ty), AType::Pointer(ptr_ty)) if arr_ty.ty.eq(ptr_ty) => {
-            let casted = AExpression::ImplicitCast {
+            let casted = AExpression::Cast {
                 target: target.0.clone(),
                 base: Box::new(base),
             };
@@ -101,7 +101,7 @@ mod tests {
         let input_source = Source::new("test", " ");
 
         assert_eq!(
-            Ok(AExpression::ImplicitCast {
+            Ok(AExpression::Cast {
                 base: Box::new(AExpression::Literal(Literal::FloatingPoint(SpanData {
                     span: Span::new_source(input_source.clone(), 0..1),
                     data: 1.3,

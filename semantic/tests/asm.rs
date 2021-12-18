@@ -72,7 +72,7 @@ asm(\"mov ${out}, ${in}\", {in}, out);
                             data: AType::Primitve(APrimitive::Int),
                         },
                     },
-                    value: AExpression::ImplicitCast {
+                    value: AExpression::Cast {
                         base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
                             span: Span::new_source(source.clone(), 19..21),
                             data: 13,
