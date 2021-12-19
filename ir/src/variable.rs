@@ -26,7 +26,8 @@ pub struct Variable {
 }
 
 impl Variable {
-    /// Creates a new Variable-Instance with the given Values
+    /// Creates a new Variable-Instance with the given Values, this function will infer the Basic
+    /// Metadata for the Variable
     pub fn new<N>(name: N, ty: Type) -> Self
     where
         N: Into<String>,
@@ -58,6 +59,12 @@ impl Variable {
         let mut tmp = Self::new(name, ty);
         tmp.generation = generation;
         tmp
+    }
+
+    /// This updates the Metadata for the Variable
+    pub fn set_meta(mut self, meta: VariableMetadata) -> Self {
+        self.meta = meta;
+        self
     }
 
     /// Returns the Generation of the Variable
