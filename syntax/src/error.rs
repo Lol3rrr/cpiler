@@ -47,4 +47,5 @@ pub enum ExpectedToken {
     If,
     Literal,
     IntegerLiteral,
+    Assignment,
 }

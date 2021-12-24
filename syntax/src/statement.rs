@@ -19,6 +19,8 @@ pub use structs::StructMembers;
 mod enums;
 pub use enums::*;
 
+mod assign_type;
+
 #[derive(Debug, PartialEq)]
 pub enum TypeDefType {
     Type(TypeToken),
@@ -141,6 +143,39 @@ impl Statement {
             TokenData::Literal { .. } => starting_literal::parse(tokens, is_termination),
             TokenData::Keyword(Keyword::DataType(_)) => {
                 starting_type::parse(tokens, is_termination)
+            }
+            TokenData::Operator(tokenizer::Operator::Multiply) => {
+                let _ = tokens.next();
+
+                let target = Expression::parse(tokens)?;
+                dbg!(&target);
+
+                let assign_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let assign_type = match assign_token.data {
+                    TokenData::Assign(as_ty) => as_ty,
+                    _ => {
+                        return Err(SyntaxError::UnexpectedToken {
+                            expected: Some(vec![ExpectedToken::Assignment]),
+                            got: assign_token.span,
+                        });
+                    }
+                };
+                dbg!(&assign_type);
+
+                let raw_value = Expression::parse(tokens)?;
+                dbg!(&raw_value);
+
+                let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                is_termination(end_tok)?;
+
+                let value = assign_type::convert_assign(raw_value, assign_type, || {
+                    Expression::SingleOperation {
+                        base: Box::new(target.clone()),
+                        operation: crate::SingleOperation::Dereference,
+                    }
+                });
+
+                Ok(Self::VariableDerefAssignment { target, value })
             }
             TokenData::Comment { .. } => {
                 todo!("Comments are not expected to be parsed as a Statement")

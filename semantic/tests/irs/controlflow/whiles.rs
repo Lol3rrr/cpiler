@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use general::{Source, Span};
+use general::{arch::Arch, Source, Span};
 use ir::{
     BasicBlock, Constant, Expression, FunctionDefinition, Operand, Program, Statement, Type, Value,
     Variable,
@@ -82,7 +82,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     let test_file_path = {
@@ -180,7 +180,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     let test_file_path = {
@@ -278,7 +278,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     dbg!(&expected);
@@ -377,7 +377,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     dbg!(&expected);

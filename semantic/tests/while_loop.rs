@@ -33,39 +33,54 @@ void other() {
                         var_args: false,
                     },
                     AScope {
-                        statements: vec![AStatement::WhileLoop {
-                            condition: AExpression::Literal(Literal::Integer(SpanData {
-                                span: Span::new_source(input_source.clone(), 40..41),
-                                data: 1,
-                            })),
-                            body: AScope {
-                                statements: vec![AStatement::Assignment {
-                                    target: AAssignTarget::Variable {
-                                        ident: Identifier(SpanData {
-                                            span: Span::new_source(input_source.clone(), 53..57),
-                                            data: "test".to_string(),
-                                        }),
-                                        ty_info: SpanData {
-                                            span: Span::new_source(input_source.clone(), 24..28),
-                                            data: AType::Primitve(APrimitive::Int),
-                                        },
-                                    },
-                                    value: AExpression::Cast {
-                                        base: Box::new(AExpression::Literal(Literal::Integer(
-                                            SpanData {
+                        statements: vec![
+                            AStatement::DeclareVar {
+                                name: Identifier(SpanData {
+                                    span: Span::new_source(input_source.clone(), 24..28),
+                                    data: "test".to_string(),
+                                }),
+                                ty: AType::Primitve(APrimitive::Int),
+                            },
+                            AStatement::WhileLoop {
+                                condition: AExpression::Literal(Literal::Integer(SpanData {
+                                    span: Span::new_source(input_source.clone(), 40..41),
+                                    data: 1,
+                                })),
+                                body: AScope {
+                                    statements: vec![AStatement::Assignment {
+                                        target: AAssignTarget::Variable {
+                                            ident: Identifier(SpanData {
                                                 span: Span::new_source(
                                                     input_source.clone(),
-                                                    60..61,
+                                                    53..57,
                                                 ),
-                                                data: 1,
+                                                data: "test".to_string(),
+                                            }),
+                                            ty_info: SpanData {
+                                                span: Span::new_source(
+                                                    input_source.clone(),
+                                                    24..28,
+                                                ),
+                                                data: AType::Primitve(APrimitive::Int),
                                             },
-                                        ))),
-                                        target: AType::Primitve(APrimitive::Int),
-                                    },
-                                }],
-                                function_definitions: vec![].into_iter().collect(),
+                                        },
+                                        value: AExpression::Cast {
+                                            base: Box::new(AExpression::Literal(Literal::Integer(
+                                                SpanData {
+                                                    span: Span::new_source(
+                                                        input_source.clone(),
+                                                        60..61,
+                                                    ),
+                                                    data: 1,
+                                                },
+                                            ))),
+                                            target: AType::Primitve(APrimitive::Int),
+                                        },
+                                    }],
+                                    function_definitions: vec![].into_iter().collect(),
+                                },
                             },
-                        }],
+                        ],
                         function_definitions: vec![].into_iter().collect(),
                     },
                 ),

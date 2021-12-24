@@ -1,7 +1,7 @@
 use general::{Source, Span, SpanData};
 use semantic::{
-    AExpression, APrimitive, ARootScope, AScope, AStatement, AType, FunctionDeclaration, Literal,
-    SemanticError, AAST,
+    AExpression, APrimitive, ARootScope, AScope, AStatement, AType, FunctionCall,
+    FunctionDeclaration, Literal, SemanticError, AAST,
 };
 use syntax::Identifier;
 
@@ -96,17 +96,19 @@ void other() {
                         var_args: false,
                     },
                     AScope {
-                        statements: vec![AStatement::Expression(AExpression::FunctionCall {
-                            name: Identifier(SpanData {
-                                span: Span::new_source(input_source.clone(), 50..57),
-                                data: "testing".to_string(),
-                            }),
-                            arguments: vec![AExpression::Literal(Literal::Integer(SpanData {
-                                span: Span::new_source(input_source.clone(), 58..60),
-                                data: 13,
-                            }))],
-                            result_ty: AType::Primitve(APrimitive::Void),
-                        })],
+                        statements: vec![AStatement::Expression(AExpression::FunctionCall(
+                            FunctionCall {
+                                name: Identifier(SpanData {
+                                    span: Span::new_source(input_source.clone(), 50..57),
+                                    data: "testing".to_string(),
+                                }),
+                                arguments: vec![AExpression::Literal(Literal::Integer(SpanData {
+                                    span: Span::new_source(input_source.clone(), 58..60),
+                                    data: 13,
+                                }))],
+                                result_ty: AType::Primitve(APrimitive::Void),
+                            },
+                        ))],
                         function_definitions: vec![].into_iter().collect(),
                     },
                 ),

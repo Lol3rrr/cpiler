@@ -9,7 +9,7 @@ mod expression;
 mod context;
 pub use context::*;
 
-pub fn convert(ast: AAST) -> Program {
+pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
     let global_block = BasicBlock::initial(vec![]);
 
     let mut functions = HashMap::new();
@@ -29,7 +29,13 @@ pub fn convert(ast: AAST) -> Program {
             tmp
         };
 
-        let func_block = convert_function(&global_block, name.clone(), func_dec, func_scope);
+        let func_block = convert_function(
+            &global_block,
+            name.clone(),
+            func_dec,
+            func_scope,
+            arch.clone(),
+        );
 
         functions.insert(
             name.clone(),
@@ -53,6 +59,7 @@ fn convert_function(
     name: String,
     func_dec: FunctionDeclaration,
     inner_scope: AScope,
+    arch: general::arch::Arch,
 ) -> BasicBlock {
     dbg!(&name, &func_dec, &inner_scope);
 
@@ -79,7 +86,7 @@ fn convert_function(
     let global_weak = global.weak_ptr();
     let head_block = BasicBlock::new(vec![global_weak], arg_statements);
 
-    let context = ConvertContext::base();
+    let context = ConvertContext::base(arch);
 
     let head_weak = head_block.weak_ptr();
     let func_block = BasicBlock::new(vec![head_weak], vec![]);

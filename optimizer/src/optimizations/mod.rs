@@ -2,3 +2,6 @@
 
 mod merger;
 pub use merger::*;
+
+mod deadcode;
+pub use deadcode::*;

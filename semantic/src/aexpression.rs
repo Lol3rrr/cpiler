@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
+
 use general::{Span, SpanData};
-use ir::{BasicBlock, Constant, Operand, Value};
+use ir::{BasicBlock, Operand, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
@@ -12,6 +14,97 @@ pub use operator::*;
 
 mod unary_operator;
 pub use unary_operator::*;
+
+mod literal;
+pub use literal::*;
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionCall {
+    pub name: Identifier,
+    pub arguments: Vec<AExpression>,
+    pub result_ty: AType,
+}
+
+impl FunctionCall {
+    fn argument_ir(
+        arguments: Vec<AExpression>,
+        block: &BasicBlock,
+        ctx: &ConvertContext,
+    ) -> Vec<ir::Operand> {
+        let mut args = Vec::new();
+        for tmp_arg in arguments {
+            dbg!(&tmp_arg);
+
+            let arg_value = tmp_arg.to_ir(block, ctx);
+            dbg!(&arg_value);
+
+            let arg_oper = AExpression::val_to_operand(arg_value, block, ctx);
+            dbg!(&arg_oper);
+
+            args.push(arg_oper);
+        }
+
+        args
+    }
+
+    fn cleanup_ir(args: &[Operand]) -> Vec<ir::Statement> {
+        args.into_iter()
+            .filter_map(|arg| match arg {
+                Operand::Variable(var) if var.ty.is_ptr() => Some(ir::Statement::Assignment {
+                    target: var.next_gen(),
+                    value: Value::Unknown,
+                }),
+                _ => None,
+            })
+            .collect()
+    }
+
+    pub fn to_ir(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Value {
+        dbg!(&self);
+
+        let name = self.name.0.data;
+        let args = Self::argument_ir(self.arguments, block, ctx);
+        let ty = self.result_ty.to_ir();
+
+        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), ty.clone());
+
+        let cleanup_statements = Self::cleanup_ir(&args);
+
+        let func_statement = ir::Statement::Assignment {
+            target: tmp_var.clone(),
+            value: Value::Expression(ir::Expression::FunctionCall {
+                name,
+                arguments: args,
+                return_ty: ty,
+            }),
+        };
+        block.add_statement(func_statement);
+
+        for tmp in cleanup_statements {
+            block.add_statement(tmp);
+        }
+
+        Value::Variable(tmp_var)
+    }
+
+    pub fn to_standalone_ir(self, block: &BasicBlock, ctx: &ConvertContext) {
+        dbg!(&self);
+
+        let name = self.name.0.data;
+        let args = Self::argument_ir(self.arguments, block, ctx);
+        let cleanup_statements = Self::cleanup_ir(&args);
+
+        let func_statemnet = ir::Statement::Call {
+            name,
+            arguments: args,
+        };
+
+        block.add_statement(func_statemnet);
+        for c_stmnt in cleanup_statements {
+            block.add_statement(c_stmnt);
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AExpression {
@@ -38,11 +131,7 @@ pub enum AExpression {
         field: Identifier,
         ty: AType,
     },
-    FunctionCall {
-        name: Identifier,
-        arguments: Vec<AExpression>,
-        result_ty: AType,
-    },
+    FunctionCall(FunctionCall),
     Cast {
         base: Box<Self>,
         target: AType,
@@ -62,14 +151,6 @@ pub enum AExpression {
         output_var: (Identifier, SpanData<AType>),
         span: Span,
     },
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Literal {
-    Integer(SpanData<i64>),
-    FloatingPoint(SpanData<f64>),
-    StringLiteral(SpanData<String>),
-    CharLiteral(SpanData<char>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -309,11 +390,11 @@ impl AExpression {
                 let args: Vec<_> = arg_results.into_iter().filter_map(|t| t.ok()).collect();
                 dbg!(&name, &args, &func_dec.return_ty);
 
-                Ok(Self::FunctionCall {
+                Ok(Self::FunctionCall(FunctionCall {
                     name,
                     arguments: args,
                     result_ty: func_dec.return_ty.clone(),
-                })
+                }))
             }
             Expression::SingleOperation {
                 base,
@@ -467,7 +548,7 @@ impl AExpression {
             Self::SizeOf { .. } => AType::Primitve(APrimitive::UnsignedInt),
             Self::ArrayAccess { ty, .. } => ty.clone(),
             Self::StructAccess { ty, .. } => ty.clone(),
-            Self::FunctionCall { result_ty, .. } => result_ty.clone(),
+            Self::FunctionCall(FunctionCall { result_ty, .. }) => result_ty.clone(),
             Self::Cast { target, .. } => target.clone(),
             Self::BinaryOperator { op, left, right } => match op {
                 AOperator::Comparison(_) => AType::Primitve(APrimitive::Int),
@@ -498,7 +579,7 @@ impl AExpression {
             Self::SizeOf { .. } => panic!("SizeOf Operand"),
             Self::ArrayAccess { base, .. } => base.entire_span(),
             Self::StructAccess { field, .. } => field.0.span.clone(),
-            Self::FunctionCall { name, .. } => name.0.span.clone(),
+            Self::FunctionCall(FunctionCall { name, .. }) => name.0.span.clone(),
             Self::Cast { base, .. } => base.entire_span(),
             Self::BinaryOperator { left, right, .. } => {
                 let left_span = left.entire_span();
@@ -516,7 +597,52 @@ impl AExpression {
         }
     }
 
-    fn val_to_operand(value: Value, block: &BasicBlock, ctx: &ConvertContext) -> ir::Operand {
+    /// Returns a Set of Variables that are used in this Condition
+    pub fn used_variables(&self) -> BTreeSet<String> {
+        match self {
+            Self::Literal(_) => BTreeSet::new(),
+            Self::Variable { ident, .. } => {
+                let mut tmp = BTreeSet::new();
+                tmp.insert(ident.0.data.clone());
+                tmp
+            }
+            Self::AddressOf { base, .. } => base.used_variables(),
+            Self::SizeOf { .. } => BTreeSet::new(),
+            Self::ArrayAccess { base, index, .. } => {
+                let mut tmp = BTreeSet::new();
+
+                tmp.extend(base.used_variables());
+                tmp.extend(index.used_variables());
+
+                tmp
+            }
+            Self::StructAccess { base, .. } => base.used_variables(),
+            Self::FunctionCall(call) => {
+                let mut tmp = BTreeSet::new();
+
+                for arg in call.arguments.iter() {
+                    tmp.extend(arg.used_variables());
+                }
+
+                tmp
+            }
+            Self::Cast { base, .. } => base.used_variables(),
+            Self::BinaryOperator { left, right, .. } => {
+                let mut tmp = BTreeSet::new();
+                tmp.extend(left.used_variables());
+                tmp.extend(right.used_variables());
+                tmp
+            }
+            Self::UnaryOperator { base, .. } => base.used_variables(),
+            Self::InlineAssembly { output_var, .. } => {
+                let mut tmp = BTreeSet::new();
+                tmp.insert(dbg!(output_var.0 .0.data.clone()));
+                tmp
+            }
+        }
+    }
+
+    pub fn val_to_operand(value: Value, block: &BasicBlock, ctx: &ConvertContext) -> ir::Operand {
         match value {
             Value::Unknown => {
                 todo!("Unknown Value as Operand")
@@ -560,6 +686,20 @@ impl AExpression {
 
                         ir::Operand::Variable(tmp_var)
                     }
+                    ir::Expression::UnaryOp { op, base } => {
+                        dbg!(&op, &base);
+
+                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty());
+                        dbg!(&tmp_var);
+
+                        let assign_statement = ir::Statement::Assignment {
+                            target: tmp_var.clone(),
+                            value: Value::Expression(exp),
+                        };
+                        block.add_statement(assign_statement);
+
+                        ir::Operand::Variable(tmp_var)
+                    }
                     other => panic!("{:?} as Operand", other),
                 }
             }
@@ -569,14 +709,7 @@ impl AExpression {
     /// Converts the Expression to the corresponding IR
     pub fn to_ir(self, block: &BasicBlock, ctx: &ConvertContext) -> Value {
         match self {
-            AExpression::Literal(lit) => match lit {
-                Literal::Integer(SpanData { data, .. }) => Value::Constant(Constant::I64(data)),
-                other => {
-                    dbg!(&other);
-
-                    todo!("Convert Literal");
-                }
-            },
+            AExpression::Literal(lit) => lit.to_value(block, ctx),
             AExpression::Variable { ident, ty } => {
                 dbg!(&ident, &ty);
 
@@ -654,6 +787,15 @@ impl AExpression {
 
                         result_val
                     }
+                    UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
+                        todo!("Suffix Decrement")
+                    }
+                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Negate) => {
+                        Value::Expression(ir::Expression::UnaryOp {
+                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Negate),
+                            base: base_operand,
+                        })
+                    }
                     other => {
                         dbg!(&other);
 
@@ -661,59 +803,20 @@ impl AExpression {
                     }
                 }
             }
-            AExpression::FunctionCall {
-                name,
-                arguments,
-                result_ty,
-            } => {
-                dbg!(&name, &arguments, &result_ty);
+            AExpression::FunctionCall(call) => call.to_ir(block, ctx),
+            AExpression::AddressOf { ty, base } => {
+                dbg!(&ty, &base);
 
-                let name = name.0.data;
+                let target_ty = ty.to_ir();
+                dbg!(&target_ty);
 
-                let mut args = Vec::new();
-                for tmp_arg in arguments {
-                    dbg!(&tmp_arg);
+                let base_value = base.to_ir(block, ctx);
+                dbg!(&base_value);
 
-                    let arg_value = tmp_arg.to_ir(block, ctx);
-                    dbg!(&arg_value);
+                let base_oper = Self::val_to_operand(base_value, block, ctx);
+                dbg!(&base_oper);
 
-                    let arg_oper = Self::val_to_operand(arg_value, block, ctx);
-                    dbg!(&arg_oper);
-
-                    args.push(arg_oper);
-                }
-                let ty = result_ty.to_ir();
-
-                let tmp_var = ir::Variable::tmp(ctx.next_tmp(), ty.clone());
-
-                let mut cleanup_statements = Vec::new();
-                for arg in args.iter() {
-                    match arg {
-                        Operand::Variable(var) if var.ty.is_ptr() => {
-                            cleanup_statements.push(ir::Statement::Assignment {
-                                target: var.next_gen(),
-                                value: Value::Unknown,
-                            });
-                        }
-                        _ => {}
-                    };
-                }
-
-                let func_statement = ir::Statement::Assignment {
-                    target: tmp_var.clone(),
-                    value: Value::Expression(ir::Expression::FunctionCall {
-                        name,
-                        arguments: args,
-                        return_ty: ty,
-                    }),
-                };
-                block.add_statement(func_statement);
-
-                for tmp in cleanup_statements {
-                    block.add_statement(tmp);
-                }
-
-                Value::Variable(tmp_var)
+                Value::Expression(ir::Expression::AdressOf { base: base_oper })
             }
             other => {
                 dbg!(&other);

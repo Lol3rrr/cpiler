@@ -18,24 +18,33 @@ asm(\"mov ${out}, 13\", {}, out);
     let expected = Ok(AAST {
         global_scope: ARootScope(AScope {
             function_definitions: vec![].into_iter().collect(),
-            statements: vec![AStatement::Expression(AExpression::InlineAssembly {
-                span: Span::new_source(source.clone(), 10..13),
-                template: SpanData {
-                    span: Span::new_source(source.clone(), 14..30),
-                    data: "mov ${out}, 13".to_string(),
-                },
-                input_vars: vec![],
-                output_var: (
-                    Identifier(SpanData {
-                        span: Span::new_source(source.clone(), 36..39),
+            statements: vec![
+                AStatement::DeclareVar {
+                    name: Identifier(SpanData {
+                        span: Span::new_source(source.clone(), 5..8),
                         data: "out".to_string(),
                     }),
-                    SpanData {
-                        span: Span::new_source(source.clone(), 5..8),
-                        data: AType::Primitve(APrimitive::Int),
+                    ty: AType::Primitve(APrimitive::Int),
+                },
+                AStatement::Expression(AExpression::InlineAssembly {
+                    span: Span::new_source(source.clone(), 10..13),
+                    template: SpanData {
+                        span: Span::new_source(source.clone(), 14..30),
+                        data: "mov ${out}, 13".to_string(),
                     },
-                ),
-            })],
+                    input_vars: vec![],
+                    output_var: (
+                        Identifier(SpanData {
+                            span: Span::new_source(source.clone(), 36..39),
+                            data: "out".to_string(),
+                        }),
+                        SpanData {
+                            span: Span::new_source(source.clone(), 5..8),
+                            data: AType::Primitve(APrimitive::Int),
+                        },
+                    ),
+                }),
+            ],
         }),
     });
 
@@ -61,6 +70,13 @@ asm(\"mov ${out}, ${in}\", {in}, out);
         global_scope: ARootScope(AScope {
             function_definitions: vec![].into_iter().collect(),
             statements: vec![
+                AStatement::DeclareVar {
+                    name: Identifier(SpanData {
+                        span: Span::new_source(source.clone(), 5..8),
+                        data: "out".to_string(),
+                    }),
+                    ty: AType::Primitve(APrimitive::Int),
+                },
                 AStatement::Assignment {
                     target: AAssignTarget::Variable {
                         ident: Identifier(SpanData {

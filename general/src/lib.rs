@@ -10,3 +10,5 @@ pub use spandata::*;
 pub mod shunting_yard;
 
 pub mod dot;
+
+pub mod arch;

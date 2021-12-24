@@ -556,6 +556,7 @@ impl Expression {
                     | TokenData::CloseBrace
                     | TokenData::CloseBracket
                     | TokenData::Colon
+                    | TokenData::Assign(_)
             )
         })
     }

@@ -1,4 +1,4 @@
-use general::{Source, Span};
+use general::{arch::Arch, Source, Span};
 use ir::{
     BasicBlock, Constant, Expression, FunctionDefinition, Operand, Statement, Type, Value,
     Variable, VariableMetadata,
@@ -62,7 +62,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     assert_eq!(expected, result);
@@ -148,7 +148,7 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     assert_eq!(expected, result);
@@ -173,8 +173,8 @@ void test() {
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
 
-    let mut x_var = Variable::new("x", Type::Pointer(Box::new(Type::I32)));
-    x_var.meta = VariableMetadata::Pointer;
+    let x_var =
+        Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
     let x_2_var = x_var.next_gen();
     let y_var = Variable::new("y", Type::I32);
     let t0_var = Variable::tmp(0, Type::I32);
@@ -229,7 +229,60 @@ void test() {
         .collect(),
     };
 
-    let result = input.convert_to_ir();
+    let result = input.convert_to_ir(Arch::X86_64);
+    dbg!(&result);
+
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn raw_function_call_no_args() {
+    let content = "
+int other();
+
+void test() {
+    other();
+    return;
+}
+            ";
+    let source = Source::new("test", content);
+    let span: Span = source.clone().into();
+    let tokens = tokenizer::tokenize(span);
+    let syntax_ast = syntax::parse(tokens).unwrap();
+    let input = semantic::parse(syntax_ast).unwrap();
+
+    let global_block = BasicBlock::initial(vec![]);
+
+    let func_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
+
+    let func_inner_block = BasicBlock::new(
+        vec![func_block.weak_ptr()],
+        vec![
+            Statement::Call {
+                name: "other".to_string(),
+                arguments: vec![],
+            },
+            Statement::Return(None),
+        ],
+    );
+    func_block.add_statement(Statement::Jump(func_inner_block));
+
+    let expected = ir::Program {
+        global: global_block,
+        functions: vec![(
+            "test".to_string(),
+            FunctionDefinition {
+                name: "test".to_string(),
+                arguments: vec![],
+                return_ty: Type::Void,
+                block: func_block,
+            },
+        )]
+        .into_iter()
+        .collect(),
+    };
+
+    let result = input.convert_to_ir(Arch::X86_64);
     dbg!(&result);
 
     assert_eq!(expected, result);

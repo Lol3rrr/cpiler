@@ -17,6 +17,9 @@ pub use inner::*;
 mod weak;
 pub use weak::*;
 
+mod iter;
+pub use iter::BlockIter;
+
 /// A Basic-Block contains a linear series of Statements that will be executed one after another.
 ///
 /// A Block can have any number of predecessors and can have any number of following Blocks that
@@ -106,6 +109,12 @@ impl BasicBlock {
             predecessor: RwLock::new(predecessors),
             parts: RwLock::new(parts),
         }))
+    }
+
+    /// Returns an Iterator over all the Blocks that can be reached from this Block as the starting
+    /// Point, including this Block itself
+    pub fn block_iter(&self) -> BlockIter {
+        BlockIter::new(self.0.clone())
     }
 
     /// Obtains the Weak-Ptr for this Block

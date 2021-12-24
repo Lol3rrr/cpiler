@@ -4,7 +4,7 @@ use ir::{BasicBlock, Statement, Type, Variable};
 use syntax::Scope;
 
 use crate::{
-    conversion::ConvertContext, AAssignTarget, AExpression, AStatement, FunctionDeclaration,
+    conversion::ConvertContext, AAssignTarget, AExpression, AStatement, AType, FunctionDeclaration,
     SemanticError,
 };
 
@@ -70,37 +70,180 @@ impl AScope {
 
         for tmp_stmnt in self.statements {
             match tmp_stmnt {
+                AStatement::SubScope { inner } => {
+                    let sub_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                    block.add_statement(Statement::Jump(sub_block.clone()));
+
+                    let end_sub_block = inner.to_ir(&sub_block, ctx);
+                    let following_block = BasicBlock::new(vec![end_sub_block.weak_ptr()], vec![]);
+                    end_sub_block.add_statement(Statement::Jump(following_block.clone()));
+
+                    block = following_block;
+                }
+                AStatement::DeclareVar { name, ty: raw_ty } => {
+                    dbg!(&name, &raw_ty);
+                    let ty = raw_ty.ty();
+
+                    let target_name = name.0.data;
+                    if block.definition(&target_name, &|| 0).is_some() {
+                        panic!("");
+                    }
+
+                    match ty {
+                        AType::Array(arr) => {
+                            let arr_length = arr.size.unwrap();
+                            let alignment = arr.ty.alignment(ctx.arch()) as usize;
+                            let size = arr_length * arr.ty.byte_size(ctx.arch()) as usize;
+
+                            let ir_ty = arr.ty.to_ir();
+                            let target_var =
+                                Variable::new(target_name, ir::Type::Pointer(Box::new(ir_ty)));
+                            dbg!(&target_var);
+
+                            let reserve_exp = ir::Expression::StackAlloc { size, alignment };
+                            dbg!(&reserve_exp);
+
+                            block.add_statement(Statement::Assignment {
+                                target: target_var,
+                                value: ir::Value::Expression(reserve_exp),
+                            });
+                        }
+                        AType::Struct(struct_def) => {
+                            dbg!(&struct_def);
+
+                            let size = struct_def.entire_size(ctx.arch());
+                            let alignment = struct_def.alignment(ctx.arch());
+                            dbg!(&size, &alignment);
+
+                            let ir_ty = ir::Type::Pointer(Box::new(ir::Type::Void));
+                            let target_var = Variable::new(target_name, ir_ty);
+                            dbg!(&target_var);
+
+                            let reserve_exp = ir::Expression::StackAlloc { size, alignment };
+                            dbg!(&reserve_exp);
+
+                            block.add_statement(Statement::Assignment {
+                                target: target_var,
+                                value: ir::Value::Expression(reserve_exp),
+                            });
+                        }
+                        AType::Primitve(_) => {
+                            let ir_type = ty.to_ir();
+                            dbg!(&ir_type);
+
+                            let var = Variable::new(target_name, ir_type);
+                            block.add_statement(Statement::Assignment {
+                                target: var,
+                                value: ir::Value::Unknown,
+                            });
+                        }
+                        other => {
+                            dbg!(&other);
+
+                            todo!("");
+                        }
+                    };
+                }
                 AStatement::Assignment { target, value } => {
                     dbg!(&target, &value);
 
-                    let next_var = match target {
+                    match target {
                         AAssignTarget::Variable { ident, ty_info } => {
                             dbg!(&ident, &ty_info);
 
                             let var_name = ident.0.data;
-                            match block.definition(&var_name, &|| ctx.next_tmp()) {
+                            let next_var = match block.definition(&var_name, &|| ctx.next_tmp()) {
                                 Some(var) => var.next_gen(),
                                 None => {
                                     let target_ty = ty_info.data.to_ir();
 
                                     ir::Variable::new(var_name.clone(), target_ty)
                                 }
-                            }
-                        }
-                        other => {
-                            dbg!(&other);
+                            };
 
-                            todo!("Unknown Assign Target");
+                            dbg!(&next_var);
+
+                            let value_exp = value.to_ir(&block, ctx);
+                            let target_meta = value_exp.assign_meta(&next_var);
+                            let target_var = next_var.set_meta(target_meta);
+
+                            block.add_statement(ir::Statement::Assignment {
+                                target: target_var,
+                                value: value_exp,
+                            });
+                        }
+                        AAssignTarget::Deref { exp, .. } => {
+                            let address_value = exp.to_ir(&block, ctx);
+                            dbg!(&address_value);
+
+                            let target_oper =
+                                AExpression::val_to_operand(address_value, &block, ctx);
+                            dbg!(&target_oper);
+
+                            let value_exp = value.to_ir(&block, ctx);
+                            dbg!(&value_exp);
+
+                            match &target_oper {
+                                ir::Operand::Variable(target_var) => {
+                                    match target_var.meta() {
+                                        ir::VariableMetadata::VarPointer { var } => {
+                                            let next_var = var.next_gen();
+                                            let target_meta = value_exp.assign_meta(&next_var);
+                                            let target_var = next_var.set_meta(target_meta);
+
+                                            block.add_statement(Statement::Assignment {
+                                                target: target_var,
+                                                value: value_exp.clone(),
+                                            });
+                                        }
+                                        _ => {}
+                                    };
+                                }
+                                _ => {}
+                            };
+
+                            block.add_statement(ir::Statement::WriteMemory {
+                                target: target_oper,
+                                value: value_exp,
+                            });
+                        }
+                        AAssignTarget::ArrayAccess(target) => {
+                            dbg!(&target);
+                            let target_exp = target.to_exp(&block, ctx);
+                            dbg!(&target_exp);
+
+                            let target_value = ir::Value::Expression(target_exp);
+                            let target_oper =
+                                AExpression::val_to_operand(target_value, &block, ctx);
+                            dbg!(&target_oper);
+
+                            let value_exp = value.to_ir(&block, ctx);
+                            dbg!(&value_exp);
+
+                            block.add_statement(ir::Statement::WriteMemory {
+                                target: target_oper,
+                                value: value_exp,
+                            });
+                        }
+                        AAssignTarget::StructField(target) => {
+                            dbg!(&target);
+                            let target_exp = target.to_exp(&block, ctx);
+                            dbg!(&target_exp);
+
+                            let target_value = ir::Value::Expression(target_exp);
+                            let target_oper =
+                                AExpression::val_to_operand(target_value, &block, ctx);
+                            dbg!(&target_oper);
+
+                            let value = value.to_ir(&block, ctx);
+                            dbg!(&value);
+
+                            block.add_statement(ir::Statement::WriteMemory {
+                                target: target_oper,
+                                value,
+                            });
                         }
                     };
-                    dbg!(&next_var);
-
-                    let value_exp = value.to_ir(&block, ctx);
-
-                    block.add_statement(ir::Statement::Assignment {
-                        target: next_var,
-                        value: value_exp,
-                    });
                 }
                 AStatement::Expression(exp) => {
                     dbg!(&exp);
@@ -109,14 +252,8 @@ impl AScope {
                     // No idea how I might go about doing this
 
                     match exp {
-                        AExpression::FunctionCall {
-                            name,
-                            arguments,
-                            result_ty,
-                        } => {
-                            dbg!(&name, &arguments, &result_ty);
-
-                            todo!("Handle raw FunctionCall");
+                        AExpression::FunctionCall(call) => {
+                            call.to_standalone_ir(&block, ctx);
                         }
                         other => {
                             dbg!(&other);
@@ -128,16 +265,27 @@ impl AScope {
                 AStatement::Return { value } => {
                     dbg!(&value);
 
-                    let ret_stmnt = match value {
-                        Some(val) => {
-                            dbg!(&val);
+                    let ret_value = match value {
+                        Some(raw_ret) => {
+                            dbg!(&raw_ret);
+                            let raw_ty = raw_ret.result_type();
+                            let target_ty = raw_ty.to_ir();
 
-                            todo!("")
+                            let ret_exp = raw_ret.to_ir(&block, ctx);
+                            dbg!(&ret_exp);
+
+                            let ret_var = Variable::tmp(ctx.next_tmp(), target_ty);
+                            block.add_statement(Statement::Assignment {
+                                target: ret_var.clone(),
+                                value: ret_exp,
+                            });
+
+                            Some(ret_var)
                         }
-                        None => ir::Statement::Return(None),
+                        None => None,
                     };
 
-                    block.add_statement(ret_stmnt);
+                    block.add_statement(ir::Statement::Return(ret_value));
                 }
                 AStatement::If {
                     body,
@@ -218,6 +366,34 @@ impl AScope {
                     block.add_statement(Statement::Jump(start_block));
                     block = end_block;
                 }
+                AStatement::ForLoop {
+                    condition,
+                    body,
+                    updates,
+                } => {
+                    dbg!(&condition, &body, &updates);
+
+                    let used_vars_in_cond = condition.used_variables();
+                    for tmp_var in used_vars_in_cond {
+                        dbg!(&tmp_var);
+                    }
+
+                    // The Block containing the Condition
+                    let condition_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+
+                    // The starting Block of the internal Scope
+                    let content_start_block =
+                        BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
+
+                    // The Block responsible for updating some Variant for the Loop
+                    let update_block = BasicBlock::new(vec![], vec![]);
+                    condition_block.add_predecessor(update_block.weak_ptr());
+
+                    // The first Block after the actual Loop
+                    let end_block = BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
+
+                    todo!("Generate IR for For-Loop");
+                }
                 AStatement::Break => {
                     let loop_end_block = match ctx.get_loop_end() {
                         Some(b) => b,
@@ -235,11 +411,6 @@ impl AScope {
 
                     loop_start_block.add_predecessor(block.weak_ptr());
                     block.add_statement(Statement::Jump(loop_start_block.clone()));
-                }
-                other => {
-                    dbg!(&other);
-
-                    todo!()
                 }
             };
         }

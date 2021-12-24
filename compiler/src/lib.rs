@@ -18,7 +18,7 @@ where
 
     dbg!(&aast);
 
-    let ir = aast.convert_to_ir();
+    let ir = aast.convert_to_ir(general::arch::Arch::X86_64);
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 

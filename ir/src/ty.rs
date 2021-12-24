@@ -1,5 +1,5 @@
 /// The Types that can be used for Variables
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum Type {
     /// A non existing Type that is 0 sized
     Void,

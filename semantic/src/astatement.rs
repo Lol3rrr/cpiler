@@ -1,5 +1,5 @@
 use general::SpanData;
-use syntax::{AssignTarget, FunctionHead, Statement};
+use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
     atype, AExpression, AFunctionArg, AScope, AType, FunctionDeclaration, ParseState, SemanticError,
@@ -10,6 +10,10 @@ pub use target::*;
 
 #[derive(Debug, PartialEq)]
 pub enum AStatement {
+    DeclareVar {
+        name: Identifier,
+        ty: AType,
+    },
     Assignment {
         target: AAssignTarget,
         value: AExpression,
@@ -179,10 +183,15 @@ impl AStatement {
                     panic!("Redefintion Error");
                 }
 
+                let result = AStatement::DeclareVar {
+                    name: name.clone(),
+                    ty: ty.clone(),
+                };
+
                 let declaration = name.0.span.clone();
                 parse_state.add_variable_declaration(name, declaration, ty);
 
-                Ok(None)
+                Ok(Some(result))
             }
             Statement::VariableDeclarationAssignment { ty, name, value } => {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
@@ -236,6 +245,52 @@ impl AStatement {
 
                 Ok(Some(Self::Assignment {
                     target: a_target,
+                    value: value_exp,
+                }))
+            }
+            Statement::VariableDerefAssignment { target, value } => {
+                dbg!(&target, &value);
+
+                let target_exp = AExpression::parse(target, parse_state.type_defs(), parse_state)?;
+                dbg!(&target_exp);
+
+                let target_type = target_exp.result_type();
+                dbg!(&target_type);
+
+                let inner_ty = match target_type {
+                    AType::Pointer(inner) => *inner,
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Can only dereference a Pointer")
+                    }
+                };
+
+                let ty_info = SpanData {
+                    span: target_exp.entire_span(),
+                    data: inner_ty,
+                };
+                dbg!(&ty_info);
+
+                let target = AAssignTarget::Deref {
+                    exp: target_exp,
+                    ty_info,
+                };
+                dbg!(&target);
+
+                let base_value_exp =
+                    AExpression::parse(value, parse_state.type_defs(), parse_state)?;
+                dbg!(&base_value_exp);
+
+                let (expected_type, expected_type_span) = target.get_expected_type();
+                let value_exp = atype::assign_type::determine_type(
+                    base_value_exp,
+                    (&expected_type, &expected_type_span),
+                )?;
+                dbg!(&value_exp);
+
+                Ok(Some(Self::Assignment {
+                    target,
                     value: value_exp,
                 }))
             }

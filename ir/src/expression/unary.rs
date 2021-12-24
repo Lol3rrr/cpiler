@@ -5,6 +5,8 @@ pub enum UnaryArithmeticOp {
     Increment,
     /// Decrements the Value of the Operand by 1
     Decrement,
+    /// Negates the Value of the Operand
+    Negate,
 }
 
 /// A Logic Operation applied to a single Operand

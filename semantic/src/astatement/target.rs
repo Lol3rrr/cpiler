@@ -1,7 +1,112 @@
 use general::{Span, SpanData};
+use ir::BasicBlock;
 use syntax::{AssignTarget, Identifier};
 
-use crate::{AExpression, APrimitive, AType, SemanticError, TypeDefinitions, VariableContainer};
+use crate::{
+    conversion::ConvertContext, AExpression, APrimitive, AType, SemanticError, TypeDefinitions,
+    VariableContainer,
+};
+
+#[derive(Debug, PartialEq)]
+pub struct ArrayAccessTarget {
+    target: Box<AAssignTarget>,
+    index: Box<AExpression>,
+    ty_info: SpanData<AType>,
+}
+
+impl ArrayAccessTarget {
+    pub fn to_exp(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Expression {
+        let base_target = match *self.target {
+            AAssignTarget::Variable { ident, ty_info } => {
+                assert!(matches!(&ty_info.data, AType::Array(_)));
+
+                AExpression::Variable {
+                    ident,
+                    ty: ty_info.data,
+                }
+            }
+            other => {
+                dbg!(&other);
+
+                todo!()
+            }
+        };
+
+        let elem_size = self.ty_info.data.byte_size(ctx.arch());
+
+        let index_value = self.index.to_ir(block, ctx);
+        let index_oper = AExpression::val_to_operand(index_value, block, ctx);
+        dbg!(&index_oper);
+
+        let offset_exp = ir::Expression::BinaryOp {
+            op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
+            left: index_oper,
+            right: ir::Operand::Constant(ir::Constant::I64(elem_size as i64)),
+        };
+        let offset_value = ir::Value::Expression(offset_exp);
+        let offset_oper = AExpression::val_to_operand(offset_value, block, ctx);
+
+        let base_value = base_target.to_ir(block, ctx);
+        let base_oper = AExpression::val_to_operand(base_value, block, ctx);
+
+        ir::Expression::BinaryOp {
+            op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+            left: base_oper,
+            right: offset_oper,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct StructFieldTarget {
+    /// The underlying Struct Target, like a Variable or Pointer
+    pub target: Box<AAssignTarget>,
+    /// The Name of the Field
+    pub field: Identifier,
+    /// The Type of the Field of the Struct
+    pub ty_info: SpanData<AType>,
+}
+
+impl StructFieldTarget {
+    pub fn to_exp(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Expression {
+        let (base_target, struct_def) = match *self.target {
+            AAssignTarget::Variable { ident, ty_info } => {
+                dbg!(&ty_info);
+                match ty_info.data {
+                    AType::Struct(def) => {
+                        let var = AExpression::Variable {
+                            ident,
+                            ty: AType::Struct(def.clone()),
+                        };
+
+                        (var, def)
+                    }
+                    _ => panic!("Exected Struct Ptr"),
+                }
+            }
+            other => {
+                dbg!(&other);
+
+                todo!()
+            }
+        };
+        dbg!(&base_target, &struct_def);
+
+        let offset = struct_def
+            .member_offset(&self.field.0.data, ctx.arch())
+            .expect("Field does not exist");
+
+        let base_value = base_target.to_ir(block, ctx);
+        let base_oper = AExpression::val_to_operand(base_value, block, ctx);
+        dbg!(&base_oper);
+
+        ir::Expression::BinaryOp {
+            op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+            left: base_oper,
+            right: ir::Operand::Constant(ir::Constant::I64(offset as i64)),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum AAssignTarget {
@@ -10,26 +115,23 @@ pub enum AAssignTarget {
         /// The Type of the Variable itself
         ty_info: SpanData<AType>,
     },
-    ArrayAccess {
-        target: Box<Self>,
-        index: Box<AExpression>,
-        /// The Type of the Array-Element
+    Deref {
+        /// The Target Address to write the Value to
+        exp: AExpression,
+        /// The Type that is stored that that Address
         ty_info: SpanData<AType>,
     },
-    StructField {
-        target: Box<Self>,
-        field: Identifier,
-        /// The Type of the Field of the Struct
-        ty_info: SpanData<AType>,
-    },
+    ArrayAccess(ArrayAccessTarget),
+    StructField(StructFieldTarget),
 }
 
 impl AAssignTarget {
     fn base_ty(&self) -> &AType {
         match self {
             Self::Variable { ty_info, .. } => &ty_info.data,
-            Self::ArrayAccess { ty_info, .. } => &ty_info.data,
-            Self::StructField { ty_info, .. } => &ty_info.data,
+            Self::Deref { ty_info, .. } => &ty_info.data,
+            Self::ArrayAccess(ArrayAccessTarget { ty_info, .. }) => &ty_info.data,
+            Self::StructField(StructFieldTarget { ty_info, .. }) => &ty_info.data,
         }
     }
 
@@ -88,14 +190,14 @@ impl AAssignTarget {
                 // the name of the array Variable and not the underlying Type
                 let elem_span = arr_span;
 
-                Ok(AAssignTarget::ArrayAccess {
+                Ok(AAssignTarget::ArrayAccess(ArrayAccessTarget {
                     target: Box::new(base_target),
                     index: Box::new(a_index),
                     ty_info: SpanData {
                         span: elem_span,
                         data: *elem_ty,
                     },
-                })
+                }))
             }
             AssignTarget::StructAccess { base, field } => {
                 dbg!(&base, &field);
@@ -123,14 +225,14 @@ impl AAssignTarget {
                 };
                 dbg!(&field_ty);
 
-                Ok(Self::StructField {
+                Ok(Self::StructField(StructFieldTarget {
                     target: Box::new(base_target),
                     field,
                     ty_info: SpanData {
                         span: field_span,
                         data: field_ty,
                     },
-                })
+                }))
             }
             AssignTarget::StructPtrAccess { base, field } => {
                 dbg!(&base, &field);
@@ -163,14 +265,14 @@ impl AAssignTarget {
                 };
                 dbg!(&field_ty);
 
-                Ok(Self::StructField {
+                Ok(Self::StructField(StructFieldTarget {
                     target: Box::new(base_target),
                     field,
                     ty_info: SpanData {
                         span: field_span,
                         data: field_ty,
                     },
-                })
+                }))
             }
         }
     }
@@ -178,8 +280,13 @@ impl AAssignTarget {
     pub fn get_expected_type(&self) -> (AType, Span) {
         match &self {
             Self::Variable { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
-            Self::ArrayAccess { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
-            Self::StructField { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
+            Self::Deref { ty_info, .. } => (ty_info.data.clone(), ty_info.span.clone()),
+            Self::ArrayAccess(ArrayAccessTarget { ty_info, .. }) => {
+                (ty_info.data.clone(), ty_info.span.clone())
+            }
+            Self::StructField(StructFieldTarget { ty_info, .. }) => {
+                (ty_info.data.clone(), ty_info.span.clone())
+            }
         }
     }
 }

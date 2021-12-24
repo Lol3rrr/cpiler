@@ -16,6 +16,15 @@ pub enum LogicCombinator {
     And,
 }
 
+impl LogicCombinator {
+    fn to_ir(&self) -> ir::BinaryLogicCombinator {
+        match self {
+            Self::And => ir::BinaryLogicCombinator::And,
+            Self::Or => ir::BinaryLogicCombinator::Or,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ArithemticOp {
     Add,
@@ -57,11 +66,16 @@ impl AOperator {
                 ArithemticOp::Sub => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Sub),
                 ArithemticOp::Multiply => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
             },
-            other => {
-                dbg!(&other);
+            Self::Comparison(comp_op) => match comp_op {
+                AComparitor::Equal => ir::BinaryOp::Logic(ir::BinaryLogicOp::Equal),
+                AComparitor::NotEqual => ir::BinaryOp::Logic(ir::BinaryLogicOp::NotEqual),
+                other => {
+                    dbg!(&other);
 
-                todo!("Parsing Operator");
-            }
+                    todo!("Convert CompOP to ir")
+                }
+            },
+            Self::Combinator(comb_op) => ir::BinaryOp::LogicCombinator(comb_op.to_ir()),
         }
     }
 }

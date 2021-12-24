@@ -1,4 +1,4 @@
-use crate::{Expression, Type, Variable, WeakBlockPtr};
+use crate::{Expression, Operand, Type, Variable, VariableMetadata, WeakBlockPtr};
 
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]
@@ -45,6 +45,37 @@ impl PartialEq for Value {
             }
             (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
             _ => false,
+        }
+    }
+}
+
+impl Value {
+    /// Generates the correct Variable-Metadata
+    pub fn assign_meta(&self, target: &Variable) -> VariableMetadata {
+        let target_meta = target.meta();
+
+        match (self, target_meta) {
+            (
+                Self::Expression(Expression::AdressOf {
+                    base: Operand::Variable(base_var),
+                }),
+                _,
+            ) => VariableMetadata::VarPointer {
+                var: Box::new(base_var.clone()),
+            },
+            (_, VariableMetadata::VarPointer { .. }) => VariableMetadata::Pointer,
+            _ => target_meta.clone(),
+        }
+    }
+
+    /// Returns a list of all the Variables used by this Value
+    pub fn used_vars(&self) -> Vec<Variable> {
+        match self {
+            Self::Unknown => Vec::new(),
+            Self::Constant(_) => Vec::new(),
+            Self::Expression(exp) => exp.used_vars(),
+            Self::Variable(var) => vec![var.clone()],
+            Self::Phi { sources } => sources.iter().map(|entry| entry.var.clone()).collect(),
         }
     }
 }

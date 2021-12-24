@@ -90,6 +90,24 @@ impl APrimitive {
             _ => None,
         }
     }
+
+    pub fn byte_size(&self) -> u64 {
+        match self {
+            Self::Char | Self::UnsignedChar => 1,
+            Self::Short | Self::UnsignedShort => 2,
+            Self::Int | Self::UnsignedInt => 4,
+            _ => todo!("Size of {:?} in Bytes", self),
+        }
+    }
+
+    pub fn alignment(&self) -> u64 {
+        match self {
+            Self::Char | Self::UnsignedChar => 1,
+            Self::Short | Self::UnsignedShort => 2,
+            Self::Int | Self::UnsignedInt => 4,
+            _ => todo!("Size of {:?} in Bytes", self),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -99,9 +117,9 @@ pub struct Array {
 }
 
 impl AType {
-    pub fn ty(&self) -> &Self {
+    pub fn ty(self) -> Self {
         match self {
-            Self::TypeDef { ty, .. } => ty,
+            Self::TypeDef { ty, .. } => *ty,
             other => other,
         }
     }
@@ -375,6 +393,7 @@ impl AType {
     pub fn to_ir(self) -> ir::Type {
         match self {
             Self::Primitve(prim) => match prim {
+                APrimitive::Char => ir::Type::I8,
                 APrimitive::Int => ir::Type::I32,
                 APrimitive::LongInt => ir::Type::I64,
                 other => {
@@ -392,6 +411,22 @@ impl AType {
 
                 todo!("Unknown type conversion")
             }
+        }
+    }
+
+    pub fn byte_size(&self, arch: &general::arch::Arch) -> u64 {
+        match self {
+            Self::Primitve(prim) => prim.byte_size(),
+            Self::Pointer(_) => arch.ptr_size() as u64,
+            _ => todo!("Size of {:?} in Bytes", self),
+        }
+    }
+
+    pub fn alignment(&self, arch: &general::arch::Arch) -> u64 {
+        match self {
+            Self::Primitve(prim) => prim.alignment(),
+            Self::Pointer(_) => arch.ptr_size() as u64,
+            _ => todo!("Alignment of {:?} in Bytes", self),
         }
     }
 }

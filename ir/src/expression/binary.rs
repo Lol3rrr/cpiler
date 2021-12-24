@@ -30,6 +30,15 @@ pub enum BinaryLogicOp {
     GreaterEq,
 }
 
+/// A Logic Combination Operation applied to two Operands
+#[derive(Debug, Clone, PartialEq)]
+pub enum BinaryLogicCombinator {
+    /// Checks if both Operands are true
+    And,
+    /// Checks if at least one of the Operands is true
+    Or,
+}
+
 /// A Bitwise Operation applied to two Operands
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryBitwiseOp {
@@ -48,6 +57,8 @@ pub enum BinaryOp {
     Arith(BinaryArithmeticOp),
     /// Performs logic Operations
     Logic(BinaryLogicOp),
+    /// Performs the Combination of two Logic Operands
+    LogicCombinator(BinaryLogicCombinator),
     /// Performs bitwise Operations
     Bitwise(BinaryBitwiseOp),
 }

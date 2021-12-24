@@ -85,7 +85,7 @@ impl VariableContainer for HashMap<String, FuncOrVar> {
 }
 
 impl AAST {
-    pub fn convert_to_ir(self) -> Program {
-        conversion::convert(self)
+    pub fn convert_to_ir(self, arch: general::arch::Arch) -> Program {
+        conversion::convert(self, arch)
     }
 }

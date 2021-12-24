@@ -5,7 +5,7 @@ use general::dot;
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
-    BasicBlock, Expression, ToDot, Value, Variable,
+    BasicBlock, Operand, ToDot, Value, Variable,
 };
 
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
@@ -19,8 +19,20 @@ pub enum Statement {
         /// The Value that should be assigned
         value: Value,
     },
-    /// A single Expression that does not modify any of the Variables
-    Expression(Expression),
+    /// This writes the Value to some location in memory, mostly done through a Pointer
+    WriteMemory {
+        /// The Target on where to write the Value
+        target: Operand,
+        /// The Value
+        value: Value,
+    },
+    /// A single Function-Call
+    Call {
+        /// The Name of the Function to call
+        name: String,
+        /// The Arguments for the Function
+        arguments: Vec<Operand>,
+    },
     /// Returns the given Variable from the Function
     Return(Option<Variable>),
     /// Jumps to the given Block unconditionally
@@ -47,7 +59,26 @@ impl CompareGraph for Statement {
                     value: o_value,
                 },
             ) => s_target == o_target && s_value == o_value,
-            (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
+            (
+                Self::WriteMemory {
+                    target: s_target,
+                    value: s_value,
+                },
+                Self::WriteMemory {
+                    target: o_target,
+                    value: o_value,
+                },
+            ) => s_target == o_target && s_value == o_value,
+            (
+                Self::Call {
+                    name: s_name,
+                    arguments: s_arguments,
+                },
+                Self::Call {
+                    name: o_name,
+                    arguments: o_arguments,
+                },
+            ) => s_name == o_name && s_arguments == o_arguments,
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
             (Self::Jump(s_next), Self::Jump(o_next)) => {
                 s_next.compare(o_next, blocks, current_block)
@@ -70,8 +101,11 @@ impl Debug for Statement {
             Self::Assignment { target, value } => {
                 write!(f, "Assignment({:?} = {:?})", target, value)
             }
-            Self::Expression(exp) => {
-                write!(f, "Expression({:?})", exp)
+            Self::WriteMemory { target, value } => {
+                write!(f, "WriteMemory({:?} = {:?})", target, value)
+            }
+            Self::Call { name, arguments } => {
+                write!(f, "Call {:?} with {:?}", name, arguments)
             }
             Self::Return(val) => write!(f, "Return({:?})", val),
             Self::Jump(target) => {
@@ -127,8 +161,13 @@ impl ToDot for Statement {
 
                 lines.add_edge(dot::Edge::new(src, &name));
             }
-            Self::Expression(exp) => {
-                let content = format!("{:?}", exp);
+            Self::WriteMemory { target, value } => {
+                dbg!(&target, &value);
+
+                todo!("Convert Write Memory to Dot")
+            }
+            Self::Call { .. } => {
+                let content = format!("{:?}", self);
                 lines.add_node(
                     dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
@@ -189,5 +228,33 @@ impl ToDot for Statement {
             .expect("");
 
         format!("block_{}_s{}", block_ptr, number_in_block)
+    }
+}
+
+impl Statement {
+    /// Returns a list of all the used Variables in this Statement
+    ///
+    /// # Note
+    /// This does not contain the Targets of Assignment Statements
+    pub fn used_vars(&self) -> Vec<Variable> {
+        match self {
+            Self::Assignment { value, .. } => value.used_vars(),
+            Self::WriteMemory { target, value } => {
+                let mut tmp = target.used_vars();
+                tmp.extend(value.used_vars());
+                tmp
+            }
+            Self::Call { arguments, .. } => {
+                let mut tmp = Vec::new();
+                for arg in arguments {
+                    tmp.extend(arg.used_vars());
+                }
+                tmp
+            }
+            Self::Return(None) => Vec::new(),
+            Self::Return(Some(var)) => vec![var.clone()],
+            Self::Jump(_) => Vec::new(),
+            Self::JumpTrue(var, _) => vec![var.clone()],
+        }
     }
 }
