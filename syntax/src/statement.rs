@@ -1,6 +1,6 @@
 use general::SpanData;
 use itertools::PeekNth;
-use tokenizer::{ControlFlow, DataType, Keyword, Token, TokenData};
+use tokenizer::{ControlFlow, DataType, Keyword, Operator, Token, TokenData};
 
 use crate::{
     expression::Expression, ExpectedToken, FunctionArgument, Identifier, Scope, SyntaxError,
@@ -176,6 +176,14 @@ impl Statement {
                 });
 
                 Ok(Self::VariableDerefAssignment { target, value })
+            }
+            TokenData::Operator(Operator::Increment) | TokenData::Operator(Operator::Decrement) => {
+                let exp = Expression::parse(tokens)?;
+
+                let ending_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                is_termination(ending_tok)?;
+
+                Ok(Self::SingleExpression(exp))
             }
             TokenData::Comment { .. } => {
                 todo!("Comments are not expected to be parsed as a Statement")

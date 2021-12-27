@@ -77,6 +77,10 @@ impl AssignTarget {
             Self::Variable(ident) => Expression::Identifier {
                 ident: ident.to_owned(),
             },
+            Self::StructAccess { base, field } => Expression::StructAccess {
+                field: field.clone(),
+                base: Box::new(base.to_exp()),
+            },
             other => todo!("{:?}", other),
         }
     }

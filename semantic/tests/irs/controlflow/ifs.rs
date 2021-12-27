@@ -28,7 +28,7 @@ void test() {
 
     let x_var = Variable::new("x", Type::I32);
     let t0_var = Variable::new("__t_0", Type::I64);
-    let t2_var = Variable::new("__t_2", Type::I32);
+    let t1_var = Variable::new("__t_1", Type::I32);
     let x1_var = x_var.next_gen();
     let y_var = Variable::new("y", Type::I32);
 
@@ -68,7 +68,7 @@ void test() {
         vec![inner_if_block.weak_ptr(), function_first_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t2_var.clone(),
+                target: t1_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -84,7 +84,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t2_var.clone()),
+                value: Value::Variable(t1_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -146,7 +146,7 @@ void test() {
     let x1_var = x0_var.next_gen();
     let x2_var = x1_var.next_gen();
     let t0_var = Variable::new("__t_0", Type::I64);
-    let t2_phi_var = Variable::new("__t_2", Type::I32);
+    let t1_phi_var = Variable::new("__t_1", Type::I32);
     let y_var = Variable::new("y", Type::I32);
 
     let function_first = BasicBlock::new(
@@ -195,7 +195,7 @@ void test() {
         vec![true_block.weak_ptr(), false_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t2_phi_var.clone(),
+                target: t1_phi_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -211,7 +211,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t2_phi_var.clone()),
+                value: Value::Variable(t1_phi_var.clone()),
             },
             Statement::Return(None),
         ],

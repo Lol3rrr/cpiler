@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use general::dot;
-
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
@@ -98,12 +96,16 @@ impl CompareGraph for Statement {
 impl Debug for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Assignment { target, value } => {
-                write!(f, "Assignment({:?} = {:?})", target, value)
-            }
-            Self::WriteMemory { target, value } => {
-                write!(f, "WriteMemory({:?} = {:?})", target, value)
-            }
+            Self::Assignment { target, value } => f
+                .debug_struct("Assignment")
+                .field("target", &target)
+                .field("value", &value)
+                .finish(),
+            Self::WriteMemory { target, value } => f
+                .debug_struct("WriteMemory")
+                .field("target", &target)
+                .field("value", &value)
+                .finish(),
             Self::Call { name, arguments } => {
                 write!(f, "Call {:?} with {:?}", name, arguments)
             }
@@ -125,7 +127,7 @@ impl Debug for Statement {
 impl ToDot for Statement {
     fn to_dot(
         &self,
-        lines: &mut dyn general::dot::Graph,
+        lines: &mut dyn graphviz::Graph,
         drawn: &mut DrawnBlocks,
         ctx: &Context,
     ) -> String {
@@ -156,57 +158,60 @@ impl ToDot for Statement {
             Self::Assignment { target, value } => {
                 let content = format!("{:?} = {:?}", target, value);
                 lines.add_node(
-                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
 
-                lines.add_edge(dot::Edge::new(src, &name));
+                lines.add_edge(graphviz::Edge::new(src, &name));
             }
             Self::WriteMemory { target, value } => {
-                dbg!(&target, &value);
+                let content = format!("WriteMemory {:?} = {:?}", target, value);
+                lines.add_node(
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
 
-                todo!("Convert Write Memory to Dot")
+                lines.add_edge(graphviz::Edge::new(src, &name));
             }
             Self::Call { .. } => {
                 let content = format!("{:?}", self);
                 lines.add_node(
-                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
 
-                lines.add_edge(dot::Edge::new(src, &name));
+                lines.add_edge(graphviz::Edge::new(src, &name));
             }
             Self::Return(val) => {
                 let content = format!("return {:?}", val);
                 lines.add_node(
-                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
 
-                lines.add_edge(dot::Edge::new(src, &name));
+                lines.add_edge(graphviz::Edge::new(src, &name));
             }
             Self::Jump(target) => {
                 let content = "Jump".to_string();
                 lines.add_node(
-                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
 
-                lines.add_edge(dot::Edge::new(src, &name));
+                lines.add_edge(graphviz::Edge::new(src, &name));
 
                 let target_name = target.name(ctx);
 
-                lines.add_edge(dot::Edge::new(&name, target_name));
+                lines.add_edge(graphviz::Edge::new(&name, target_name));
             }
             Self::JumpTrue(cond, target) => {
                 let content = "JumpTrue".to_string();
                 lines.add_node(
-                    dot::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
 
-                lines.add_edge(dot::Edge::new(src, &name));
+                lines.add_edge(graphviz::Edge::new(src, &name));
 
                 let target_name = target.name(ctx);
 
                 let var_str = format!("{:?}", cond);
                 lines.add_edge(
-                    dot::Edge::new(&name, target_name)
+                    graphviz::Edge::new(&name, target_name)
                         .add_label("label", var_str.replace('"', "\\\"")),
                 );
             }

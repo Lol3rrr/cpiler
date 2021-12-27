@@ -1,6 +1,6 @@
 use ir::{BasicBlock, Statement};
 
-use crate::Optimization;
+use crate::OptimizationPass;
 
 /// This Optimization attempts to merge IR-Blocks together, which makes it easier for other
 /// Optimizations as well as hopefully resulting in better generated Code as possibly reduces
@@ -63,14 +63,12 @@ impl Merger {
     }
 }
 
-impl Optimization for Merger {
+impl OptimizationPass for Merger {
     fn name(&self) -> String {
         "Merger".to_string()
     }
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
-        dbg!(&ir);
-
         self.merge(&ir.block);
 
         ir

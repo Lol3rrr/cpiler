@@ -97,11 +97,11 @@ impl RpnOp {
             | Self::SingleOp(SingleOperation::AddressOf)
             | Self::SingleOp(SingleOperation::Sizeof) => Assosication::Right,
             Self::SingleOp(SingleOperation::ArrayAccess(_))
+            | Self::SingleOp(SingleOperation::SuffixIncrement)
+            | Self::SingleOp(SingleOperation::SuffixDecrement)
             | Self::SingleOp(SingleOperation::FuntionCall(_))
             | Self::SingleOp(SingleOperation::Arrow)
             | Self::SingleOp(SingleOperation::Dot)
-            | Self::SingleOp(SingleOperation::SuffixIncrement)
-            | Self::SingleOp(SingleOperation::SuffixDecrement)
             | Self::ConnectionOp(ConnectionOp::Dot)
             | Self::ConnectionOp(ConnectionOp::Arrow) => Assosication::Left,
             Self::Conditional => Assosication::Right,
@@ -114,18 +114,26 @@ impl RpnOp {
                 RpnOp::SingleOp(SingleOperation::Positive)
             }
             (Operator::Add, _) => RpnOp::Expression(ExpressionOperator::Add),
-            (Operator::Increment, Some(TokenData::Literal { .. })) => {
+            (Operator::Increment, None) | (Operator::Increment, Some(TokenData::Operator(_))) => {
+                RpnOp::SingleOp(SingleOperation::PrefixIncrement)
+            }
+            (Operator::Increment, Some(prev_tok)) => {
+                dbg!(&prev_tok);
+
                 RpnOp::SingleOp(SingleOperation::SuffixIncrement)
             }
-            (Operator::Increment, _) => RpnOp::SingleOp(SingleOperation::PrefixIncrement),
             (Operator::Sub, Some(TokenData::Operator(_))) | (Operator::Sub, None) => {
                 RpnOp::SingleOp(SingleOperation::Negative)
             }
             (Operator::Sub, _) => RpnOp::Expression(ExpressionOperator::Sub),
-            (Operator::Decrement, Some(TokenData::Literal { .. })) => {
+            (Operator::Decrement, None) | (Operator::Decrement, Some(TokenData::Operator(_))) => {
+                RpnOp::SingleOp(SingleOperation::PrefixDecrement)
+            }
+            (Operator::Decrement, Some(prev_tok)) => {
+                dbg!(&prev_tok);
+
                 RpnOp::SingleOp(SingleOperation::SuffixDecrement)
             }
-            (Operator::Decrement, _) => RpnOp::SingleOp(SingleOperation::PrefixDecrement),
             (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
             (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
             (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),

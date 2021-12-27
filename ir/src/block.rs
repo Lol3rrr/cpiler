@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::Debug,
     sync::{Arc, RwLock},
 };
@@ -11,7 +11,7 @@ use crate::{
 };
 
 mod inner;
-use general::dot::{self, Graph};
+use graphviz::Graph;
 pub use inner::*;
 
 mod weak;
@@ -185,6 +185,9 @@ impl BasicBlock {
         })
     }
 
+    // TODO
+    // This currently causes a StackOverflow in certain Cases so this should probably be turned
+    // into an iterative approach however im not quite sure on how to do that
     /// Finds the Definition for the given Variable Name in this block any of its Predecessors
     /// using a recursive look-up.
     /// Returns the Variable where it was defined, if there is only one definition or creates a new
@@ -193,72 +196,105 @@ impl BasicBlock {
     where
         T: Fn() -> usize,
     {
+        if !self.has_definition(name) {
+            return None;
+        }
+
         if let Some(var) = self.local_definition(name) {
             return Some(var);
         }
 
-        let preds = self.0.predecessor.read().unwrap();
+        let preds = self.0.predecessor.read().unwrap().clone();
 
         if preds.len() == 0 {
-            None
-        } else if preds.len() == 1 {
+            return None;
+        }
+
+        if preds.len() == 1 {
             let single_pred = preds.get(0).unwrap();
             match single_pred.upgrade() {
-                Some(pred) => pred.definition(name, tmp_numb),
-                None => None,
-            }
-        } else {
-            let tmp_var_numb = tmp_numb();
-            let tmp_var = Variable::tmp(tmp_var_numb, Type::Void);
-            let phi_stmnt = Statement::Assignment {
-                target: tmp_var,
-                value: Value::Phi { sources: vec![] },
+                Some(pred) => return pred.definition(name, tmp_numb),
+                None => return None,
             };
-
-            {
-                let mut tmp = self.0.parts.write().unwrap();
-                tmp.push(phi_stmnt);
-            }
-
-            let mut sources = Vec::with_capacity(preds.len());
-            for raw_pred in preds.iter() {
-                let c_pred = raw_pred.clone();
-                let pred = match raw_pred.upgrade() {
-                    Some(p) => p,
-                    None => continue,
-                };
-
-                if let Some(var) = pred.definition(name, tmp_numb) {
-                    sources.push(PhiEntry { var, block: c_pred });
-                }
-            }
-
-            if sources.is_empty() {
-                {
-                    let mut tmp = self.0.parts.write().unwrap();
-                    tmp.pop();
-                }
-
-                return None;
-            }
-
-            let ty = sources.get(0).unwrap().var.ty.clone();
-
-            let final_var = Variable::tmp(tmp_var_numb, ty);
-            let tmp_stmnt = Statement::Assignment {
-                target: final_var.clone(),
-                value: Value::Phi { sources },
-            };
-
-            {
-                let mut tmp = self.0.parts.write().unwrap();
-                let last = tmp.last_mut().unwrap();
-
-                *last = tmp_stmnt;
-            }
-
-            Some(final_var)
         }
+
+        let tmp_var_numb = tmp_numb();
+        let tmp_var = Variable::new(name, Type::Void);
+        let phi_stmnt = Statement::Assignment {
+            target: tmp_var,
+            value: Value::Phi { sources: vec![] },
+        };
+
+        {
+            let mut tmp = self.0.parts.write().unwrap();
+            tmp.push(phi_stmnt);
+        }
+
+        let mut sources = Vec::with_capacity(preds.len());
+        for raw_pred in preds.iter() {
+            let c_pred = raw_pred.clone();
+            let pred = match raw_pred.upgrade() {
+                Some(p) => p,
+                None => continue,
+            };
+
+            if let Some(var) = pred.definition(name, tmp_numb) {
+                sources.push(PhiEntry { var, block: c_pred });
+            }
+        }
+
+        if sources.is_empty() {
+            {
+                let mut tmp = self.0.parts.write().unwrap();
+                tmp.pop();
+            }
+
+            return None;
+        }
+
+        let ty = sources.get(0).unwrap().var.ty.clone();
+
+        let final_var = Variable::tmp(tmp_var_numb, ty);
+        let tmp_stmnt = Statement::Assignment {
+            target: final_var.clone(),
+            value: Value::Phi { sources },
+        };
+
+        {
+            let mut tmp = self.0.parts.write().unwrap();
+            let last = tmp.last_mut().unwrap();
+
+            *last = tmp_stmnt;
+        }
+
+        Some(final_var)
+    }
+
+    /// Checks if there exists a Variable Definition/Assignment for the given Name
+    pub fn has_definition(&self, name: &str) -> bool {
+        let mut preds = vec![self.weak_ptr()];
+        let mut visited = HashSet::new();
+
+        while let Some(raw_pred) = preds.pop() {
+            let pred_ptr = raw_pred.as_ptr();
+            if visited.contains(&pred_ptr) {
+                continue;
+            }
+
+            let pred = match raw_pred.upgrade() {
+                Some(p) => p,
+                None => continue,
+            };
+
+            if pred.local_definition(name).is_some() {
+                return true;
+            }
+            visited.insert(pred_ptr);
+
+            preds.extend(pred.0.predecessor.read().unwrap().clone());
+        }
+
+        false
     }
 
     /// Loads all the direct Successors of this Block
@@ -287,7 +323,12 @@ impl BasicBlock {
 }
 
 impl ToDot for BasicBlock {
-    fn to_dot(&self, lines: &mut dyn dot::Graph, drawn: &mut DrawnBlocks, ctx: &Context) -> String {
+    fn to_dot(
+        &self,
+        lines: &mut dyn graphviz::Graph,
+        drawn: &mut DrawnBlocks,
+        ctx: &Context,
+    ) -> String {
         let self_ptr = Arc::as_ptr(&self.0);
         let block_name = format!("block_{}", self_ptr as usize);
         if drawn.contains(&block_name) {
@@ -302,9 +343,9 @@ impl ToDot for BasicBlock {
             }
         }
 
-        let mut block_graph = dot::SubGraph::new(&block_name).cluster();
+        let mut block_graph = graphviz::SubGraph::new(&block_name).cluster();
         let label_content = format!("{} - Block Start", block_name);
-        block_graph.add_node(dot::Node::new(&block_name).add_label("label", label_content));
+        block_graph.add_node(graphviz::Node::new(&block_name).add_label("label", label_content));
 
         {
             let parts = self.0.parts.read().unwrap();
@@ -324,7 +365,9 @@ impl ToDot for BasicBlock {
             let preds = self.0.predecessor.read().unwrap();
             for pred in preds.iter() {
                 let pred_name = format!("block_{}", pred.as_ptr() as usize);
-                lines.add_edge(dot::Edge::new(&block_name, pred_name).add_label("style", "dashed"));
+                lines.add_edge(
+                    graphviz::Edge::new(&block_name, pred_name).add_label("style", "dashed"),
+                );
             }
         }
 
@@ -441,6 +484,58 @@ mod tests {
 
         let result = block.definition("test", &|| 0);
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
+
+        let mut tmp_map = HashMap::new();
+        for (expected_stmnt, result_stmnt) in expected_block_stmnts
+            .into_iter()
+            .zip(result_block_stmnts.into_iter())
+        {
+            assert!(expected_stmnt.compare(&result_stmnt, &mut tmp_map, 0));
+        }
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn definition_common_pred_with_multiple_preds_between() {
+        let test_var = Variable::new("test", Type::I8);
+        let predecessor_1 = BasicBlock::initial(vec![Statement::Assignment {
+            target: test_var.clone(),
+            value: Value::Constant(Constant::I8(1)),
+        }]);
+
+        let predecessor_2 = BasicBlock::new(vec![predecessor_1.weak_ptr()], vec![]);
+        let predecessor_3 = BasicBlock::new(vec![predecessor_1.weak_ptr()], vec![]);
+        predecessor_1.add_statement(Statement::Jump(predecessor_2.clone()));
+        predecessor_1.add_statement(Statement::Jump(predecessor_3.clone()));
+
+        let block = BasicBlock::new(
+            vec![predecessor_2.weak_ptr(), predecessor_3.weak_ptr()],
+            vec![],
+        );
+        predecessor_2.add_statement(Statement::Jump(block.clone()));
+        predecessor_3.add_statement(Statement::Jump(block.clone()));
+
+        let expected = Some(Variable::new_test("__t_0", 0, Type::I8));
+        let expected_block_stmnts = vec![Statement::Assignment {
+            target: Variable::new_test("__t_0", 0, Type::I8),
+            value: Value::Phi {
+                sources: vec![
+                    PhiEntry {
+                        block: predecessor_1.weak_ptr(),
+                        var: test_var.clone(),
+                    },
+                    PhiEntry {
+                        block: predecessor_1.weak_ptr(),
+                        var: test_var.clone(),
+                    },
+                ],
+            },
+        }];
+
+        let result = block.definition("test", &|| 0);
+        dbg!(&result);
+        let result_block_stmnts = block.0.parts.read().unwrap().clone();
+        dbg!(&result_block_stmnts);
 
         let mut tmp_map = HashMap::new();
         for (expected_stmnt, result_stmnt) in expected_block_stmnts

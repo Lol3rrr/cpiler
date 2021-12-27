@@ -30,6 +30,10 @@ pub struct Variable {
     pub ty: Type,
     /// Extra Metadata for this Variable
     meta: VariableMetadata,
+    /// Contains a small Description with the Purpose of this Variable, this will not be used in
+    /// comparisons and is mostly used for debuging to help identify which variable is responsible
+    /// for what
+    description: Option<String>,
     current_version: Arc<atomic::AtomicUsize>,
 }
 
@@ -50,6 +54,7 @@ impl Variable {
             generation: 0,
             ty,
             meta,
+            description: None,
             current_version: Arc::new(atomic::AtomicUsize::new(1)),
         }
     }
@@ -79,6 +84,15 @@ impl Variable {
         &self.meta
     }
 
+    /// Updates the Description for this Variable
+    pub fn set_description<D>(mut self, desc: D) -> Self
+    where
+        D: Into<String>,
+    {
+        self.description = Some(desc.into());
+        self
+    }
+
     /// Returns the Generation of the Variable
     pub fn generation(&self) -> usize {
         self.generation
@@ -93,6 +107,7 @@ impl Variable {
             generation: gen,
             ty: self.ty.clone(),
             meta: self.meta.clone(),
+            description: None,
             current_version: self.current_version.clone(),
         }
     }

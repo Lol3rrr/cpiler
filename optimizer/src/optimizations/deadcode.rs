@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::Optimization;
+use crate::OptimizationPass;
 
 /// Performs basic DeadCode Elimination
 pub struct DeadCode {}
@@ -12,7 +12,7 @@ impl DeadCode {
     }
 }
 
-impl Optimization for DeadCode {
+impl OptimizationPass for DeadCode {
     fn name(&self) -> String {
         "DeadCode".to_string()
     }
@@ -28,11 +28,8 @@ impl Optimization for DeadCode {
             }
         }
 
-        dbg!(&used_vars);
-
         for block in ir.block.block_iter() {
             let statements = block.get_statements();
-            dbg!(&statements);
 
             let n_statments: Vec<_> = statements
                 .into_iter()
@@ -43,7 +40,6 @@ impl Optimization for DeadCode {
                     _ => true,
                 })
                 .collect();
-            dbg!(&n_statments);
 
             block.set_statements(n_statments);
         }

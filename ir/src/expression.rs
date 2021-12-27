@@ -64,6 +64,13 @@ pub enum Expression {
         /// The Operand to get the Address of
         base: Operand,
     },
+    /// Reads the Value from some Address in Memory
+    ReadMemory {
+        /// The Address to read from
+        address: Operand,
+        /// The Type to read
+        read_ty: Type,
+    },
     /// A Call to some function
     FunctionCall {
         /// The Name of the function to call
@@ -95,6 +102,7 @@ impl Expression {
             Self::UnaryOp { base, .. } => base.used_vars(),
             Self::Cast { base, .. } => base.used_vars(),
             Self::AdressOf { base } => base.used_vars(),
+            Self::ReadMemory { address, .. } => address.used_vars(),
             Self::FunctionCall { arguments, .. } => {
                 let mut tmp = Vec::new();
 

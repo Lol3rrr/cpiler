@@ -10,6 +10,19 @@ pub enum AComparitor {
     NotEqual,
 }
 
+impl AComparitor {
+    fn to_ir(&self) -> ir::BinaryLogicOp {
+        match self {
+            Self::Less => ir::BinaryLogicOp::Less,
+            Self::LessEqual => ir::BinaryLogicOp::LessEq,
+            Self::Greater => ir::BinaryLogicOp::Greater,
+            Self::GreaterEqual => ir::BinaryLogicOp::GreaterEq,
+            Self::Equal => ir::BinaryLogicOp::Equal,
+            Self::NotEqual => ir::BinaryLogicOp::NotEqual,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicCombinator {
     Or,
@@ -30,6 +43,16 @@ pub enum ArithemticOp {
     Add,
     Sub,
     Multiply,
+}
+
+impl ArithemticOp {
+    fn to_ir(&self) -> ir::BinaryArithmeticOp {
+        match self {
+            Self::Add => ir::BinaryArithmeticOp::Add,
+            Self::Sub => ir::BinaryArithmeticOp::Sub,
+            Self::Multiply => ir::BinaryArithmeticOp::Multiply,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -61,20 +84,8 @@ impl From<ExpressionOperator> for AOperator {
 impl AOperator {
     pub fn to_ir(self) -> ir::BinaryOp {
         match self {
-            Self::Arithmetic(arith_op) => match arith_op {
-                ArithemticOp::Add => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                ArithemticOp::Sub => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Sub),
-                ArithemticOp::Multiply => ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
-            },
-            Self::Comparison(comp_op) => match comp_op {
-                AComparitor::Equal => ir::BinaryOp::Logic(ir::BinaryLogicOp::Equal),
-                AComparitor::NotEqual => ir::BinaryOp::Logic(ir::BinaryLogicOp::NotEqual),
-                other => {
-                    dbg!(&other);
-
-                    todo!("Convert CompOP to ir")
-                }
-            },
+            Self::Arithmetic(arith_op) => ir::BinaryOp::Arith(arith_op.to_ir()),
+            Self::Comparison(comp_op) => ir::BinaryOp::Logic(comp_op.to_ir()),
             Self::Combinator(comb_op) => ir::BinaryOp::LogicCombinator(comb_op.to_ir()),
         }
     }

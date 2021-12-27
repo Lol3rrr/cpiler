@@ -1,5 +1,7 @@
+mod access_global;
 mod arrays;
 mod controlflow;
+mod example_code;
 mod function_call;
 mod pointers;
 mod scalar;

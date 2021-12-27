@@ -1,14 +1,16 @@
 use general::SpanData;
+use ir::BasicBlock;
 use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
-    atype, AExpression, AFunctionArg, AScope, AType, FunctionDeclaration, ParseState, SemanticError,
+    atype, conversion::ConvertContext, AExpression, AFunctionArg, AScope, AType,
+    FunctionDeclaration, ParseState, SemanticError, UnaryArithmeticOp, UnaryOperator,
 };
 
 mod target;
 pub use target::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AStatement {
     DeclareVar {
         name: Identifier,
@@ -53,17 +55,12 @@ impl AStatement {
                 let target_ty =
                     AType::parse_typedef(base_type, parse_state.type_defs(), parse_state)?;
 
-                dbg!(&name, &target_ty);
-
                 parse_state.mut_type_defs().add_definition(name, target_ty);
 
                 Ok(None)
             }
             Statement::StructDefinition { name, members } => {
-                dbg!(&name, &members);
-
                 let ty = AType::parse_struct(members, parse_state.type_defs(), parse_state)?;
-                dbg!(&ty);
 
                 parse_state.mut_type_defs().add_definition(name, ty);
                 Ok(None)
@@ -74,8 +71,6 @@ impl AStatement {
                 arguments,
                 var_args,
             }) => {
-                dbg!(&name, &r_type, &arguments);
-
                 if parse_state.is_declared(&name) {
                     panic!("Redefinition Error");
                 }
@@ -113,8 +108,6 @@ impl AStatement {
                     },
                 body,
             } => {
-                dbg!(&name, &r_type, &arguments, &var_args, &body);
-
                 if parse_state.is_defined(&name) {
                     panic!("Redefinition Error");
                 }
@@ -177,8 +170,6 @@ impl AStatement {
             Statement::VariableDeclaration { ty, name } => {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
 
-                dbg!(&name, &ty);
-
                 if parse_state.is_declared(&name) {
                     panic!("Redefintion Error");
                 }
@@ -195,8 +186,6 @@ impl AStatement {
             }
             Statement::VariableDeclarationAssignment { ty, name, value } => {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
-
-                dbg!(&name, &ty);
 
                 if parse_state.is_declared(&name) {
                     let prev_dec = parse_state.get_declaration(&name).unwrap();
@@ -227,8 +216,6 @@ impl AStatement {
                 let value_exp =
                     atype::assign_type::determine_type(base_value_exp, (&var_type, &var_span))?;
 
-                dbg!(&value_exp);
-
                 let exp_type = value_exp.result_type();
                 if var_type != exp_type {
                     return Err(SemanticError::MismatchedTypes {
@@ -249,13 +236,9 @@ impl AStatement {
                 }))
             }
             Statement::VariableDerefAssignment { target, value } => {
-                dbg!(&target, &value);
-
                 let target_exp = AExpression::parse(target, parse_state.type_defs(), parse_state)?;
-                dbg!(&target_exp);
 
                 let target_type = target_exp.result_type();
-                dbg!(&target_type);
 
                 let inner_ty = match target_type {
                     AType::Pointer(inner) => *inner,
@@ -270,24 +253,20 @@ impl AStatement {
                     span: target_exp.entire_span(),
                     data: inner_ty,
                 };
-                dbg!(&ty_info);
 
                 let target = AAssignTarget::Deref {
                     exp: target_exp,
                     ty_info,
                 };
-                dbg!(&target);
 
                 let base_value_exp =
                     AExpression::parse(value, parse_state.type_defs(), parse_state)?;
-                dbg!(&base_value_exp);
 
                 let (expected_type, expected_type_span) = target.get_expected_type();
                 let value_exp = atype::assign_type::determine_type(
                     base_value_exp,
                     (&expected_type, &expected_type_span),
                 )?;
-                dbg!(&value_exp);
 
                 Ok(Some(Self::Assignment {
                     target,
@@ -300,13 +279,9 @@ impl AStatement {
                 Ok(Some(Self::Expression(exp)))
             }
             Statement::WhileLoop { condition, scope } => {
-                dbg!(&condition, &scope);
-
                 let cond = AExpression::parse(condition, parse_state.type_defs(), parse_state)?;
-                dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
-                dbg!(&inner_scope);
 
                 Ok(Some(Self::WhileLoop {
                     condition: cond,
@@ -319,15 +294,11 @@ impl AStatement {
                 update,
                 scope,
             } => {
-                dbg!(&setup, &condition, &update, &scope);
-
                 let mut loop_state = ParseState::based(parse_state);
 
                 let mut a_setups = Vec::new();
                 for tmp_setup in setup {
                     if let Some(tmp_setup_a) = AStatement::parse(tmp_setup, &mut loop_state)? {
-                        dbg!(&tmp_setup_a);
-
                         a_setups.push(tmp_setup_a);
                     }
                 }
@@ -335,15 +306,11 @@ impl AStatement {
                 let mut a_updates = Vec::new();
                 for tmp_update in update {
                     if let Some(tmp_update_a) = AStatement::parse(tmp_update, &mut loop_state)? {
-                        dbg!(&tmp_update_a);
-
                         a_updates.push(tmp_update_a);
                     }
                 }
 
                 let a_cond = AExpression::parse(condition, parse_state.type_defs(), &loop_state)?;
-
-                dbg!(&a_setups, &a_cond, &a_updates);
 
                 let inner_scope = AScope::parse(&loop_state, scope)?;
 
@@ -368,20 +335,14 @@ impl AStatement {
                 scope,
                 elses,
             } => {
-                dbg!(&condition, &scope, &elses);
-
                 let cond = AExpression::parse(condition, parse_state.type_defs(), parse_state)?;
-                dbg!(&cond);
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
-                dbg!(&inner_scope);
 
                 // TODO
                 // Parse Elses
                 let else_block = match elses {
                     Some(else_inner) => {
-                        dbg!(&else_inner);
-
                         let else_scope = AScope::parse(parse_state, else_inner)?;
                         Some(else_scope)
                     }
@@ -395,7 +356,6 @@ impl AStatement {
                 }))
             }
             Statement::Return(raw_val) => {
-                dbg!(&raw_val);
                 let r_value = match raw_val {
                     Some(raw) => {
                         let value = AExpression::parse(raw, parse_state.type_defs(), parse_state)?;
@@ -409,5 +369,397 @@ impl AStatement {
             }
             unknown => panic!("Unexpected Statement: {:?}", unknown),
         }
+    }
+
+    pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) {
+        match self {
+            Self::SubScope { inner } => {
+                let sub_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                block.add_statement(ir::Statement::Jump(sub_block.clone()));
+
+                let end_sub_block = inner.to_ir(&sub_block, ctx);
+                let following_block = BasicBlock::new(vec![end_sub_block.weak_ptr()], vec![]);
+                end_sub_block.add_statement(ir::Statement::Jump(following_block.clone()));
+
+                *block = following_block;
+            }
+            AStatement::DeclareVar { name, ty: raw_ty } => {
+                let ty = raw_ty.ty();
+
+                let target_name = name.0.data;
+
+                match ty {
+                    AType::Array(arr) => {
+                        let arr_length = arr.size.unwrap();
+                        let alignment = arr.ty.alignment(ctx.arch()) as usize;
+                        let size = arr_length * arr.ty.byte_size(ctx.arch()) as usize;
+
+                        let ir_ty = arr.ty.to_ir();
+                        let target_var =
+                            ir::Variable::new(target_name, ir::Type::Pointer(Box::new(ir_ty)))
+                                .set_description("Declare Array Variable");
+
+                        let reserve_exp = ir::Expression::StackAlloc { size, alignment };
+
+                        block.add_statement(ir::Statement::Assignment {
+                            target: target_var,
+                            value: ir::Value::Expression(reserve_exp),
+                        });
+                    }
+                    AType::Struct(struct_def) => {
+                        let size = struct_def.entire_size(ctx.arch());
+                        let alignment = struct_def.alignment(ctx.arch());
+
+                        let ir_ty = ir::Type::Pointer(Box::new(ir::Type::Void));
+                        let target_var = ir::Variable::new(target_name, ir_ty)
+                            .set_description("Declare Struct Variable");
+
+                        let reserve_exp = ir::Expression::StackAlloc { size, alignment };
+
+                        block.add_statement(ir::Statement::Assignment {
+                            target: target_var,
+                            value: ir::Value::Expression(reserve_exp),
+                        });
+                    }
+                    AType::Primitve(_) => {
+                        let ir_type = ty.to_ir();
+
+                        let var = ir::Variable::new(target_name, ir_type)
+                            .set_description("Declare Primitive Variable");
+                        block.add_statement(ir::Statement::Assignment {
+                            target: var,
+                            value: ir::Value::Unknown,
+                        });
+                    }
+                    AType::Pointer(_) => {
+                        let ir_type = ty.to_ir();
+
+                        let var = ir::Variable::new(target_name, ir_type)
+                            .set_description("Declare Pointer Variable");
+                        block.add_statement(ir::Statement::Assignment {
+                            target: var,
+                            value: ir::Value::Unknown,
+                        });
+                    }
+                    other => {
+                        dbg!(&other);
+
+                        todo!("");
+                    }
+                };
+            }
+            AStatement::Assignment { target, value } => {
+                match target {
+                    AAssignTarget::Variable { ident, ty_info } => {
+                        let var_name = ident.0.data;
+                        let next_var = match block.definition(&var_name, &|| ctx.next_tmp()) {
+                            Some(var) => var.next_gen(),
+                            None => {
+                                let target_ty = ty_info.data.to_ir();
+
+                                ir::Variable::new(var_name.clone(), target_ty)
+                            }
+                        };
+
+                        let value_exp = value.to_ir(block, ctx);
+                        let target_meta = value_exp.assign_meta(&next_var);
+                        let target_var = next_var.set_meta(target_meta);
+
+                        block.add_statement(ir::Statement::Assignment {
+                            target: target_var,
+                            value: value_exp,
+                        });
+                    }
+                    AAssignTarget::Deref { exp, .. } => {
+                        let address_value = exp.to_ir(block, ctx);
+
+                        let target_oper = AExpression::val_to_operand(address_value, &block, ctx);
+
+                        let value_exp = value.to_ir(block, ctx);
+
+                        match &target_oper {
+                            ir::Operand::Variable(target_var) => {
+                                match target_var.meta() {
+                                    ir::VariableMetadata::VarPointer { var } => {
+                                        let next_var = var.next_gen();
+                                        let target_meta = value_exp.assign_meta(&next_var);
+                                        let target_var = next_var.set_meta(target_meta);
+
+                                        block.add_statement(ir::Statement::Assignment {
+                                            target: target_var,
+                                            value: value_exp.clone(),
+                                        });
+                                    }
+                                    _ => {}
+                                };
+                            }
+                            _ => {}
+                        };
+
+                        block.add_statement(ir::Statement::WriteMemory {
+                            target: target_oper,
+                            value: value_exp,
+                        });
+                    }
+                    AAssignTarget::ArrayAccess(target) => {
+                        let target_exp = target.to_exp(block, ctx);
+
+                        let target_value = ir::Value::Expression(target_exp);
+                        let target_oper = AExpression::val_to_operand(target_value, block, ctx);
+
+                        let value_exp = value.to_ir(block, ctx);
+
+                        block.add_statement(ir::Statement::WriteMemory {
+                            target: target_oper,
+                            value: value_exp,
+                        });
+                    }
+                    AAssignTarget::StructField(target) => {
+                        dbg!(&target);
+                        let target_exp = target.to_exp(block, ctx);
+                        dbg!(&target_exp);
+
+                        let target_value = ir::Value::Expression(target_exp);
+                        let target_oper = AExpression::val_to_operand(target_value, block, ctx);
+                        dbg!(&target_oper);
+
+                        let value = value.to_ir(block, ctx);
+                        dbg!(&value);
+
+                        block.add_statement(ir::Statement::WriteMemory {
+                            target: target_oper,
+                            value,
+                        });
+                    }
+                };
+            }
+            AStatement::Expression(exp) => {
+                match exp {
+                    AExpression::FunctionCall(call) => {
+                        call.to_standalone_ir(block, ctx);
+                    }
+                    AExpression::UnaryOperator { base, op } => match op {
+                        UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
+                            dbg!(&base);
+
+                            let target = base.clone().assign_target();
+                            dbg!(&target);
+
+                            let assign_statement = AStatement::Assignment {
+                                target,
+                                value: AExpression::UnaryOperator {
+                                    op: UnaryOperator::Arithmetic(
+                                        UnaryArithmeticOp::SuffixIncrement,
+                                    ),
+                                    base,
+                                },
+                            };
+                            assign_statement.to_ir(block, ctx);
+                        }
+                        UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
+                            dbg!(&base);
+
+                            let target = base.clone().assign_target();
+
+                            let assign_statement = AStatement::Assignment {
+                                target,
+                                value: *base,
+                            };
+
+                            todo!()
+                        }
+                        other => {
+                            dbg!(&base, &other);
+
+                            todo!("Standalone Unary OP")
+                        }
+                    },
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Unknown Standalone Expression")
+                    }
+                };
+            }
+            AStatement::Return { value } => {
+                dbg!(&value);
+
+                let ret_value = match value {
+                    Some(raw_ret) => {
+                        dbg!(&raw_ret);
+                        let raw_ty = raw_ret.result_type();
+                        let target_ty = raw_ty.to_ir();
+
+                        let ret_exp = raw_ret.to_ir(block, ctx);
+                        dbg!(&ret_exp);
+
+                        let ret_var = ir::Variable::tmp(ctx.next_tmp(), target_ty);
+                        block.add_statement(ir::Statement::Assignment {
+                            target: ret_var.clone(),
+                            value: ret_exp,
+                        });
+
+                        Some(ret_var)
+                    }
+                    None => None,
+                };
+
+                block.add_statement(ir::Statement::Return(ret_value));
+            }
+            AStatement::If {
+                body,
+                condition,
+                else_,
+            } => {
+                dbg!(&body, &condition);
+
+                let cond_value = condition.to_ir(block, ctx);
+                let cond_var = ir::Variable::tmp(ctx.next_tmp(), ir::Type::I64);
+
+                let cond_statement = ir::Statement::Assignment {
+                    target: cond_var.clone(),
+                    value: cond_value,
+                };
+                block.add_statement(cond_statement);
+
+                // The final resulting Block we reach after the If-Statement is complete
+                let end_block = BasicBlock::new(vec![], vec![]);
+
+                // The Block for the inner Scope of the If-Statement if true
+                let true_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                let end_true_body = body.to_ir(&true_block, ctx);
+                end_true_body.add_statement(ir::Statement::Jump(end_block.clone()));
+                end_block.add_predecessor(end_true_body.weak_ptr());
+
+                block.add_statement(ir::Statement::JumpTrue(
+                    cond_var.clone(),
+                    true_block.clone(),
+                ));
+
+                if let Some(else_) = else_ {
+                    let false_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                    let end_false_block = else_.to_ir(&false_block, ctx);
+                    end_false_block.add_statement(ir::Statement::Jump(end_block.clone()));
+                    block.add_statement(ir::Statement::Jump(end_false_block.clone()));
+                    end_block.add_predecessor(end_false_block.weak_ptr());
+                } else {
+                    // Jump to the end Block directly
+                    block.add_statement(ir::Statement::Jump(end_block.clone()));
+                    end_block.add_predecessor(block.weak_ptr());
+                }
+
+                *block = end_block;
+            }
+            AStatement::WhileLoop { condition, body } => {
+                dbg!(&condition, &body);
+
+                let start_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                let inner_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
+                let end_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
+
+                // Generate the first iteration of the start Block
+                {
+                    let mut cond_start = start_block.clone();
+                    let cond_value = condition.to_ir(&mut cond_start, ctx);
+                    let cond_var = ir::Variable::tmp(ctx.next_tmp(), ir::Type::I64);
+
+                    let cond_statement = ir::Statement::Assignment {
+                        target: cond_var.clone(),
+                        value: cond_value,
+                    };
+                    start_block.add_statement(cond_statement);
+
+                    start_block
+                        .add_statement(ir::Statement::JumpTrue(cond_var, inner_block.clone()));
+                    start_block.add_statement(ir::Statement::Jump(end_block.clone()));
+                }
+
+                // Generate the inner Part of the Loop
+                {
+                    let loop_ctx = ctx.with_loop(start_block.clone(), end_block.clone());
+
+                    let inner_end_block = body.to_ir(&inner_block, &loop_ctx);
+                    inner_end_block.add_statement(ir::Statement::Jump(start_block.clone()));
+                    start_block.add_predecessor(inner_end_block.weak_ptr());
+                }
+
+                // TODO
+                // Regenerate the condition of the Loop
+
+                block.add_statement(ir::Statement::Jump(start_block));
+                *block = end_block;
+            }
+            AStatement::ForLoop {
+                condition,
+                body,
+                updates,
+            } => {
+                dbg!(&condition, &body, &updates);
+
+                let used_vars_in_cond = condition.used_variables();
+                for tmp_var in used_vars_in_cond {
+                    dbg!(&tmp_var);
+                }
+
+                // The Block containing the Condition
+                let (condition_block, cond_var) = {
+                    let condition_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+
+                    let mut cond_val_block = condition_block.clone();
+                    let cond_value = condition.to_ir(&mut cond_val_block, ctx);
+                    let cond_var = ir::Variable::tmp(ctx.next_tmp(), ir::Type::I64);
+
+                    condition_block.add_statement(ir::Statement::Assignment {
+                        target: cond_var.clone(),
+                        value: cond_value,
+                    });
+
+                    (condition_block, cond_var)
+                };
+
+                // The Block updating some parts after every iteration
+                let update_block = BasicBlock::new(vec![], vec![]);
+                condition_block.add_predecessor(update_block.weak_ptr());
+
+                // The Block after the Loop
+                let end_block = BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
+
+                // The starting Block of the internal Scope
+                let content_start_block = BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
+                {
+                    let inner_ctx = ctx.with_loop(update_block.clone(), end_block.clone());
+
+                    let content_end_block = body.to_ir(&content_start_block, &inner_ctx);
+                    content_end_block.add_statement(ir::Statement::Jump(update_block.clone()));
+                    update_block.add_predecessor(content_end_block.weak_ptr());
+                }
+                condition_block.add_statement(ir::Statement::JumpTrue(
+                    cond_var,
+                    content_start_block.clone(),
+                ));
+                condition_block.add_statement(ir::Statement::Jump(end_block.clone()));
+
+                block.add_statement(ir::Statement::Jump(condition_block));
+                *block = end_block;
+            }
+            AStatement::Break => {
+                let loop_end_block = match ctx.get_loop_end() {
+                    Some(b) => b,
+                    None => panic!("Break outside of Loop"),
+                };
+
+                loop_end_block.add_predecessor(block.weak_ptr());
+                block.add_statement(ir::Statement::Jump(loop_end_block.clone()));
+            }
+            AStatement::Continue => {
+                let loop_start_block = match ctx.get_loop_start() {
+                    Some(b) => b,
+                    None => panic!("Continue outside of loop"),
+                };
+
+                loop_start_block.add_predecessor(block.weak_ptr());
+                block.add_statement(ir::Statement::Jump(loop_start_block.clone()));
+            }
+        };
     }
 }

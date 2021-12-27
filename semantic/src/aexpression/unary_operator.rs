@@ -5,6 +5,10 @@ pub enum UnaryArithmeticOp {
     SuffixIncrement,
     SuffixDecrement,
     Negate,
+    /// Simply increments the base Value and returns the Result
+    Increment,
+    /// Simply decrements the base Value and returns the Result
+    Decrement,
 }
 
 #[derive(Debug, PartialEq, Clone)]

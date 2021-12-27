@@ -99,6 +99,10 @@ pub enum Constant {
     U32(u32),
     /// 64 bit unsigned integer
     U64(u64),
+    /// 32 bit floating Point Number
+    F32(f32),
+    /// 64 bit floating Point Number
+    F64(f64),
 }
 
 impl Constant {
@@ -113,6 +117,8 @@ impl Constant {
             Self::U16(_) => Type::U16,
             Self::U32(_) => Type::U32,
             Self::U64(_) => Type::U64,
+            Self::F32(_) => Type::Float,
+            Self::F64(_) => Type::Double,
         }
     }
 }

@@ -60,10 +60,15 @@ impl Literal {
 
                 Value::Variable(arr_tmp)
             }
-            other => {
-                dbg!(&other);
+            Self::CharLiteral(SpanData { data, .. }) => {
+                assert!(data.is_ascii());
 
-                todo!("Convert Literal");
+                let result = data as u8;
+
+                ir::Value::Constant(ir::Constant::U8(result))
+            }
+            Self::FloatingPoint(SpanData { data, .. }) => {
+                ir::Value::Constant(ir::Constant::F64(data))
             }
         }
     }

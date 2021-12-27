@@ -5,7 +5,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 mod variable;
 use dot::{Context, DrawnBlocks};
-use general::dot::Graph;
+use graphviz::Graph;
 pub use variable::*;
 
 mod dot;
@@ -45,12 +45,12 @@ impl Program {
     /// Generates the needed Dot Graphviz Representation to allow for easier visualization of the
     /// Program
     pub fn to_dot(&self) -> String {
-        let mut graph = general::dot::RootGraph::new();
+        let mut graph = graphviz::RootGraph::new();
         let mut drawn = DrawnBlocks::new();
 
         let ctx = Context::new();
 
-        let mut global_graph = general::dot::SubGraph::new("global")
+        let mut global_graph = graphviz::SubGraph::new("global")
             .cluster()
             .arg("label", "Global");
         self.global.to_dot(&mut global_graph, &mut drawn, &ctx);
@@ -68,7 +68,7 @@ impl Debug for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f_struct = f.debug_struct("Program");
 
-        f_struct.field("global", &format!("{:?}", self.global));
+        f_struct.field("global", &self.global);
         f_struct.field("functions", &self.functions);
 
         Ok(())

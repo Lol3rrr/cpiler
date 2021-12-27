@@ -12,6 +12,11 @@ pub use context::*;
 pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
     let global_block = BasicBlock::initial(vec![]);
 
+    ast.global_scope
+        .0
+        .clone()
+        .to_ir(&global_block, &ConvertContext::base(arch.clone()));
+
     let mut functions = HashMap::new();
     for (name, (func_dec, func_scope)) in ast.global_scope.0.function_definitions {
         let return_ty = Type::Void;

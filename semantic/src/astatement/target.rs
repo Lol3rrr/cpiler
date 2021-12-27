@@ -7,30 +7,16 @@ use crate::{
     VariableContainer,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ArrayAccessTarget {
-    target: Box<AAssignTarget>,
-    index: Box<AExpression>,
-    ty_info: SpanData<AType>,
+    pub target: Box<AAssignTarget>,
+    pub index: Box<AExpression>,
+    pub ty_info: SpanData<AType>,
 }
 
 impl ArrayAccessTarget {
-    pub fn to_exp(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Expression {
-        let base_target = match *self.target {
-            AAssignTarget::Variable { ident, ty_info } => {
-                assert!(matches!(&ty_info.data, AType::Array(_)));
-
-                AExpression::Variable {
-                    ident,
-                    ty: ty_info.data,
-                }
-            }
-            other => {
-                dbg!(&other);
-
-                todo!()
-            }
-        };
+    pub fn to_exp(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Expression {
+        let (base_address, _) = self.target.base_target_address(block, ctx);
 
         let elem_size = self.ty_info.data.byte_size(ctx.arch());
 
@@ -46,8 +32,7 @@ impl ArrayAccessTarget {
         let offset_value = ir::Value::Expression(offset_exp);
         let offset_oper = AExpression::val_to_operand(offset_value, block, ctx);
 
-        let base_value = base_target.to_ir(block, ctx);
-        let base_oper = AExpression::val_to_operand(base_value, block, ctx);
+        let base_oper = AExpression::val_to_operand(base_address, block, ctx);
 
         ir::Expression::BinaryOp {
             op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
@@ -57,7 +42,7 @@ impl ArrayAccessTarget {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StructFieldTarget {
     /// The underlying Struct Target, like a Variable or Pointer
     pub target: Box<AAssignTarget>,
@@ -68,35 +53,23 @@ pub struct StructFieldTarget {
 }
 
 impl StructFieldTarget {
-    pub fn to_exp(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Expression {
-        let (base_target, struct_def) = match *self.target {
-            AAssignTarget::Variable { ident, ty_info } => {
-                dbg!(&ty_info);
-                match ty_info.data {
-                    AType::Struct(def) => {
-                        let var = AExpression::Variable {
-                            ident,
-                            ty: AType::Struct(def.clone()),
-                        };
+    pub fn to_exp(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Expression {
+        let (base_value, base_ty) = self.target.base_target_address(block, ctx);
+        dbg!(&base_value, &base_ty);
 
-                        (var, def)
-                    }
-                    _ => panic!("Exected Struct Ptr"),
-                }
-            }
+        let struct_def = match base_ty {
+            AType::Struct(d) => d,
             other => {
                 dbg!(&other);
 
-                todo!()
+                panic!("Expected Struct as Target Type")
             }
         };
-        dbg!(&base_target, &struct_def);
 
         let offset = struct_def
             .member_offset(&self.field.0.data, ctx.arch())
             .expect("Field does not exist");
 
-        let base_value = base_target.to_ir(block, ctx);
         let base_oper = AExpression::val_to_operand(base_value, block, ctx);
         dbg!(&base_oper);
 
@@ -108,7 +81,7 @@ impl StructFieldTarget {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AAssignTarget {
     Variable {
         ident: Identifier,
@@ -286,6 +259,109 @@ impl AAssignTarget {
             }
             Self::StructField(StructFieldTarget { ty_info, .. }) => {
                 (ty_info.data.clone(), ty_info.span.clone())
+            }
+        }
+    }
+
+    /// Returns an ir::Value that contains the base Address of the Target, this means when you need
+    /// to calculate the Address for an Array access you can use this function to load the Base
+    /// starting Address of the Array and then add the needed offset for the Index
+    pub fn base_target_address(
+        self,
+        block: &mut BasicBlock,
+        ctx: &ConvertContext,
+    ) -> (ir::Value, AType) {
+        match self {
+            Self::Variable { ident, ty_info } => {
+                dbg!(&ty_info);
+
+                match ty_info.data.ty() {
+                    AType::Struct(def) => {
+                        let var = AExpression::Variable {
+                            ident,
+                            ty: SpanData {
+                                span: ty_info.span,
+                                data: AType::Struct(def.clone()),
+                            },
+                        };
+
+                        (var.to_ir(block, ctx), AType::Struct(def))
+                    }
+                    AType::Array(arr) => {
+                        let var = AExpression::Variable {
+                            ident,
+                            ty: SpanData {
+                                span: ty_info.span,
+                                data: AType::Array(arr.clone()),
+                            },
+                        };
+
+                        (var.to_ir(block, ctx), AType::Array(arr))
+                    }
+                    AType::Pointer(base_ty) => {
+                        let var = AExpression::Variable {
+                            ident,
+                            ty: SpanData {
+                                span: ty_info.span,
+                                data: AType::Pointer(base_ty.clone()),
+                            },
+                        };
+
+                        (var.to_ir(block, ctx), AType::Pointer(base_ty))
+                    }
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Variable of different Type");
+                    }
+                }
+            }
+            Self::ArrayAccess(arr_target) => {
+                dbg!(&arr_target);
+
+                match &arr_target.ty_info.data.into_ty() {
+                    AType::Struct(def) => {
+                        let s_def = def.clone();
+
+                        let target_exp = arr_target.to_exp(block, ctx);
+                        dbg!(&target_exp);
+
+                        (ir::Value::Expression(target_exp), AType::Struct(s_def))
+                    }
+                    other => {
+                        dbg!(&other);
+
+                        todo!()
+                    }
+                }
+            }
+            Self::StructField(StructFieldTarget {
+                target,
+                field,
+                ty_info,
+            }) => {
+                dbg!(&target, &field, &ty_info);
+
+                let (base_address_value, base_target_ty) = target.base_target_address(block, ctx);
+                dbg!(&base_address_value, &base_target_ty);
+                let base_address_oper = AExpression::val_to_operand(base_address_value, block, ctx);
+
+                let struct_def = base_target_ty.get_struct_def().unwrap();
+
+                let raw_offset = struct_def.member_offset(&field.0.data, ctx.arch()).unwrap();
+                let offset_oper = ir::Operand::Constant(ir::Constant::I64(raw_offset as i64));
+
+                let target_exp = ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: base_address_oper,
+                    right: offset_oper,
+                };
+                (ir::Value::Expression(target_exp), ty_info.data)
+            }
+            other => {
+                dbg!(&other);
+
+                todo!("Non Variable Target");
             }
         }
     }

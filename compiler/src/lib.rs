@@ -1,3 +1,4 @@
+use optimizer::Optimization;
 use preprocessor::Loader;
 
 mod error;
@@ -18,7 +19,17 @@ where
 
     dbg!(&aast);
 
-    let ir = aast.convert_to_ir(general::arch::Arch::X86_64);
+    let raw_ir = aast.convert_to_ir(general::arch::Arch::X86_64);
+
+    let mut optimizier_config = optimizer::Config::new();
+    optimizier_config.add_pass(optimizer::optimizations::Merger::new());
+
+    let chain = optimizer::optimizations::ConstantProp::new()
+        .chain(optimizer::optimizations::DeadCode::new())
+        .repeat(10);
+    optimizier_config.add_pass(chain);
+
+    let ir = optimizer::optimize(raw_ir, optimizier_config);
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 

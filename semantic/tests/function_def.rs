@@ -73,14 +73,20 @@ void test(int arg_1, int arg_2) {
                                         span: Span::new_source(input_source.clone(), 50..55),
                                         data: "arg_1".to_string(),
                                     }),
-                                    ty: AType::Primitve(APrimitive::Int),
+                                    ty: SpanData {
+                                        span: Span::new_source(input_source.clone(), 11..20),
+                                        data: AType::Primitve(APrimitive::Int),
+                                    },
                                 }),
                                 right: Box::new(AExpression::Variable {
                                     ident: Identifier(SpanData {
                                         span: Span::new_source(input_source.clone(), 58..63),
                                         data: "arg_2".to_string(),
                                     }),
-                                    ty: AType::Primitve(APrimitive::Int),
+                                    ty: SpanData {
+                                        span: Span::new_source(input_source.clone(), 22..31),
+                                        data: AType::Primitve(APrimitive::Int),
+                                    },
                                 }),
                             },
                         }],

@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
 use general::{Span, SpanData};
-use ir::{BasicBlock, Operand, Value};
+use ir::{BasicBlock, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
-    atype, conversion::ConvertContext, APrimitive, AType, SemanticError, TypeDefinitions,
-    VariableContainer,
+    atype, conversion::ConvertContext, AAssignTarget, APrimitive, AStatement, AType,
+    ArrayAccessTarget, SemanticError, TypeDefinitions, VariableContainer,
 };
 
 mod operator;
@@ -18,100 +18,18 @@ pub use unary_operator::*;
 mod literal;
 pub use literal::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct FunctionCall {
-    pub name: Identifier,
-    pub arguments: Vec<AExpression>,
-    pub result_ty: AType,
-}
+mod functioncall;
+pub use functioncall::*;
 
-impl FunctionCall {
-    fn argument_ir(
-        arguments: Vec<AExpression>,
-        block: &BasicBlock,
-        ctx: &ConvertContext,
-    ) -> Vec<ir::Operand> {
-        let mut args = Vec::new();
-        for tmp_arg in arguments {
-            dbg!(&tmp_arg);
-
-            let arg_value = tmp_arg.to_ir(block, ctx);
-            dbg!(&arg_value);
-
-            let arg_oper = AExpression::val_to_operand(arg_value, block, ctx);
-            dbg!(&arg_oper);
-
-            args.push(arg_oper);
-        }
-
-        args
-    }
-
-    fn cleanup_ir(args: &[Operand]) -> Vec<ir::Statement> {
-        args.into_iter()
-            .filter_map(|arg| match arg {
-                Operand::Variable(var) if var.ty.is_ptr() => Some(ir::Statement::Assignment {
-                    target: var.next_gen(),
-                    value: Value::Unknown,
-                }),
-                _ => None,
-            })
-            .collect()
-    }
-
-    pub fn to_ir(self, block: &BasicBlock, ctx: &ConvertContext) -> ir::Value {
-        dbg!(&self);
-
-        let name = self.name.0.data;
-        let args = Self::argument_ir(self.arguments, block, ctx);
-        let ty = self.result_ty.to_ir();
-
-        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), ty.clone());
-
-        let cleanup_statements = Self::cleanup_ir(&args);
-
-        let func_statement = ir::Statement::Assignment {
-            target: tmp_var.clone(),
-            value: Value::Expression(ir::Expression::FunctionCall {
-                name,
-                arguments: args,
-                return_ty: ty,
-            }),
-        };
-        block.add_statement(func_statement);
-
-        for tmp in cleanup_statements {
-            block.add_statement(tmp);
-        }
-
-        Value::Variable(tmp_var)
-    }
-
-    pub fn to_standalone_ir(self, block: &BasicBlock, ctx: &ConvertContext) {
-        dbg!(&self);
-
-        let name = self.name.0.data;
-        let args = Self::argument_ir(self.arguments, block, ctx);
-        let cleanup_statements = Self::cleanup_ir(&args);
-
-        let func_statemnet = ir::Statement::Call {
-            name,
-            arguments: args,
-        };
-
-        block.add_statement(func_statemnet);
-        for c_stmnt in cleanup_statements {
-            block.add_statement(c_stmnt);
-        }
-    }
-}
+mod structaccess;
+pub use structaccess::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AExpression {
     Literal(Literal),
     Variable {
         ident: Identifier,
-        ty: AType,
+        ty: SpanData<AType>,
     },
     AddressOf {
         base: Box<Self>,
@@ -124,13 +42,9 @@ pub enum AExpression {
     ArrayAccess {
         base: Box<Self>,
         index: Box<Self>,
-        ty: AType,
+        ty: SpanData<AType>,
     },
-    StructAccess {
-        base: Box<Self>,
-        field: Identifier,
-        ty: AType,
-    },
+    StructAccess(StructAccess),
     FunctionCall(FunctionCall),
     Cast {
         base: Box<Self>,
@@ -205,13 +119,10 @@ impl AExpression {
             Expression::CharLiteral { content } => Ok(Self::Literal(Literal::CharLiteral(content))),
             Expression::SizeOf { ty } => {
                 let a_ty = AType::parse(ty, ty_defs, vars)?;
-                dbg!(&a_ty);
 
                 Ok(Self::SizeOf { ty: a_ty })
             }
             Expression::Identifier { ident } => {
-                dbg!(&ident);
-
                 let (var_type, var_span) = match vars.get_var(&ident) {
                     Some(tmp) => tmp,
                     None => {
@@ -219,21 +130,18 @@ impl AExpression {
                     }
                 };
 
-                dbg!(&var_type, &var_span);
-
                 Ok(AExpression::Variable {
                     ident,
-                    ty: var_type.clone(),
+                    ty: SpanData {
+                        data: var_type.clone(),
+                        span: var_span.clone(),
+                    },
                 })
             }
             Expression::StructAccess { base, field } => {
-                dbg!(&base, &field);
-
                 let base_exp = AExpression::parse(*base, ty_defs, vars)?;
-                dbg!(&base_exp);
 
                 let base_ty = base_exp.result_type();
-                dbg!(&base_ty);
 
                 let struct_def = match base_ty.get_struct_def() {
                     Some(s) => s,
@@ -243,7 +151,6 @@ impl AExpression {
                         todo!("Wrong Type, expected Struct");
                     }
                 };
-                dbg!(&struct_def);
 
                 let (field_ty, _) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),
@@ -253,13 +160,12 @@ impl AExpression {
                         todo!("Unknown Field on Struct");
                     }
                 };
-                dbg!(&field_ty);
 
-                Ok(Self::StructAccess {
+                Ok(Self::StructAccess(StructAccess {
                     base: Box::new(base_exp),
                     field,
                     ty: field_ty,
-                })
+                }))
             }
             Expression::SingleOperation {
                 base,
@@ -413,23 +319,24 @@ impl AExpression {
                         todo!("Expected Array");
                     }
                 };
+                let ty_span = base_exp.entire_span();
 
                 let a_index = AExpression::parse(*index, ty_defs, vars)?;
 
                 Ok(Self::ArrayAccess {
                     base: Box::new(base_exp),
                     index: Box::new(a_index),
-                    ty: *elem_ty,
+                    ty: SpanData {
+                        span: ty_span,
+                        data: *elem_ty,
+                    },
                 })
             }
             Expression::SingleOperation {
                 base,
                 operation: SingleOperation::AddressOf,
             } => {
-                dbg!(&base);
-
                 let a_base = Self::parse(*base, ty_defs, vars)?;
-                dbg!(&a_base);
 
                 match a_base {
                     AExpression::Variable { .. } => {}
@@ -448,13 +355,9 @@ impl AExpression {
                 })
             }
             Expression::SingleOperation { base, operation } => {
-                dbg!(&base, &operation);
-
                 let a_base = AExpression::parse(*base, ty_defs, vars)?;
-                dbg!(&a_base);
 
                 let a_op = UnaryOperator::from(operation);
-                dbg!(&a_op);
 
                 Ok(Self::UnaryOperator {
                     base: Box::new(a_base),
@@ -466,16 +369,11 @@ impl AExpression {
                 right,
                 operation,
             } => {
-                dbg!(&left, &right, &operation);
-
                 let left_a = Self::parse(*left, ty_defs, vars)?;
-                dbg!(&left_a);
 
                 let right_a = Self::parse(*right, ty_defs, vars)?;
-                dbg!(&right_a);
 
                 let op_a = AOperator::from(operation);
-                dbg!(&op_a);
 
                 let (left_exp, right_exp) = match &op_a {
                     AOperator::Comparison(_) => {
@@ -491,8 +389,6 @@ impl AExpression {
                     AOperator::Arithmetic(_) => atype::determine_types(left_a, right_a)?,
                 };
 
-                dbg!(&left_exp, &right_exp);
-
                 Ok(Self::BinaryOperator {
                     left: Box::new(left_exp),
                     right: Box::new(right_exp),
@@ -500,13 +396,9 @@ impl AExpression {
                 })
             }
             Expression::Cast { target_ty, exp } => {
-                dbg!(&target_ty, &exp);
-
                 let ty = AType::parse(target_ty, ty_defs, vars)?;
-                dbg!(&ty);
 
                 let inner_exp = Self::parse(*exp, ty_defs, vars)?;
-                dbg!(&inner_exp);
 
                 Ok(Self::Cast {
                     target: ty,
@@ -543,11 +435,11 @@ impl AExpression {
                 }
                 Literal::CharLiteral(_) => AType::Primitve(APrimitive::Char),
             },
-            Self::Variable { ty, .. } => ty.clone(),
+            Self::Variable { ty, .. } => ty.data.clone(),
             Self::AddressOf { ty, .. } => ty.clone(),
             Self::SizeOf { .. } => AType::Primitve(APrimitive::UnsignedInt),
-            Self::ArrayAccess { ty, .. } => ty.clone(),
-            Self::StructAccess { ty, .. } => ty.clone(),
+            Self::ArrayAccess { ty, .. } => ty.data.clone(),
+            Self::StructAccess(StructAccess { ty, .. }) => ty.clone(),
             Self::FunctionCall(FunctionCall { result_ty, .. }) => result_ty.clone(),
             Self::Cast { target, .. } => target.clone(),
             Self::BinaryOperator { op, left, right } => match op {
@@ -578,7 +470,7 @@ impl AExpression {
             Self::AddressOf { base, .. } => base.entire_span(),
             Self::SizeOf { .. } => panic!("SizeOf Operand"),
             Self::ArrayAccess { base, .. } => base.entire_span(),
-            Self::StructAccess { field, .. } => field.0.span.clone(),
+            Self::StructAccess(StructAccess { field, .. }) => field.0.span.clone(),
             Self::FunctionCall(FunctionCall { name, .. }) => name.0.span.clone(),
             Self::Cast { base, .. } => base.entire_span(),
             Self::BinaryOperator { left, right, .. } => {
@@ -594,6 +486,24 @@ impl AExpression {
             }
             Self::UnaryOperator { base, .. } => base.entire_span(),
             Self::InlineAssembly { span, .. } => span.clone(),
+        }
+    }
+
+    pub fn assign_target(self) -> AAssignTarget {
+        match self {
+            Self::Variable { ident, ty } => AAssignTarget::Variable { ident, ty_info: ty },
+            Self::ArrayAccess { base, index, ty } => {
+                AAssignTarget::ArrayAccess(ArrayAccessTarget {
+                    target: Box::new(base.assign_target()),
+                    index,
+                    ty_info: ty,
+                })
+            }
+            other => {
+                dbg!(&other);
+
+                todo!()
+            }
         }
     }
 
@@ -616,7 +526,7 @@ impl AExpression {
 
                 tmp
             }
-            Self::StructAccess { base, .. } => base.used_variables(),
+            Self::StructAccess(StructAccess { base, .. }) => base.used_variables(),
             Self::FunctionCall(call) => {
                 let mut tmp = BTreeSet::new();
 
@@ -654,60 +564,62 @@ impl AExpression {
             }
             Value::Constant(constant) => ir::Operand::Constant(constant),
             Value::Variable(var) => ir::Operand::Variable(var),
-            Value::Expression(exp) => {
-                dbg!(&exp);
+            Value::Expression(exp) => match &exp {
+                ir::Expression::Cast { target, .. } => {
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), target.clone())
+                        .set_description("Temp Variable for Cast");
 
-                match &exp {
-                    ir::Expression::Cast { base, target } => {
-                        dbg!(&base, &target);
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(exp),
+                    };
+                    block.add_statement(assign_statement);
 
-                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), target.clone());
-                        dbg!(&tmp_var);
-
-                        let assign_statement = ir::Statement::Assignment {
-                            target: tmp_var.clone(),
-                            value: Value::Expression(exp),
-                        };
-                        block.add_statement(assign_statement);
-
-                        ir::Operand::Variable(tmp_var)
-                    }
-                    ir::Expression::BinaryOp { op, left, right } => {
-                        dbg!(&op, &left, &right);
-
-                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), left.ty());
-                        dbg!(&tmp_var);
-
-                        let assign_statement = ir::Statement::Assignment {
-                            target: tmp_var.clone(),
-                            value: Value::Expression(exp),
-                        };
-                        block.add_statement(assign_statement);
-
-                        ir::Operand::Variable(tmp_var)
-                    }
-                    ir::Expression::UnaryOp { op, base } => {
-                        dbg!(&op, &base);
-
-                        let tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty());
-                        dbg!(&tmp_var);
-
-                        let assign_statement = ir::Statement::Assignment {
-                            target: tmp_var.clone(),
-                            value: Value::Expression(exp),
-                        };
-                        block.add_statement(assign_statement);
-
-                        ir::Operand::Variable(tmp_var)
-                    }
-                    other => panic!("{:?} as Operand", other),
+                    ir::Operand::Variable(tmp_var)
                 }
-            }
+                ir::Expression::ReadMemory { read_ty, .. } => {
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), read_ty.clone())
+                        .set_description("Memory Address for Read Memory Expression");
+
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(exp),
+                    };
+                    block.add_statement(assign_statement);
+
+                    ir::Operand::Variable(tmp_var)
+                }
+                ir::Expression::BinaryOp { left, .. } => {
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), left.ty())
+                        .set_description("Temp Variable for Binary Operation");
+
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(exp),
+                    };
+                    block.add_statement(assign_statement);
+
+                    ir::Operand::Variable(tmp_var)
+                }
+                ir::Expression::UnaryOp { base, .. } => {
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty())
+                        .set_description("Temp Variable for Unary Operation");
+
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(exp),
+                    };
+                    block.add_statement(assign_statement);
+
+                    ir::Operand::Variable(tmp_var)
+                }
+                other => panic!("{:?} as Operand", other),
+            },
         }
     }
 
     /// Converts the Expression to the corresponding IR
-    pub fn to_ir(self, block: &BasicBlock, ctx: &ConvertContext) -> Value {
+    pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) -> Value {
         match self {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
             AExpression::Variable { ident, ty } => {
@@ -717,20 +629,13 @@ impl AExpression {
                 Value::Variable(var)
             }
             AExpression::BinaryOperator { op, left, right } => {
-                dbg!(&op, &left, &right);
-
                 let ir_op = op.to_ir();
-                dbg!(&ir_op);
 
                 let left_value = left.to_ir(block, ctx);
-                dbg!(&left_value);
                 let left_operand = Self::val_to_operand(left_value, block, ctx);
-                dbg!(&left_operand);
 
                 let right_value = right.to_ir(block, ctx);
-                dbg!(&right_value);
                 let right_operand = Self::val_to_operand(right_value, block, ctx);
-                dbg!(&right_operand);
 
                 Value::Expression(ir::Expression::BinaryOp {
                     op: ir_op,
@@ -739,15 +644,10 @@ impl AExpression {
                 })
             }
             AExpression::Cast { base, target } => {
-                dbg!(&base, &target);
-
                 let target_ty = target.to_ir();
-                dbg!(&target_ty);
 
                 let value = base.to_ir(block, ctx);
-                dbg!(&value);
                 let val_operand = Self::val_to_operand(value, block, ctx);
-                dbg!(&val_operand);
 
                 Value::Expression(ir::Expression::Cast {
                     target: target_ty,
@@ -755,73 +655,237 @@ impl AExpression {
                 })
             }
             AExpression::UnaryOperator { base, op } => {
-                dbg!(&base, &op);
-
-                let base_value = base.to_ir(block, ctx);
-                let base_operand = Self::val_to_operand(base_value, block, ctx);
-                dbg!(&base_operand);
+                let base_value = base.clone().to_ir(block, ctx);
 
                 match op {
                     UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
-                        let base_var = match base_operand {
-                            ir::Operand::Variable(v) => v,
-                            other => {
-                                dbg!(&other);
+                        let base_target = base.clone().assign_target();
 
-                                panic!("Suffix-Decrement only applyable for Variables");
-                            }
+                        let result_var =
+                            ir::Variable::tmp(ctx.next_tmp(), base.result_type().to_ir())
+                                .set_description("Temp Variable holding Value before Decrementing");
+                        let result_assign = ir::Statement::Assignment {
+                            target: result_var.clone(),
+                            value: base_value.clone(),
                         };
+                        block.add_statement(result_assign);
 
-                        let result_val = Value::Variable(base_var.clone());
-                        dbg!(&result_val);
-
-                        let target_var = base_var.next_gen();
-                        let update_statement = ir::Statement::Assignment {
-                            target: target_var,
-                            value: ir::Value::Expression(ir::Expression::UnaryOp {
-                                op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Decrement),
-                                base: ir::Operand::Variable(base_var),
-                            }),
+                        let update_assign = AStatement::Assignment {
+                            target: base_target,
+                            value: AExpression::UnaryOperator {
+                                base,
+                                op: UnaryOperator::Arithmetic(UnaryArithmeticOp::Decrement),
+                            },
                         };
-                        block.add_statement(update_statement);
+                        update_assign.to_ir(block, ctx);
 
-                        result_val
+                        ir::Value::Variable(result_var)
                     }
                     UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
-                        todo!("Suffix Decrement")
+                        let base_target = base.clone().assign_target();
+
+                        let result_var =
+                            ir::Variable::tmp(ctx.next_tmp(), base.result_type().to_ir())
+                                .set_description("Temp Variable holding Value before Incrementing");
+                        let result_assign = ir::Statement::Assignment {
+                            target: result_var.clone(),
+                            value: base_value,
+                        };
+                        block.add_statement(result_assign);
+
+                        let update_assign = AStatement::Assignment {
+                            target: base_target,
+                            value: AExpression::UnaryOperator {
+                                base,
+                                op: UnaryOperator::Arithmetic(UnaryArithmeticOp::Increment),
+                            },
+                        };
+                        update_assign.to_ir(block, ctx);
+
+                        ir::Value::Variable(result_var)
                     }
                     UnaryOperator::Arithmetic(UnaryArithmeticOp::Negate) => {
+                        let base_operand = Self::val_to_operand(base_value, block, ctx);
                         Value::Expression(ir::Expression::UnaryOp {
                             op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Negate),
                             base: base_operand,
                         })
                     }
-                    other => {
-                        dbg!(&other);
+                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Increment) => {
+                        let base_operand = Self::val_to_operand(base_value, block, ctx);
+                        Value::Expression(ir::Expression::UnaryOp {
+                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Increment),
+                            base: base_operand,
+                        })
+                    }
+                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Decrement) => {
+                        let base_operand = Self::val_to_operand(base_value, block, ctx);
+                        Value::Expression(ir::Expression::UnaryOp {
+                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Decrement),
+                            base: base_operand,
+                        })
+                    }
+                    UnaryOperator::Logic(UnaryLogicOp::Not) => {
+                        let base_operand = Self::val_to_operand(base_value, block, ctx);
 
-                        todo!("Handle UnaryOp");
+                        Value::Expression(ir::Expression::UnaryOp {
+                            base: base_operand,
+                            op: ir::UnaryOp::Logic(ir::UnaryLogicOp::Not),
+                        })
                     }
                 }
             }
             AExpression::FunctionCall(call) => call.to_ir(block, ctx),
-            AExpression::AddressOf { ty, base } => {
-                dbg!(&ty, &base);
-
-                let target_ty = ty.to_ir();
-                dbg!(&target_ty);
-
+            AExpression::AddressOf { base, .. } => {
                 let base_value = base.to_ir(block, ctx);
-                dbg!(&base_value);
 
                 let base_oper = Self::val_to_operand(base_value, block, ctx);
-                dbg!(&base_oper);
 
                 Value::Expression(ir::Expression::AdressOf { base: base_oper })
+            }
+            AExpression::ArrayAccess { base, ty, index } => {
+                let base_address_value = base.ir_address(block, ctx);
+                let base_oper = Self::val_to_operand(base_address_value, block, ctx);
+
+                let index_value = index.to_ir(block, ctx);
+                let index_oper = Self::val_to_operand(index_value, block, ctx);
+
+                let element_size = ty.data.byte_size(ctx.arch());
+
+                let offset_value = ir::Value::Expression(ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
+                    left: index_oper,
+                    right: ir::Operand::Constant(ir::Constant::I64(element_size as i64)),
+                });
+                let offset_oper = Self::val_to_operand(offset_value, block, ctx);
+
+                let target_addr_exp = ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: base_oper,
+                    right: offset_oper,
+                };
+
+                let target_ty = ty.data.ty();
+                match &target_ty {
+                    AType::Primitve(_) => {
+                        let target_addr_oper = Self::val_to_operand(
+                            ir::Value::Expression(target_addr_exp),
+                            block,
+                            ctx,
+                        );
+
+                        Value::Expression(ir::Expression::ReadMemory {
+                            address: target_addr_oper,
+                            read_ty: target_ty.to_ir(),
+                        })
+                    }
+                    AType::Array(_) | AType::Struct(_) => ir::Value::Expression(target_addr_exp),
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Array Access for non Primitive Type");
+                    }
+                }
+            }
+            AExpression::StructAccess(StructAccess { base, field, .. }) => {
+                let base_ty = base.result_type().ty();
+                let s_def = base_ty.get_struct_def().unwrap();
+
+                let base_addr_value = base.ir_address(block, ctx);
+                let base_oper = Self::val_to_operand(base_addr_value, block, ctx);
+
+                let raw_field_ty = s_def.find_member(&field).unwrap().data;
+                let field_ty = raw_field_ty.to_ir();
+
+                let offset = s_def.member_offset(&field.0.data, ctx.arch()).unwrap();
+
+                let offset_value = Value::Expression(ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: base_oper,
+                    right: ir::Operand::Constant(ir::Constant::I64(offset as i64)),
+                });
+
+                let offset_oper = Self::val_to_operand(offset_value, block, ctx);
+
+                Value::Expression(ir::Expression::ReadMemory {
+                    address: offset_oper,
+                    read_ty: field_ty,
+                })
+            }
+            AExpression::SizeOf { ty } => {
+                let size = ty.byte_size(ctx.arch());
+
+                ir::Value::Constant(ir::Constant::I64(size as i64))
             }
             other => {
                 dbg!(&other);
 
                 todo!("Convert Expression");
+            }
+        }
+    }
+
+    pub fn ir_address(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Value {
+        match self {
+            Self::Variable { ident, ty } => {
+                match ty.data.ty() {
+                    AType::Pointer(_) | AType::Array(_) | AType::Struct(_) => {}
+                    other => {
+                        dbg!(&other);
+
+                        todo!("Unexpected Variable")
+                    }
+                };
+                let var = block.definition(&ident.0.data, &|| ctx.next_tmp()).unwrap();
+
+                ir::Value::Variable(var)
+            }
+            Self::ArrayAccess { base, ty, index } => {
+                let base_address = base.ir_address(block, ctx);
+
+                let index_value = index.to_ir(block, ctx);
+                let index_oper = Self::val_to_operand(index_value, block, ctx);
+
+                let ty_size = ty.data.byte_size(ctx.arch());
+
+                let offset_value = ir::Value::Expression(ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
+                    left: index_oper,
+                    right: ir::Operand::Constant(ir::Constant::I64(ty_size as i64)),
+                });
+
+                let base_oper = Self::val_to_operand(base_address, block, ctx);
+                let offset_oper = Self::val_to_operand(offset_value, block, ctx);
+
+                let target_addr_exp = ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: base_oper,
+                    right: offset_oper,
+                };
+
+                ir::Value::Expression(target_addr_exp)
+            }
+            Self::StructAccess(StructAccess { base, field, .. }) => {
+                let base_ty = base.result_type();
+                let struct_def = base_ty.get_struct_def().unwrap();
+
+                let base_address = base.ir_address(block, ctx);
+                let base_address_oper = Self::val_to_operand(base_address, block, ctx);
+
+                let field_offset = struct_def.member_offset(&field.0.data, ctx.arch()).unwrap();
+
+                let target_addr_exp = ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: base_address_oper,
+                    right: ir::Operand::Constant(ir::Constant::I64(field_offset as i64)),
+                };
+
+                ir::Value::Expression(target_addr_exp)
+            }
+            other => {
+                dbg!(&other);
+
+                todo!("Unknown AExpression for Address Conversion")
             }
         }
     }

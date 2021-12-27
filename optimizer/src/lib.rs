@@ -10,14 +10,36 @@ pub mod optimizations;
 mod config;
 pub use config::Config;
 
-/// The general Interface for a given Optimization
-pub trait Optimization {
+/// The general Interface for an Optimization
+pub trait Optimization
+where
+    Self: Sized + OptimizationPass,
+{
+    /// Creates a new Chain Pass with the current one as the first Pass and the given other Pass as
+    /// the second one
+    fn chain<O>(self, other: O) -> optimizations::Chain<Self, O>
+    where
+        O: Optimization + Sized,
+    {
+        optimizations::Chain::new(self, other)
+    }
+
+    /// Creates a new Repeat Pass with current one as the Pass and the given number of repetitions
+    fn repeat(self, repetitions: usize) -> optimizations::Repeat<Self> {
+        optimizations::Repeat::new(self, repetitions)
+    }
+}
+
+/// The underlying Trait needed for an Optimization Pass
+pub trait OptimizationPass {
     /// The Name of the Optimization
     fn name(&self) -> String;
 
     /// Actually performs an optimization pass on the given IR
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition;
 }
+
+impl<T> Optimization for T where T: OptimizationPass {}
 
 /// This will actually apply the given Optimization Config to the Program
 pub fn optimize(ir: Program, config: Config) -> Program {

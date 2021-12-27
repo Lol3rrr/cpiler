@@ -1,7 +1,5 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use general::dot;
-
 use crate::{BasicBlock, ToDot, Type};
 
 /// A definition of a Function
@@ -68,19 +66,19 @@ impl Debug for FunctionDefinition {
 impl ToDot for FunctionDefinition {
     fn to_dot(
         &self,
-        lines: &mut dyn dot::Graph,
+        lines: &mut dyn graphviz::Graph,
         drawn: &mut crate::dot::DrawnBlocks,
         ctx: &crate::dot::Context,
     ) -> String {
         let dot_name = format!("func_{}", self.name);
-        let mut function_graph = dot::SubGraph::new(&dot_name)
+        let mut function_graph = graphviz::SubGraph::new(&dot_name)
             .cluster()
             .arg("label", format!("Function-{}", self.name));
 
         let block_name = self.block.to_dot(&mut function_graph, drawn, ctx);
         lines.add_subgraph(function_graph);
 
-        lines.add_edge(dot::Edge::new(&dot_name, block_name));
+        lines.add_edge(graphviz::Edge::new(&dot_name, block_name));
 
         dot_name
     }

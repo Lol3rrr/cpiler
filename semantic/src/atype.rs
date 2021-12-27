@@ -393,9 +393,15 @@ impl AType {
     pub fn to_ir(self) -> ir::Type {
         match self {
             Self::Primitve(prim) => match prim {
+                APrimitive::Void => ir::Type::Void,
                 APrimitive::Char => ir::Type::I8,
+                APrimitive::Short => ir::Type::I16,
                 APrimitive::Int => ir::Type::I32,
                 APrimitive::LongInt => ir::Type::I64,
+                APrimitive::LongLongInt => todo!("Unsupported 128 bit"),
+                APrimitive::Float => ir::Type::Float,
+                APrimitive::Double => ir::Type::Double,
+                APrimitive::UnsignedInt => ir::Type::U32,
                 other => {
                     dbg!(&other);
 
@@ -406,6 +412,9 @@ impl AType {
                 let inner = raw_inner.to_ir();
                 ir::Type::Pointer(Box::new(inner))
             }
+            Self::Array(arr) => ir::Type::Pointer(Box::new(arr.ty.to_ir())),
+            Self::Struct(_) => ir::Type::Pointer(Box::new(ir::Type::Void)),
+            Self::TypeDef { ty, .. } => ty.to_ir(),
             other => {
                 dbg!(&other);
 
@@ -418,6 +427,9 @@ impl AType {
         match self {
             Self::Primitve(prim) => prim.byte_size(),
             Self::Pointer(_) => arch.ptr_size() as u64,
+            Self::Array(arr) => arr.ty.byte_size(arch) * (arr.size.unwrap() as u64),
+            Self::Struct(def) => def.entire_size(arch) as u64,
+            Self::TypeDef { ty, .. } => ty.byte_size(arch),
             _ => todo!("Size of {:?} in Bytes", self),
         }
     }
@@ -426,6 +438,9 @@ impl AType {
         match self {
             Self::Primitve(prim) => prim.alignment(),
             Self::Pointer(_) => arch.ptr_size() as u64,
+            Self::Array(arr) => arr.ty.alignment(arch),
+            Self::Struct(def) => def.alignment(arch) as u64,
+            Self::TypeDef { ty, .. } => ty.alignment(arch),
             _ => todo!("Alignment of {:?} in Bytes", self),
         }
     }

@@ -10,6 +10,7 @@ general = { path = "../general" }
 preprocessor = { path = "../preprocessor" }
 syntax = { path = "../syntax" }
 semantic = { path = "../semantic" }
+optimizer = { path = "../optimizer" }
 
 # For Fancy error messages
 ariadne = "0.1.3"
