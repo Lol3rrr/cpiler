@@ -26,7 +26,7 @@ where
 
     let chain = optimizer::optimizations::ConstantProp::new()
         .chain(optimizer::optimizations::DeadCode::new())
-        .repeat(10);
+        .repeat(25);
     optimizier_config.add_pass(chain);
 
     let ir = optimizer::optimize(raw_ir, optimizier_config);

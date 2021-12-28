@@ -5,8 +5,8 @@ use ir::{BasicBlock, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
-    atype, conversion::ConvertContext, AAssignTarget, APrimitive, AStatement, AType,
-    ArrayAccessTarget, SemanticError, TypeDefinitions, VariableContainer,
+    atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType, ArrayAccessTarget,
+    SemanticError, TypeDefinitions, VariableContainer,
 };
 
 mod operator;
@@ -622,9 +622,7 @@ impl AExpression {
     pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) -> Value {
         match self {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
-            AExpression::Variable { ident, ty } => {
-                dbg!(&ident, &ty);
-
+            AExpression::Variable { ident, .. } => {
                 let var = block.definition(&ident.0.data, &|| ctx.next_tmp()).unwrap();
                 Value::Variable(var)
             }
@@ -654,87 +652,7 @@ impl AExpression {
                     base: val_operand,
                 })
             }
-            AExpression::UnaryOperator { base, op } => {
-                let base_value = base.clone().to_ir(block, ctx);
-
-                match op {
-                    UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
-                        let base_target = base.clone().assign_target();
-
-                        let result_var =
-                            ir::Variable::tmp(ctx.next_tmp(), base.result_type().to_ir())
-                                .set_description("Temp Variable holding Value before Decrementing");
-                        let result_assign = ir::Statement::Assignment {
-                            target: result_var.clone(),
-                            value: base_value.clone(),
-                        };
-                        block.add_statement(result_assign);
-
-                        let update_assign = AStatement::Assignment {
-                            target: base_target,
-                            value: AExpression::UnaryOperator {
-                                base,
-                                op: UnaryOperator::Arithmetic(UnaryArithmeticOp::Decrement),
-                            },
-                        };
-                        update_assign.to_ir(block, ctx);
-
-                        ir::Value::Variable(result_var)
-                    }
-                    UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
-                        let base_target = base.clone().assign_target();
-
-                        let result_var =
-                            ir::Variable::tmp(ctx.next_tmp(), base.result_type().to_ir())
-                                .set_description("Temp Variable holding Value before Incrementing");
-                        let result_assign = ir::Statement::Assignment {
-                            target: result_var.clone(),
-                            value: base_value,
-                        };
-                        block.add_statement(result_assign);
-
-                        let update_assign = AStatement::Assignment {
-                            target: base_target,
-                            value: AExpression::UnaryOperator {
-                                base,
-                                op: UnaryOperator::Arithmetic(UnaryArithmeticOp::Increment),
-                            },
-                        };
-                        update_assign.to_ir(block, ctx);
-
-                        ir::Value::Variable(result_var)
-                    }
-                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Negate) => {
-                        let base_operand = Self::val_to_operand(base_value, block, ctx);
-                        Value::Expression(ir::Expression::UnaryOp {
-                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Negate),
-                            base: base_operand,
-                        })
-                    }
-                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Increment) => {
-                        let base_operand = Self::val_to_operand(base_value, block, ctx);
-                        Value::Expression(ir::Expression::UnaryOp {
-                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Increment),
-                            base: base_operand,
-                        })
-                    }
-                    UnaryOperator::Arithmetic(UnaryArithmeticOp::Decrement) => {
-                        let base_operand = Self::val_to_operand(base_value, block, ctx);
-                        Value::Expression(ir::Expression::UnaryOp {
-                            op: ir::UnaryOp::Arith(ir::UnaryArithmeticOp::Decrement),
-                            base: base_operand,
-                        })
-                    }
-                    UnaryOperator::Logic(UnaryLogicOp::Not) => {
-                        let base_operand = Self::val_to_operand(base_value, block, ctx);
-
-                        Value::Expression(ir::Expression::UnaryOp {
-                            base: base_operand,
-                            op: ir::UnaryOp::Logic(ir::UnaryLogicOp::Not),
-                        })
-                    }
-                }
-            }
+            AExpression::UnaryOperator { base, op } => op.to_ir(base, block, ctx),
             AExpression::FunctionCall(call) => call.to_ir(block, ctx),
             AExpression::AddressOf { base, .. } => {
                 let base_value = base.to_ir(block, ctx);
@@ -825,6 +743,10 @@ impl AExpression {
         }
     }
 
+    /// This is used to convert the Expression into a Value that contains the Target Address for
+    /// some other access.
+    /// The resulting address will then be used in things like "ReadMemory" or "WriteMemory" or to
+    /// calculate some offest from it, like for a struct or array access
     pub fn ir_address(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Value {
         match self {
             Self::Variable { ident, ty } => {

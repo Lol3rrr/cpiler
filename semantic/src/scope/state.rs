@@ -4,8 +4,8 @@ use general::{Span, SpanData};
 use syntax::Identifier;
 
 use crate::{
-    AFunctionArg, AScope, AType, FunctionDeclaration, TypeDefinitions, VariableContainer,
-    VariableDeclaration,
+    AFunctionArg, APrimitive, AScope, AType, FunctionDeclaration, TypeDefinitions,
+    VariableContainer, VariableDeclaration,
 };
 
 #[derive(Debug)]
@@ -14,6 +14,7 @@ pub struct ParseState {
     local_variables: Variables,
     type_defs: TypeDefinitions,
     function_definitions: HashMap<String, (FunctionDeclaration, AScope)>,
+    return_ty: Option<SpanData<AType>>,
 }
 
 impl ParseState {
@@ -23,6 +24,7 @@ impl ParseState {
             local_variables: Variables::new(),
             type_defs: TypeDefinitions::new(),
             function_definitions: HashMap::new(),
+            return_ty: None,
         }
     }
 
@@ -35,6 +37,7 @@ impl ParseState {
             local_variables: Variables::new(),
             type_defs,
             function_definitions: HashMap::new(),
+            return_ty: other.return_ty.clone(),
         }
     }
 
@@ -43,6 +46,13 @@ impl ParseState {
     }
     pub fn mut_type_defs(&mut self) -> &mut TypeDefinitions {
         &mut self.type_defs
+    }
+
+    pub fn set_return_ty(&mut self, ty: SpanData<AType>) {
+        self.return_ty = Some(ty);
+    }
+    pub fn return_ty(&self) -> Option<&SpanData<AType>> {
+        self.return_ty.as_ref()
     }
 
     pub fn is_declared(&self, ident: &Identifier) -> bool {

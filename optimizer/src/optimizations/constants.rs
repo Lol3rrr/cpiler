@@ -63,6 +63,18 @@ impl ConstantProp {
                                 right: Operand::Constant(con_replacement),
                             })
                         }
+                        Expression::Cast {
+                            base: ir::Operand::Constant(con),
+                            target,
+                        } => match (con, target) {
+                            (Constant::I64(b_val), ir::Type::I32) => {
+                                Value::Constant(Constant::I32(b_val as i32))
+                            }
+                            (con, target) => Value::Expression(Expression::Cast {
+                                base: ir::Operand::Constant(con),
+                                target,
+                            }),
+                        },
                         other => Value::Expression(other),
                     },
                     other => other,

@@ -14,6 +14,14 @@ impl Arch {
         }
     }
 
+    pub fn ptr_type(&self) -> ir::Type {
+        match self {
+            Self::X86 => ir::Type::I32,
+            Self::X86_64 => ir::Type::I64,
+            Self::AArch64 => ir::Type::I64,
+        }
+    }
+
     pub fn ptr_const(&self, value: i64) -> ir::Constant {
         match self {
             Self::X86 => ir::Constant::I32(value as i32),

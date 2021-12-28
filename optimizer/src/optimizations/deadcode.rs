@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+use ir::{Constant, Statement, Variable};
 
 use crate::OptimizationPass;
 
@@ -10,6 +12,46 @@ impl DeadCode {
     pub fn new() -> Self {
         Self {}
     }
+
+    fn filter_functions<SI>(
+        &self,
+        used_vars: &HashSet<Variable>,
+        const_vars: &HashMap<Variable, Constant>,
+        stmnt_iter: SI,
+    ) -> Vec<Statement>
+    where
+        SI: Iterator<Item = Statement>,
+    {
+        let mut result = Vec::new();
+
+        for stmnt in stmnt_iter {
+            match &stmnt {
+                ir::Statement::Assignment { target, .. } if !used_vars.contains(&target) => {}
+                ir::Statement::JumpTrue(var, _) if const_vars.contains_key(&var) => {
+                    let const_val = const_vars.get(&var).unwrap();
+
+                    let cond_res = match const_val {
+                        Constant::I8(0)
+                        | Constant::U8(0)
+                        | Constant::I16(0)
+                        | Constant::U16(0)
+                        | Constant::I32(0)
+                        | Constant::U32(0)
+                        | Constant::I64(0)
+                        | Constant::U64(0) => false,
+                        _ => true,
+                    };
+
+                    if cond_res {
+                        result.push(stmnt);
+                    }
+                }
+                _ => result.push(stmnt),
+            };
+        }
+
+        result
+    }
 }
 
 impl OptimizationPass for DeadCode {
@@ -19,27 +61,31 @@ impl OptimizationPass for DeadCode {
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
         let mut used_vars = HashSet::new();
+        let mut const_vars = HashMap::new();
 
         for block in ir.block.block_iter() {
             let statements = block.get_statements();
 
             for tmp_stmnt in statements {
                 used_vars.extend(tmp_stmnt.used_vars());
+
+                match tmp_stmnt {
+                    ir::Statement::Assignment {
+                        target,
+                        value: ir::Value::Constant(con),
+                    } => {
+                        const_vars.insert(target.clone(), con.clone());
+                    }
+                    _ => {}
+                };
             }
         }
 
         for block in ir.block.block_iter() {
             let statements = block.get_statements();
 
-            let n_statments: Vec<_> = statements
-                .into_iter()
-                .filter(|stmnt| match stmnt {
-                    ir::Statement::Assignment { target, .. } if !used_vars.contains(target) => {
-                        false
-                    }
-                    _ => true,
-                })
-                .collect();
+            let n_statments: Vec<_> =
+                self.filter_functions(&used_vars, &const_vars, statements.into_iter());
 
             block.set_statements(n_statments);
         }

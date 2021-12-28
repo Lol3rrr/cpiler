@@ -8,6 +8,9 @@ use crate::{conversion::ConvertContext, AStatement, FunctionDeclaration, Semanti
 mod state;
 pub use state::*;
 
+mod nested_iter;
+pub use nested_iter::*;
+
 #[derive(Debug, PartialEq)]
 pub struct ARootScope(pub AScope);
 impl ARootScope {
@@ -26,6 +29,10 @@ pub struct AScope {
 }
 
 impl AScope {
+    pub fn nested_statement_iter(&self) -> NestedIter<'_> {
+        NestedIter::new(self)
+    }
+
     pub fn parse(external_state: &ParseState, scope: Scope) -> Result<Self, SemanticError> {
         let mut current = ParseState::based(external_state);
 

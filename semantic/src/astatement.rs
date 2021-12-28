@@ -3,7 +3,7 @@ use ir::BasicBlock;
 use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
-    atype, conversion::ConvertContext, AExpression, AFunctionArg, AScope, AType,
+    atype, conversion::ConvertContext, AExpression, AFunctionArg, APrimitive, AScope, AType,
     FunctionDeclaration, ParseState, SemanticError, UnaryArithmeticOp, UnaryOperator,
 };
 
@@ -150,8 +150,51 @@ impl AStatement {
                         arg.ty.clone(),
                     );
                 }
+                function_scope.set_return_ty(SpanData {
+                    span: name.0.span.clone(),
+                    data: r_ty.clone(),
+                });
 
                 let inner_scope = AScope::parse(&function_scope, body)?;
+
+                // Check for correct return Statements
+                let (expected_r_val_ty, trailing_ret) = match &r_ty {
+                    // If the function is of return type Void, there needs to be no return
+                    // statement and all return statements that do exist should have no value given
+                    AType::Primitve(APrimitive::Void) => (None, false),
+                    other => (Some(other), true),
+                };
+                dbg!(&expected_r_val_ty, &trailing_ret);
+
+                if trailing_ret {
+                    let last = match inner_scope.statements.last() {
+                        Some(l) => l,
+                        None => {
+                            todo!()
+                        }
+                    };
+
+                    let expected_ty = match expected_r_val_ty {
+                        Some(ty) => ty,
+                        None => unreachable!("If we expect a trailing Return Statement there also has to be a type set for it"),
+                    };
+
+                    let ret_ty = match last {
+                        AStatement::Return { value: Some(val) } => val.result_type(),
+                        AStatement::Return { value: None } => {
+                            todo!()
+                        }
+                        other => {
+                            dbg!(&other);
+
+                            todo!()
+                        }
+                    };
+
+                    if ret_ty != expected_ty {
+                        todo!()
+                    }
+                }
 
                 let declaration = name.0.span.clone();
                 parse_state.add_function_definition(
@@ -360,7 +403,23 @@ impl AStatement {
                     Some(raw) => {
                         let value = AExpression::parse(raw, parse_state.type_defs(), parse_state)?;
 
-                        Some(value)
+                        let expected_r_ty = parse_state.return_ty().unwrap();
+                        if let AType::Primitve(APrimitive::Void) = expected_r_ty.data {
+                            return Err(SemanticError::MismatchedTypes {
+                                expected: expected_r_ty.clone(),
+                                received: SpanData {
+                                    span: value.entire_span(),
+                                    data: value.result_type(),
+                                },
+                            });
+                        }
+
+                        let final_val = atype::assign_type::determine_type(
+                            value,
+                            (&expected_r_ty.data, &expected_r_ty.span),
+                        )?;
+
+                        Some(final_val)
                     }
                     None => None,
                 };
@@ -540,10 +599,7 @@ impl AStatement {
                     }
                     AExpression::UnaryOperator { base, op } => match op {
                         UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
-                            dbg!(&base);
-
                             let target = base.clone().assign_target();
-                            dbg!(&target);
 
                             let assign_statement = AStatement::Assignment {
                                 target,
@@ -557,16 +613,18 @@ impl AStatement {
                             assign_statement.to_ir(block, ctx);
                         }
                         UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
-                            dbg!(&base);
-
                             let target = base.clone().assign_target();
 
                             let assign_statement = AStatement::Assignment {
                                 target,
-                                value: *base,
+                                value: AExpression::UnaryOperator {
+                                    op: UnaryOperator::Arithmetic(
+                                        UnaryArithmeticOp::SuffixDecrement,
+                                    ),
+                                    base,
+                                },
                             };
-
-                            todo!()
+                            assign_statement.to_ir(block, ctx);
                         }
                         other => {
                             dbg!(&base, &other);
@@ -582,16 +640,12 @@ impl AStatement {
                 };
             }
             AStatement::Return { value } => {
-                dbg!(&value);
-
                 let ret_value = match value {
                     Some(raw_ret) => {
-                        dbg!(&raw_ret);
                         let raw_ty = raw_ret.result_type();
                         let target_ty = raw_ty.to_ir();
 
                         let ret_exp = raw_ret.to_ir(block, ctx);
-                        dbg!(&ret_exp);
 
                         let ret_var = ir::Variable::tmp(ctx.next_tmp(), target_ty);
                         block.add_statement(ir::Statement::Assignment {
