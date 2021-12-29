@@ -44,11 +44,13 @@ struct test {
                         ),
                     ],
                 },
+                definition: Span::new_source(source.clone(), 13..48),
             }],
         },
     });
 
     let result = syntax::parse(tokens.by_ref());
+    dbg!(&result);
 
     assert_eq!(expected, result);
     assert_eq!(None, tokens.next());

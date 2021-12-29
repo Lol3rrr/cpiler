@@ -88,6 +88,14 @@ where
                             .print(sources)
                             .unwrap();
                     }
+                    SemanticError::UnknownStructField {
+                        field_name,
+                        struct_def,
+                    } => {
+                        dbg!(&field_name, &struct_def);
+
+                        todo!("Handle Unknown StructField error")
+                    }
                     SemanticError::MismatchedTypes { expected, received } => {
                         let mut sources = SourceCache::from([&expected.span]);
                         if expected.span.source().name() != received.span.source().name() {

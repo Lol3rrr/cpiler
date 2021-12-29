@@ -59,8 +59,13 @@ impl AStatement {
 
                 Ok(None)
             }
-            Statement::StructDefinition { name, members } => {
-                let ty = AType::parse_struct(members, parse_state.type_defs(), parse_state)?;
+            Statement::StructDefinition {
+                name,
+                members,
+                definition,
+            } => {
+                let ty =
+                    AType::parse_struct(members, definition, parse_state.type_defs(), parse_state)?;
 
                 parse_state.mut_type_defs().add_definition(name, ty);
                 Ok(None)
@@ -465,7 +470,9 @@ impl AStatement {
                             value: ir::Value::Expression(reserve_exp),
                         });
                     }
-                    AType::Struct(struct_def) => {
+                    AType::Struct {
+                        def: struct_def, ..
+                    } => {
                         let size = struct_def.entire_size(ctx.arch());
                         let alignment = struct_def.alignment(ctx.arch());
 

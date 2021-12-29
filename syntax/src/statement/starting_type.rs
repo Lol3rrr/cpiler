@@ -22,6 +22,8 @@ where
     let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
     let ty_tokens = match (ty_tokens, &peeked.data) {
         (TypeToken::StructType { name }, TokenData::OpenBrace) => {
+            let start_span = peeked.span.clone();
+
             let members = structs::StructMembers::parse(tokens)?;
 
             let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
@@ -34,8 +36,17 @@ where
                     });
                 }
             };
+            let end_span = end_tok.span;
+            let entire_span = Span::new_arc_source(
+                start_span.source().clone(),
+                start_span.source_area().start..end_span.source_area().end,
+            );
 
-            return Ok(Statement::StructDefinition { name, members });
+            return Ok(Statement::StructDefinition {
+                name,
+                members,
+                definition: entire_span,
+            });
         }
         (TypeToken::EnumType { name }, TokenData::OpenBrace) => {
             dbg!(&name);

@@ -58,7 +58,7 @@ impl StructFieldTarget {
         dbg!(&base_value, &base_ty);
 
         let struct_def = match base_ty {
-            AType::Struct(d) => d,
+            AType::Struct { def, .. } => def,
             other => {
                 dbg!(&other);
 
@@ -180,7 +180,7 @@ impl AAssignTarget {
 
                 let (base_ty, _) = base_target.get_expected_type();
 
-                let struct_def = match base_ty.get_struct_def() {
+                let (struct_def, def_span) = match base_ty.get_struct_def() {
                     Some(s) => s,
                     None => {
                         dbg!(&base_ty);
@@ -193,7 +193,13 @@ impl AAssignTarget {
                 let (field_ty, field_span) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),
                     None => {
-                        todo!("Unknown field")
+                        return Err(SemanticError::UnknownStructField {
+                            field_name: field.clone(),
+                            struct_def: SpanData {
+                                span: def_span.clone(),
+                                data: struct_def.clone(),
+                            },
+                        });
                     }
                 };
                 dbg!(&field_ty);
@@ -213,7 +219,7 @@ impl AAssignTarget {
                 let base_target = Self::parse(*base, ty_defs, vars)?;
                 dbg!(&base_target);
 
-                let struct_def = match base_target.base_ty() {
+                let (struct_def, def_span) = match base_target.base_ty() {
                     AType::Pointer(inner) => match inner.get_struct_def() {
                         Some(s) => s,
                         None => {
@@ -233,7 +239,13 @@ impl AAssignTarget {
                 let (field_ty, field_span) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),
                     None => {
-                        todo!("Unknown field");
+                        return Err(SemanticError::UnknownStructField {
+                            field_name: field,
+                            struct_def: SpanData {
+                                span: def_span.clone(),
+                                data: struct_def.clone(),
+                            },
+                        });
                     }
                 };
                 dbg!(&field_ty);
@@ -276,16 +288,19 @@ impl AAssignTarget {
                 dbg!(&ty_info);
 
                 match ty_info.data.ty() {
-                    AType::Struct(def) => {
+                    AType::Struct { def, area } => {
                         let var = AExpression::Variable {
                             ident,
                             ty: SpanData {
                                 span: ty_info.span,
-                                data: AType::Struct(def.clone()),
+                                data: AType::Struct {
+                                    def: def.clone(),
+                                    area: area.clone(),
+                                },
                             },
                         };
 
-                        (var.to_ir(block, ctx), AType::Struct(def))
+                        (var.to_ir(block, ctx), AType::Struct { def, area })
                     }
                     AType::Array(arr) => {
                         let var = AExpression::Variable {
@@ -319,21 +334,11 @@ impl AAssignTarget {
             Self::ArrayAccess(arr_target) => {
                 dbg!(&arr_target);
 
-                match &arr_target.ty_info.data.into_ty() {
-                    AType::Struct(def) => {
-                        let s_def = def.clone();
+                let target_ty = arr_target.ty_info.data.into_ty().clone();
 
-                        let target_exp = arr_target.to_exp(block, ctx);
-                        dbg!(&target_exp);
+                let target_exp = arr_target.to_exp(block, ctx);
 
-                        (ir::Value::Expression(target_exp), AType::Struct(s_def))
-                    }
-                    other => {
-                        dbg!(&other);
-
-                        todo!()
-                    }
-                }
+                (ir::Value::Expression(target_exp), target_ty)
             }
             Self::StructField(StructFieldTarget {
                 target,
@@ -346,7 +351,7 @@ impl AAssignTarget {
                 dbg!(&base_address_value, &base_target_ty);
                 let base_address_oper = AExpression::val_to_operand(base_address_value, block, ctx);
 
-                let struct_def = base_target_ty.get_struct_def().unwrap();
+                let (struct_def, _) = base_target_ty.get_struct_def().unwrap();
 
                 let raw_offset = struct_def.member_offset(&field.0.data, ctx.arch()).unwrap();
                 let offset_oper = ir::Operand::Constant(ir::Constant::I64(raw_offset as i64));

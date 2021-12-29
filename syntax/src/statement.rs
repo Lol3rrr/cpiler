@@ -1,4 +1,4 @@
-use general::SpanData;
+use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{ControlFlow, DataType, Keyword, Operator, Token, TokenData};
 
@@ -30,6 +30,7 @@ pub enum TypeDefType {
     StructdDef {
         name: Option<String>,
         members: structs::StructMembers,
+        entire_span: Span,
     },
 }
 
@@ -54,6 +55,8 @@ pub enum Statement {
         name: Identifier,
         /// The members of the Struct
         members: StructMembers,
+        /// The entire Span of the Struct Definition
+        definition: Span,
     },
     EnumDefinition {
         name: Identifier,
@@ -197,15 +200,15 @@ impl Statement {
                         let _ = tokens.next();
 
                         let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
-                        let struct_name = match &peeked.data {
+                        let (struct_name, start_span) = match &peeked.data {
                             TokenData::Literal { .. } => {
                                 let next = tokens.next().expect("We just peeked it");
                                 match next.data {
-                                    TokenData::Literal { content } => Some(content),
+                                    TokenData::Literal { content } => (Some(content), next.span),
                                     _ => unreachable!("We previously matched on the Peeked Data and got a literal"),
                                 }
                             }
-                            TokenData::OpenBrace => None,
+                            TokenData::OpenBrace => (None, peeked.span.clone()),
                             _ => {
                                 let next_tok = tokens.next().expect("We just peeked it");
                                 return Err(SyntaxError::UnexpectedToken {
@@ -217,16 +220,25 @@ impl Statement {
 
                         let members = structs::StructMembers::parse(tokens)?;
 
+                        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let end_span = peeked.span.clone();
+
                         let n_type_name = Identifier::parse(tokens)?;
 
                         let term_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
                         is_termination(term_token)?;
+
+                        let entire_span = Span::new_arc_source(
+                            start_span.source().clone(),
+                            start_span.source_area().start..end_span.source_area().end,
+                        );
 
                         Ok(Self::TypeDef {
                             name: n_type_name,
                             base_type: TypeDefType::StructdDef {
                                 name: struct_name,
                                 members,
+                                entire_span,
                             },
                         })
                     }
@@ -568,9 +580,11 @@ mod tests {
                     ),
                 ],
             },
+            definition: Span::new_source(source.clone(), 12..71),
         });
 
         let result = Statement::parse(&mut input_tokens, &Statement::default_terminaton());
+        dbg!(&result);
 
         assert_eq!(expected, result);
     }

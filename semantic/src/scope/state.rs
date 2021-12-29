@@ -4,8 +4,8 @@ use general::{Span, SpanData};
 use syntax::Identifier;
 
 use crate::{
-    AFunctionArg, APrimitive, AScope, AType, FunctionDeclaration, TypeDefinitions,
-    VariableContainer, VariableDeclaration,
+    AFunctionArg, AScope, AType, FunctionDeclaration, TypeDefinitions, VariableContainer,
+    VariableDeclaration,
 };
 
 #[derive(Debug)]

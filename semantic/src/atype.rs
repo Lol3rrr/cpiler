@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use general::SpanData;
+use general::{Span, SpanData};
 use syntax::{DataType, Identifier, Modifier, StructMembers, TypeDefType, TypeToken};
 
 use crate::{AExpression, EvaluationValue, SemanticError, TypeDefinitions, VariableContainer};
@@ -20,7 +20,7 @@ use base::BaseTypes;
 pub enum AType {
     Primitve(APrimitive),
     Pointer(Box<Self>),
-    Struct(StructDef),
+    Struct { def: StructDef, area: Span },
     Array(Array),
     Const(Box<Self>),
     TypeDef { name: Identifier, ty: Box<Self> },
@@ -34,7 +34,16 @@ where
         match (self, other.borrow()) {
             (Self::Primitve(s_prim), Self::Primitve(o_prim)) => s_prim.eq(o_prim),
             (Self::Pointer(s_inner), Self::Pointer(o_inner)) => s_inner.eq(o_inner),
-            (Self::Struct(s_def), Self::Struct(o_def)) => s_def.eq(o_def),
+            (
+                Self::Struct {
+                    def: s_def,
+                    area: s_area,
+                },
+                Self::Struct {
+                    def: o_def,
+                    area: o_area,
+                },
+            ) => s_def.eq(o_def) && s_area.eq(o_area),
             (Self::Array(s_arr), Self::Array(o_arr)) => s_arr.eq(o_arr),
             (Self::Const(s_c), Self::Const(o_c)) => s_c.eq(o_c),
             (Self::TypeDef { ty: s_ty, .. }, Self::TypeDef { ty: o_ty, .. }) => s_ty.eq(o_ty),
@@ -130,9 +139,9 @@ impl AType {
         }
     }
 
-    pub fn get_struct_def(&self) -> Option<&StructDef> {
+    pub fn get_struct_def(&self) -> Option<(&StructDef, &Span)> {
         match self {
-            Self::Struct(def) => Some(def),
+            Self::Struct { def, area } => Some((def, area)),
             Self::TypeDef { ty, .. } => ty.get_struct_def(),
             Self::Pointer(inner) => inner.get_struct_def(),
             _ => None,
@@ -153,6 +162,7 @@ impl AType {
 
     pub fn parse_struct<VC>(
         members: StructMembers,
+        entire_span: Span,
         ty_defs: &TypeDefinitions,
         vars: &VC,
     ) -> Result<Self, SemanticError>
@@ -179,9 +189,12 @@ impl AType {
             tmp
         };
 
-        Ok(Self::Struct(StructDef {
-            members: str_members,
-        }))
+        Ok(Self::Struct {
+            def: StructDef {
+                members: str_members,
+            },
+            area: entire_span,
+        })
     }
 
     fn parse_composition<VC>(
@@ -338,7 +351,7 @@ impl AType {
                 dbg!(&target_ty);
 
                 match &target_ty {
-                    AType::Struct(_) => {}
+                    AType::Struct { .. } => {}
                     other => {
                         dbg!(&other);
 
@@ -361,7 +374,11 @@ impl AType {
         VC: VariableContainer,
     {
         match raw {
-            TypeDefType::StructdDef { name, members } => {
+            TypeDefType::StructdDef {
+                name,
+                members,
+                entire_span,
+            } => {
                 dbg!(&name, &members);
 
                 let str_members: Vec<_> = members
@@ -383,7 +400,10 @@ impl AType {
                         dbg!(&n);
                         todo!("Named Struct");
                     }
-                    None => Ok(Self::Struct(struct_def)),
+                    None => Ok(Self::Struct {
+                        def: struct_def,
+                        area: entire_span,
+                    }),
                 }
             }
             unknown => panic!("Unknown TypeDefType: {:?}", unknown),
@@ -413,7 +433,7 @@ impl AType {
                 ir::Type::Pointer(Box::new(inner))
             }
             Self::Array(arr) => ir::Type::Pointer(Box::new(arr.ty.to_ir())),
-            Self::Struct(_) => ir::Type::Pointer(Box::new(ir::Type::Void)),
+            Self::Struct { .. } => ir::Type::Pointer(Box::new(ir::Type::Void)),
             Self::TypeDef { ty, .. } => ty.to_ir(),
             other => {
                 dbg!(&other);
@@ -428,7 +448,7 @@ impl AType {
             Self::Primitve(prim) => prim.byte_size(),
             Self::Pointer(_) => arch.ptr_size() as u64,
             Self::Array(arr) => arr.ty.byte_size(arch) * (arr.size.unwrap() as u64),
-            Self::Struct(def) => def.entire_size(arch) as u64,
+            Self::Struct { def, .. } => def.entire_size(arch) as u64,
             Self::TypeDef { ty, .. } => ty.byte_size(arch),
             _ => todo!("Size of {:?} in Bytes", self),
         }
@@ -439,7 +459,7 @@ impl AType {
             Self::Primitve(prim) => prim.alignment(),
             Self::Pointer(_) => arch.ptr_size() as u64,
             Self::Array(arr) => arr.ty.alignment(arch),
-            Self::Struct(def) => def.alignment(arch) as u64,
+            Self::Struct { def, .. } => def.alignment(arch) as u64,
             Self::TypeDef { ty, .. } => ty.alignment(arch),
             _ => todo!("Alignment of {:?} in Bytes", self),
         }

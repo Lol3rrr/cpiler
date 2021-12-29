@@ -143,7 +143,7 @@ impl AExpression {
 
                 let base_ty = base_exp.result_type();
 
-                let struct_def = match base_ty.get_struct_def() {
+                let (struct_def, def_span) = match base_ty.get_struct_def() {
                     Some(s) => s,
                     None => {
                         dbg!(&base_ty);
@@ -155,9 +155,13 @@ impl AExpression {
                 let (field_ty, _) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),
                     None => {
-                        dbg!(&field);
-
-                        todo!("Unknown Field on Struct");
+                        return Err(SemanticError::UnknownStructField {
+                            field_name: field,
+                            struct_def: SpanData {
+                                span: def_span.clone(),
+                                data: struct_def.clone(),
+                            },
+                        });
                     }
                 };
 
@@ -697,7 +701,9 @@ impl AExpression {
                             read_ty: target_ty.to_ir(),
                         })
                     }
-                    AType::Array(_) | AType::Struct(_) => ir::Value::Expression(target_addr_exp),
+                    AType::Array(_) | AType::Struct { .. } => {
+                        ir::Value::Expression(target_addr_exp)
+                    }
                     other => {
                         dbg!(&other);
 
@@ -707,7 +713,7 @@ impl AExpression {
             }
             AExpression::StructAccess(StructAccess { base, field, .. }) => {
                 let base_ty = base.result_type().ty();
-                let s_def = base_ty.get_struct_def().unwrap();
+                let (s_def, _) = base_ty.get_struct_def().unwrap();
 
                 let base_addr_value = base.ir_address(block, ctx);
                 let base_oper = Self::val_to_operand(base_addr_value, block, ctx);
@@ -751,7 +757,7 @@ impl AExpression {
         match self {
             Self::Variable { ident, ty } => {
                 match ty.data.ty() {
-                    AType::Pointer(_) | AType::Array(_) | AType::Struct(_) => {}
+                    AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {}
                     other => {
                         dbg!(&other);
 
@@ -789,7 +795,7 @@ impl AExpression {
             }
             Self::StructAccess(StructAccess { base, field, .. }) => {
                 let base_ty = base.result_type();
-                let struct_def = base_ty.get_struct_def().unwrap();
+                let (struct_def, _) = base_ty.get_struct_def().unwrap();
 
                 let base_address = base.ir_address(block, ctx);
                 let base_address_oper = Self::val_to_operand(base_address, block, ctx);
