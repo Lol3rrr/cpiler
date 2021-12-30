@@ -92,10 +92,7 @@ where
                         field_name,
                         struct_def,
                     } => {
-                        let mut sources = SourceCache::from([&struct_def.span]);
-                        if field_name.0.span.source().name() != struct_def.span.source().name() {
-                            sources.add_source(&field_name.0.span);
-                        }
+                        let sources = SourceCache::from([&struct_def.span, &field_name.0.span]);
 
                         let mut color_gen = ColorGenerator::new();
 
@@ -128,10 +125,7 @@ where
                             .unwrap();
                     }
                     SemanticError::MismatchedTypes { expected, received } => {
-                        let mut sources = SourceCache::from([&expected.span]);
-                        if expected.span.source().name() != received.span.source().name() {
-                            sources.add_source(&received.span);
-                        }
+                        let sources = SourceCache::from([&expected.span, &received.span]);
 
                         let mut color_gen = ColorGenerator::new();
 
@@ -159,6 +153,38 @@ where
                             .print(sources)
                             .unwrap();
                     }
+                    SemanticError::StructAccessOnNonStruct {
+                        field_name,
+                        received,
+                    } => {
+                        let sources = SourceCache::from([&received.span, &field_name.0.span]);
+
+                        let mut color_gen = ColorGenerator::new();
+
+                        let received_c = color_gen.next();
+                        let field_c = color_gen.next();
+
+                        Report::build(ReportKind::Error, &received.span, 0)
+                            .with_message(format!(
+                                "Tried to access a StructField on a Non-Struct Type"
+                            ))
+                            .with_label(
+                                Label::new((&received.span, received.span.source_area().clone()))
+                                    .with_message("This is not a Struct Type")
+                                    .with_color(received_c),
+                            )
+                            .with_label(
+                                Label::new((
+                                    &field_name.0.span,
+                                    field_name.0.span.source_area().clone(),
+                                ))
+                                .with_message("Tried accessing this Field")
+                                .with_color(field_c),
+                            )
+                            .finish()
+                            .print(sources)
+                            .unwrap();
+                    }
                     SemanticError::InvalidType {} => {
                         todo!("Invalid Type")
                     }
@@ -168,10 +194,7 @@ where
                     } => {
                         dbg!(&name, &previous_declaration);
 
-                        let mut sources = SourceCache::from([&previous_declaration]);
-                        if previous_declaration.source().name() != name.0.span.source().name() {
-                            sources.add_source(&name.0.span);
-                        }
+                        let sources = SourceCache::from([&previous_declaration, &name.0.span]);
 
                         Report::build(ReportKind::Error, &previous_declaration, 0)
                             .with_message(format!("{:?} was declared again", name.0.data))

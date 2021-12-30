@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use general::{Source, Span};
-use semantic::{ARootScope, AScope, AAST};
 
 #[test]
 fn valid() {

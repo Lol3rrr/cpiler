@@ -13,6 +13,10 @@ impl SourceCache {
         }
     }
 
+    fn contains_source(&self, source: &general::Source) -> bool {
+        self.sources.contains_key(source.name())
+    }
+
     pub fn add_source(&mut self, span: &general::Span) {
         let tmp_source = span.source();
         let name = tmp_source.name().to_string();
@@ -28,6 +32,10 @@ impl<const N: usize> From<[&general::Span; N]> for SourceCache {
         let mut tmp = Self::new();
 
         for tmp_s in sources {
+            if tmp.contains_source(tmp_s.source()) {
+                continue;
+            }
+
             tmp.add_source(tmp_s);
         }
 

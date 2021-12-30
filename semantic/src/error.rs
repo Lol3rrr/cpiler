@@ -27,6 +27,10 @@ pub enum SemanticError {
         /// The Definition of the Struct itself
         struct_def: SpanData<StructDef>,
     },
+    StructAccessOnNonStruct {
+        field_name: Identifier,
+        received: SpanData<AType>,
+    },
     MismatchedFunctionArgsCount {
         expected: SpanData<usize>,
         received: SpanData<usize>,

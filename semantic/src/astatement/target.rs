@@ -99,6 +99,15 @@ pub enum AAssignTarget {
 }
 
 impl AAssignTarget {
+    fn ty_span(&self) -> &Span {
+        match self {
+            Self::Variable { ty_info, .. } => &ty_info.span,
+            Self::Deref { ty_info, .. } => &ty_info.span,
+            Self::ArrayAccess(arr) => &arr.ty_info.span,
+            Self::StructField(str_tar) => &str_tar.ty_info.span,
+        }
+    }
+
     fn base_ty(&self) -> &AType {
         match self {
             Self::Variable { ty_info, .. } => &ty_info.data,
@@ -180,9 +189,15 @@ impl AAssignTarget {
                 let (struct_def, def_span) = match base_ty.get_struct_def() {
                     Some(s) => s,
                     None => {
-                        dbg!(&base_ty);
+                        let span = base_target.ty_span().clone();
 
-                        todo!("Expected Struct");
+                        return Err(SemanticError::StructAccessOnNonStruct {
+                            field_name: field,
+                            received: SpanData {
+                                span,
+                                data: base_ty,
+                            },
+                        });
                     }
                 };
 
