@@ -108,7 +108,6 @@ impl ParseState {
     }
 
     pub fn add_variable_declaration(&mut self, name: Identifier, declaration: Span, ty: AType) {
-        dbg!(&name);
         self.local_variables.declare_variable(name, ty, declaration);
     }
 

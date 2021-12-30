@@ -173,10 +173,7 @@ impl AAssignTarget {
                 }))
             }
             AssignTarget::StructAccess { base, field } => {
-                dbg!(&base, &field);
-
                 let base_target = Self::parse(*base, ty_defs, vars)?;
-                dbg!(&base_target);
 
                 let (base_ty, _) = base_target.get_expected_type();
 
@@ -188,7 +185,6 @@ impl AAssignTarget {
                         todo!("Expected Struct");
                     }
                 };
-                dbg!(&struct_def);
 
                 let (field_ty, field_span) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),
@@ -202,7 +198,6 @@ impl AAssignTarget {
                         });
                     }
                 };
-                dbg!(&field_ty);
 
                 Ok(Self::StructField(StructFieldTarget {
                     target: Box::new(base_target),

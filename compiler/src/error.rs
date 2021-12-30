@@ -92,9 +92,40 @@ where
                         field_name,
                         struct_def,
                     } => {
-                        dbg!(&field_name, &struct_def);
+                        let mut sources = SourceCache::from([&struct_def.span]);
+                        if field_name.0.span.source().name() != struct_def.span.source().name() {
+                            sources.add_source(&field_name.0.span);
+                        }
 
-                        todo!("Handle Unknown StructField error")
+                        let mut color_gen = ColorGenerator::new();
+
+                        let struct_c = color_gen.next();
+                        let field_name_c = color_gen.next();
+
+                        Report::build(ReportKind::Error, &field_name.0.span, 0)
+                            .with_message(format!(
+                                "Unknown Field \"{}\" on Struct",
+                                field_name.0.data.fg(field_name_c),
+                            ))
+                            .with_label(
+                                Label::new((
+                                    &struct_def.span,
+                                    struct_def.span.source_area().clone(),
+                                ))
+                                .with_message("Struct Definition")
+                                .with_color(struct_c),
+                            )
+                            .with_label(
+                                Label::new((
+                                    &field_name.0.span,
+                                    field_name.0.span.source_area().clone(),
+                                ))
+                                .with_message("Unknown Field")
+                                .with_color(field_name_c),
+                            )
+                            .finish()
+                            .print(sources)
+                            .unwrap();
                     }
                     SemanticError::MismatchedTypes { expected, received } => {
                         let mut sources = SourceCache::from([&expected.span]);

@@ -115,8 +115,6 @@ where
             let mut var_args = false;
             let mut arguments: Vec<SpanData<FunctionArgument>> = Vec::new();
             while let Some(tmp_tok) = tokens.peek() {
-                // TODO
-                dbg!(&tmp_tok);
                 match &tmp_tok.data {
                     TokenData::CloseParen => {
                         let _ = tokens.next();

@@ -226,10 +226,8 @@ impl TypeToken {
         I: Iterator<Item = Token>,
     {
         let mut base = Self::parse(tokens)?;
-        dbg!(&base);
 
         let ident = Identifier::parse(tokens)?;
-        dbg!(&ident);
 
         loop {
             let peeked = match tokens.peek() {

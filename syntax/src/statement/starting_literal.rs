@@ -25,7 +25,6 @@ where
         let mut level = 0;
 
         while let Some(peeked) = tokens.peek_nth(pos) {
-            dbg!(&peeked.data);
             match &peeked.data {
                 TokenData::Literal { .. } if level == 0 => {
                     count += 1;

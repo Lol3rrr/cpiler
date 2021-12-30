@@ -13,11 +13,7 @@ where
 
     let basic_ast = syntax::parse(preprocessed).map_err(Error::Syntax)?;
 
-    dbg!(&basic_ast);
-
     let aast = semantic::parse(basic_ast).map_err(Error::Semantic)?;
-
-    dbg!(&aast);
 
     let raw_ir = aast.convert_to_ir(general::arch::Arch::X86_64);
 

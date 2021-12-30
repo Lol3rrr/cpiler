@@ -169,8 +169,6 @@ impl AType {
     where
         VC: VariableContainer,
     {
-        dbg!(&members);
-
         let str_members_iter = members
             .into_iter()
             .map(|(raw_ty, ident)| (AType::parse(raw_ty, ty_defs, vars), ident));
@@ -340,15 +338,12 @@ impl AType {
                 Self::parse_composition(modifier, base, ty_defs, vars)
             }
             TypeToken::StructType { name } => {
-                dbg!(&name);
-
                 let target_ty = match ty_defs.get_definition(&name) {
                     Some(t) => t,
                     None => {
                         panic!("No known Type-Definition for the given Name");
                     }
                 };
-                dbg!(&target_ty);
 
                 match &target_ty {
                     AType::Struct { .. } => {}
