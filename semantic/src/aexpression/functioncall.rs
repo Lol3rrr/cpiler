@@ -33,7 +33,7 @@ impl FunctionCall {
     }
 
     fn cleanup_ir(args: &[Operand]) -> Vec<ir::Statement> {
-        args.into_iter()
+        args.iter()
             .filter_map(|arg| match arg {
                 Operand::Variable(var) if var.ty.is_ptr() => Some(ir::Statement::Assignment {
                     target: var.next_gen(),

@@ -21,3 +21,9 @@ impl Config {
         self.passes.push(pass);
     }
 }
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}

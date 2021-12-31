@@ -90,6 +90,12 @@ impl ConstantProp {
     }
 }
 
+impl Default for ConstantProp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizationPass for ConstantProp {
     fn name(&self) -> String {
         "ConstantProp".to_owned()

@@ -26,21 +26,21 @@ impl DeadCode {
 
         for stmnt in stmnt_iter {
             match &stmnt {
-                ir::Statement::Assignment { target, .. } if !used_vars.contains(&target) => {}
-                ir::Statement::JumpTrue(var, _) if const_vars.contains_key(&var) => {
-                    let const_val = const_vars.get(&var).unwrap();
+                ir::Statement::Assignment { target, .. } if !used_vars.contains(target) => {}
+                ir::Statement::JumpTrue(var, _) if const_vars.contains_key(var) => {
+                    let const_val = const_vars.get(var).unwrap();
 
-                    let cond_res = match const_val {
+                    let cond_res = !matches!(
+                        const_val,
                         Constant::I8(0)
-                        | Constant::U8(0)
-                        | Constant::I16(0)
-                        | Constant::U16(0)
-                        | Constant::I32(0)
-                        | Constant::U32(0)
-                        | Constant::I64(0)
-                        | Constant::U64(0) => false,
-                        _ => true,
-                    };
+                            | Constant::U8(0)
+                            | Constant::I16(0)
+                            | Constant::U16(0)
+                            | Constant::I32(0)
+                            | Constant::U32(0)
+                            | Constant::I64(0)
+                            | Constant::U64(0)
+                    );
 
                     if cond_res {
                         result.push(stmnt);
@@ -51,6 +51,12 @@ impl DeadCode {
         }
 
         result
+    }
+}
+
+impl Default for DeadCode {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -69,15 +75,13 @@ impl OptimizationPass for DeadCode {
             for tmp_stmnt in statements {
                 used_vars.extend(tmp_stmnt.used_vars());
 
-                match tmp_stmnt {
-                    ir::Statement::Assignment {
-                        target,
-                        value: ir::Value::Constant(con),
-                    } => {
-                        const_vars.insert(target.clone(), con.clone());
-                    }
-                    _ => {}
-                };
+                if let ir::Statement::Assignment {
+                    target,
+                    value: ir::Value::Constant(con),
+                } = tmp_stmnt
+                {
+                    const_vars.insert(target.clone(), con.clone());
+                }
             }
         }
 

@@ -539,28 +539,22 @@ impl AStatement {
                     AAssignTarget::Deref { exp, .. } => {
                         let address_value = exp.to_ir(block, ctx);
 
-                        let target_oper = AExpression::val_to_operand(address_value, &block, ctx);
+                        let target_oper = AExpression::val_to_operand(address_value, block, ctx);
 
                         let value_exp = value.to_ir(block, ctx);
 
-                        match &target_oper {
-                            ir::Operand::Variable(target_var) => {
-                                match target_var.meta() {
-                                    ir::VariableMetadata::VarPointer { var } => {
-                                        let next_var = var.next_gen();
-                                        let target_meta = value_exp.assign_meta(&next_var);
-                                        let target_var = next_var.set_meta(target_meta);
+                        if let ir::Operand::Variable(target_var) = &target_oper {
+                            if let ir::VariableMetadata::VarPointer { var } = target_var.meta() {
+                                let next_var = var.next_gen();
+                                let target_meta = value_exp.assign_meta(&next_var);
+                                let target_var = next_var.set_meta(target_meta);
 
-                                        block.add_statement(ir::Statement::Assignment {
-                                            target: target_var,
-                                            value: value_exp.clone(),
-                                        });
-                                    }
-                                    _ => {}
-                                };
+                                block.add_statement(ir::Statement::Assignment {
+                                    target: target_var,
+                                    value: value_exp.clone(),
+                                });
                             }
-                            _ => {}
-                        };
+                        }
 
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
@@ -692,10 +686,7 @@ impl AStatement {
                 end_true_body.add_statement(ir::Statement::Jump(end_block.clone()));
                 end_block.add_predecessor(end_true_body.weak_ptr());
 
-                block.add_statement(ir::Statement::JumpTrue(
-                    cond_var.clone(),
-                    true_block.clone(),
-                ));
+                block.add_statement(ir::Statement::JumpTrue(cond_var, true_block));
 
                 if let Some(else_) = else_ {
                     let false_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
@@ -794,10 +785,8 @@ impl AStatement {
                     content_end_block.add_statement(ir::Statement::Jump(update_block.clone()));
                     update_block.add_predecessor(content_end_block.weak_ptr());
                 }
-                condition_block.add_statement(ir::Statement::JumpTrue(
-                    cond_var,
-                    content_start_block.clone(),
-                ));
+                condition_block
+                    .add_statement(ir::Statement::JumpTrue(cond_var, content_start_block));
                 condition_block.add_statement(ir::Statement::Jump(end_block.clone()));
 
                 block.add_statement(ir::Statement::Jump(condition_block));

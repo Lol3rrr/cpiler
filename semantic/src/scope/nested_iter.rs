@@ -31,19 +31,19 @@ impl<'s> Iterator for NestedIter<'s> {
 
         match &temp {
             AStatement::If { body, .. } => {
-                let iter = body.statements.iter().rev().map(|s| s.clone());
+                let iter = body.statements.iter().rev().cloned();
                 self.pending.extend(iter);
             }
             AStatement::WhileLoop { body, .. } => {
-                let iter = body.statements.iter().rev().map(|s| s.clone());
+                let iter = body.statements.iter().rev().cloned();
                 self.pending.extend(iter);
             }
             AStatement::ForLoop { body, .. } => {
-                let iter = body.statements.iter().rev().map(|s| s.clone());
+                let iter = body.statements.iter().rev().cloned();
                 self.pending.extend(iter);
             }
             AStatement::SubScope { inner } => {
-                let iter = inner.statements.iter().rev().map(|s| s.clone());
+                let iter = inner.statements.iter().rev().cloned();
                 self.pending.extend(iter);
             }
             _ => {}

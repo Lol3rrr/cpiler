@@ -206,7 +206,7 @@ impl BasicBlock {
 
         let preds = self.0.predecessor.read().unwrap().clone();
 
-        if preds.len() == 0 {
+        if preds.is_empty() {
             return None;
         }
 

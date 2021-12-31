@@ -59,7 +59,7 @@ impl UnaryOperator {
                     .set_description("Temp Variable holding Value before Decrementing");
                 let result_assign = ir::Statement::Assignment {
                     target: result_var.clone(),
-                    value: base_value.clone(),
+                    value: base_value,
                 };
                 block.add_statement(result_assign);
 

@@ -23,43 +23,46 @@ impl Merger {
             None => return,
         };
 
-        match last {
-            Statement::Jump(target) => {
-                self.merge(&target);
+        if let Statement::Jump(target) = last {
+            self.merge(&target);
 
-                let mut target_preds = target.get_predecessors();
-                if target_preds.len() != 1 {
-                    return;
-                }
-
-                let target_pred = target_preds.remove(0);
-                if target_pred != block.weak_ptr() {
-                    panic!()
-                }
-
-                let target_statements = target.get_statements();
-
-                let block_ptr = block.weak_ptr();
-                let target_ptr = target.weak_ptr();
-                target_statements.iter().for_each(|stmnt| {
-                    match stmnt {
-                        Statement::Jump(tmp) | Statement::JumpTrue(_, tmp) => {
-                            tmp.remove_predecessor(target_ptr.clone());
-                            tmp.add_predecessor(block_ptr.clone());
-                        }
-                        _ => {}
-                    };
-                });
-
-                let merged: Vec<_> = block_statements
-                    .into_iter()
-                    .chain(target_statements.into_iter())
-                    .collect();
-
-                block.set_statements(merged);
+            let mut target_preds = target.get_predecessors();
+            if target_preds.len() != 1 {
+                return;
             }
-            _ => {}
-        };
+
+            let target_pred = target_preds.remove(0);
+            if target_pred != block.weak_ptr() {
+                panic!()
+            }
+
+            let target_statements = target.get_statements();
+
+            let block_ptr = block.weak_ptr();
+            let target_ptr = target.weak_ptr();
+            target_statements.iter().for_each(|stmnt| {
+                match stmnt {
+                    Statement::Jump(tmp) | Statement::JumpTrue(_, tmp) => {
+                        tmp.remove_predecessor(target_ptr.clone());
+                        tmp.add_predecessor(block_ptr.clone());
+                    }
+                    _ => {}
+                };
+            });
+
+            let merged: Vec<_> = block_statements
+                .into_iter()
+                .chain(target_statements.into_iter())
+                .collect();
+
+            block.set_statements(merged);
+        }
+    }
+}
+
+impl Default for Merger {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

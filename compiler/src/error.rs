@@ -166,7 +166,8 @@ where
 
                         Report::build(ReportKind::Error, &received.span, 0)
                             .with_message(format!(
-                                "Tried to access a StructField on a Non-Struct Type"
+                                "Tried to access a StructField \"{}\" on a Non-Struct Type",
+                                field_name.0.data.fg(field_c),
                             ))
                             .with_label(
                                 Label::new((&received.span, received.span.source_area().clone()))
