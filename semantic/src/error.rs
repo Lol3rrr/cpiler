@@ -9,6 +9,10 @@ pub enum SemanticError {
         expected: SpanData<AType>,
         received: SpanData<AType>,
     },
+    AmbiguousTypeConversion {
+        target: SpanData<AType>,
+        base: SpanData<AType>,
+    },
     InvalidType {},
     Redeclaration {
         name: Identifier,

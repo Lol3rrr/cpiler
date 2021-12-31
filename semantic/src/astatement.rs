@@ -666,8 +666,6 @@ impl AStatement {
                 condition,
                 else_,
             } => {
-                dbg!(&body, &condition);
-
                 let cond_value = condition.to_ir(block, ctx);
                 let cond_var = ir::Variable::tmp(ctx.next_tmp(), ir::Type::I64);
 

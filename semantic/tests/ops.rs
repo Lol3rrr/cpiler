@@ -108,7 +108,7 @@ void test(int arg_1, int arg_2) {
 fn addition_different_types() {
     let input = "
 void test(int arg_1, float arg_2) {
-    int rand = arg_1 + arg_2;
+    float rand = arg_1 + arg_2;
 }
         ";
 
@@ -155,48 +155,39 @@ void test(int arg_1, float arg_2) {
                         statements: vec![AStatement::Assignment {
                             target: AAssignTarget::Variable {
                                 ident: Identifier(SpanData {
-                                    span: Span::new_source(input_source.clone(), 45..49),
+                                    span: Span::new_source(input_source.clone(), 47..51),
                                     data: "rand".to_string(),
                                 }),
                                 ty_info: SpanData {
-                                    span: Span::new_source(input_source.clone(), 45..49),
-                                    data: AType::Primitve(APrimitive::Int),
+                                    span: Span::new_source(input_source.clone(), 47..51),
+                                    data: AType::Primitve(APrimitive::Float),
                                 },
                             },
-                            value: AExpression::Cast {
-                                base: Box::new(AExpression::BinaryOperator {
-                                    op: AOperator::Arithmetic(ArithemticOp::Add),
-                                    left: Box::new(AExpression::Cast {
-                                        target: AType::Primitve(APrimitive::Float),
-                                        base: Box::new(AExpression::Variable {
-                                            ident: Identifier(SpanData {
-                                                span: Span::new_source(
-                                                    input_source.clone(),
-                                                    52..57,
-                                                ),
-                                                data: "arg_1".to_string(),
-                                            }),
-                                            ty: SpanData {
-                                                span: Span::new_source(
-                                                    input_source.clone(),
-                                                    11..20,
-                                                ),
-                                                data: AType::Primitve(APrimitive::Int),
-                                            },
-                                        }),
-                                    }),
-                                    right: Box::new(AExpression::Variable {
+                            value: AExpression::BinaryOperator {
+                                op: AOperator::Arithmetic(ArithemticOp::Add),
+                                left: Box::new(AExpression::Cast {
+                                    target: AType::Primitve(APrimitive::Float),
+                                    base: Box::new(AExpression::Variable {
                                         ident: Identifier(SpanData {
-                                            span: Span::new_source(input_source.clone(), 60..65),
-                                            data: "arg_2".to_string(),
+                                            span: Span::new_source(input_source.clone(), 54..59),
+                                            data: "arg_1".to_string(),
                                         }),
                                         ty: SpanData {
-                                            span: Span::new_source(input_source.clone(), 22..33),
-                                            data: AType::Primitve(APrimitive::Float),
+                                            span: Span::new_source(input_source.clone(), 11..20),
+                                            data: AType::Primitve(APrimitive::Int),
                                         },
                                     }),
                                 }),
-                                target: AType::Primitve(APrimitive::Int),
+                                right: Box::new(AExpression::Variable {
+                                    ident: Identifier(SpanData {
+                                        span: Span::new_source(input_source.clone(), 62..67),
+                                        data: "arg_2".to_string(),
+                                    }),
+                                    ty: SpanData {
+                                        span: Span::new_source(input_source.clone(), 22..33),
+                                        data: AType::Primitve(APrimitive::Float),
+                                    },
+                                }),
                             },
                         }],
                     },

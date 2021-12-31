@@ -68,6 +68,37 @@ where
             }
             Self::Semantic(se) => {
                 match se {
+                    SemanticError::AmbiguousTypeConversion { base, target } => {
+                        let sources = SourceCache::from([&base.span, &target.span]);
+
+                        let mut color_gen = ColorGenerator::new();
+
+                        let base_c = color_gen.next();
+                        let target_c = color_gen.next();
+
+                        let base_str = format!("{:?}", base.data).fg(base_c);
+                        let target_str = format!("{:?}", target.data).fg(target_c);
+
+                        Report::build(ReportKind::Error, &base.span, 0)
+                            .with_message(format!(
+                                "Ambigious Type Conversion from {} to {}",
+                                base_str, target_str,
+                            ))
+                            .with_label(
+                                Label::new((&target.span, target.span.source_area().clone()))
+                                    .with_message(format!("Target Type {}", target_str))
+                                    .with_color(target_c),
+                            )
+                            .with_label(
+                                Label::new((&base.span, base.span.source_area().clone()))
+                                    .with_message(format!("Base Type {}", base_str))
+                                    .with_color(base_c),
+                            )
+                            .with_note(format!("If this was intentional, you can force this Conversion to happen by using an explicit Cast to {}", target_str))
+                            .finish()
+                            .print(sources)
+                            .unwrap();
+                    }
                     SemanticError::UnknownIdentifier { name } => {
                         let content_area = name.0.span.source_area();
 

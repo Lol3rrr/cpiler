@@ -15,6 +15,28 @@ pub fn determine_type(
         (AType::Primitve(res_prim), AType::Primitve(target_prim)) => {
             dbg!(&res_prim, &target_prim);
 
+            match (&target_prim, &res_prim) {
+                (APrimitive::Float, APrimitive::Float)
+                | (APrimitive::Double, APrimitive::Float)
+                | (APrimitive::LongDouble, APrimitive::Float)
+                | (APrimitive::Double, APrimitive::Double)
+                | (APrimitive::LongDouble, APrimitive::Double)
+                | (APrimitive::LongDouble, APrimitive::LongDouble) => {}
+                (_, APrimitive::Float) | (_, APrimitive::Double) | (_, APrimitive::LongDouble) => {
+                    return Err(SemanticError::AmbiguousTypeConversion {
+                        target: SpanData {
+                            span: target.1.clone(),
+                            data: target.0.clone(),
+                        },
+                        base: SpanData {
+                            span: base.entire_span(),
+                            data: res_type,
+                        },
+                    });
+                }
+                _ => {}
+            };
+
             // TODO
             // This currently allows for some very bad implicit casts, like float to int
             let casted = AExpression::Cast {
@@ -101,12 +123,15 @@ mod tests {
         let input_source = Source::new("test", " ");
 
         assert_eq!(
-            Ok(AExpression::Cast {
-                base: Box::new(AExpression::Literal(Literal::FloatingPoint(SpanData {
+            Err(SemanticError::AmbiguousTypeConversion {
+                base: SpanData {
+                    data: AType::Primitve(APrimitive::Float),
                     span: Span::new_source(input_source.clone(), 0..1),
-                    data: 1.3,
-                }))),
-                target: AType::Primitve(APrimitive::Int),
+                },
+                target: SpanData {
+                    data: AType::Primitve(APrimitive::Int),
+                    span: Span::new_source(input_source.clone(), 0..1),
+                },
             }),
             determine_type(
                 AExpression::Literal(Literal::FloatingPoint(SpanData {
