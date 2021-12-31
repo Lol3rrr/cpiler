@@ -169,7 +169,6 @@ impl AStatement {
                     AType::Primitve(APrimitive::Void) => (None, false),
                     other => (Some(other), true),
                 };
-                dbg!(&expected_r_val_ty, &trailing_ret);
 
                 if trailing_ret {
                     let last = match inner_scope.statements.last() {
@@ -218,8 +217,8 @@ impl AStatement {
             Statement::VariableDeclaration { ty, name } => {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
 
-                if parse_state.is_declared(&name) {
-                    panic!("Redefintion Error");
+                if parse_state.is_locally_declared(&name) {
+                    panic!("Redeclaration Error");
                 }
 
                 let result = AStatement::DeclareVar {
@@ -235,7 +234,7 @@ impl AStatement {
             Statement::VariableDeclarationAssignment { ty, name, value } => {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
 
-                if parse_state.is_declared(&name) {
+                if parse_state.is_locally_declared(&name) {
                     let prev_dec = parse_state.get_declaration(&name).unwrap();
                     return Err(SemanticError::Redeclaration {
                         name,
@@ -575,16 +574,12 @@ impl AStatement {
                         });
                     }
                     AAssignTarget::StructField(target) => {
-                        dbg!(&target);
                         let target_exp = target.to_exp(block, ctx);
-                        dbg!(&target_exp);
 
                         let target_value = ir::Value::Expression(target_exp);
                         let target_oper = AExpression::val_to_operand(target_value, block, ctx);
-                        dbg!(&target_oper);
 
                         let value = value.to_ir(block, ctx);
-                        dbg!(&value);
 
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,

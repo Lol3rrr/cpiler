@@ -8,33 +8,35 @@ use crate::{
     VariableDeclaration,
 };
 
+mod local;
+use local::LocalState;
+
 #[derive(Debug)]
-pub struct ParseState {
-    external_variables: Variables,
-    local_variables: Variables,
+pub struct ParseState<'p> {
+    parent: Option<&'p Self>,
+    local: LocalState,
     type_defs: TypeDefinitions,
     function_definitions: HashMap<String, (FunctionDeclaration, AScope)>,
     return_ty: Option<SpanData<AType>>,
 }
 
-impl ParseState {
+impl<'p> ParseState<'p> {
     pub fn new() -> Self {
         Self {
-            external_variables: Variables::new(),
-            local_variables: Variables::new(),
+            parent: None,
+            local: LocalState::new(),
             type_defs: TypeDefinitions::new(),
             function_definitions: HashMap::new(),
             return_ty: None,
         }
     }
 
-    pub fn based(other: &Self) -> Self {
-        let new_ext = other.local_variables.join(&other.external_variables);
+    pub fn based(other: &'p ParseState<'_>) -> Self {
         let type_defs = other.type_defs.clone();
 
         Self {
-            external_variables: new_ext,
-            local_variables: Variables::new(),
+            parent: Some(other),
+            local: LocalState::new(),
             type_defs,
             function_definitions: HashMap::new(),
             return_ty: other.return_ty.clone(),
@@ -56,36 +58,38 @@ impl ParseState {
     }
 
     pub fn is_declared(&self, ident: &Identifier) -> bool {
-        if self.local_variables.is_declared(ident) {
+        if self.local.is_declared(ident) {
             return true;
         }
 
-        self.external_variables.is_declared(ident)
+        match self.parent {
+            Some(p) => p.is_declared(ident),
+            _ => false,
+        }
+    }
+    pub fn is_locally_declared(&self, ident: &Identifier) -> bool {
+        self.local.is_declared(ident)
     }
     pub fn get_declaration(&self, ident: &Identifier) -> Option<Span> {
-        if let Some(dec) = self.local_variables.get_declared(ident) {
-            match dec {
-                Declared::Variable(var) => return Some(var.declaration.clone()),
-                Declared::Function(func) => return Some(func.declaration.clone()),
-            };
+        if let Some(dec) = self.local.get_declaration(ident) {
+            return Some(dec);
         }
 
-        if let Some(dec) = self.external_variables.get_declared(ident) {
-            match dec {
-                Declared::Variable(var) => return Some(var.declaration.clone()),
-                Declared::Function(func) => return Some(func.declaration.clone()),
-            };
+        match self.parent {
+            Some(p) => p.get_declaration(ident),
+            None => None,
         }
-
-        None
     }
 
     pub fn is_defined(&self, ident: &Identifier) -> bool {
-        if self.local_variables.is_defined(ident) {
+        if self.local.is_defined(ident) {
             return true;
         }
 
-        self.external_variables.is_defined(ident)
+        match self.parent {
+            Some(p) => p.is_defined(ident),
+            None => false,
+        }
     }
 
     pub fn add_function_declaration(
@@ -96,7 +100,7 @@ impl ParseState {
         var_args: bool,
         return_ty: AType,
     ) {
-        self.local_variables.declare_function(
+        self.local.declare_func(
             name,
             FunctionDeclaration {
                 return_ty,
@@ -108,7 +112,7 @@ impl ParseState {
     }
 
     pub fn add_variable_declaration(&mut self, name: Identifier, declaration: Span, ty: AType) {
-        self.local_variables.declare_variable(name, ty, declaration);
+        self.local.declare_var(name, ty, declaration);
     }
 
     pub fn add_function_definition(
@@ -125,39 +129,33 @@ impl ParseState {
     }
 }
 
-impl Default for ParseState {
+impl Default for ParseState<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl VariableContainer for ParseState {
+impl VariableContainer for ParseState<'_> {
     fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
-        if let Some(Declared::Variable(var)) = self.local_variables.get_declared(ident) {
+        if let Some(var) = self.local.get_var_declared(ident) {
             return Some((&var.ty, &var.declaration));
         }
 
-        self.external_variables
-            .get_declared(ident)
-            .into_iter()
-            .find_map(|d| match d {
-                Declared::Variable(var) => Some((&var.ty, &var.declaration)),
-                _ => None,
-            })
+        match self.parent {
+            Some(p) => p.get_var(ident),
+            None => None,
+        }
     }
 
     fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
-        if let Some(Declared::Function(func)) = self.local_variables.get_declared(ident) {
+        if let Some(func) = self.local.get_func_defined(ident) {
             return Some(func);
         }
 
-        self.external_variables
-            .get_declared(ident)
-            .into_iter()
-            .find_map(|d| match d {
-                Declared::Function(func) => Some(func),
-                _ => None,
-            })
+        match self.parent {
+            Some(p) => p.get_func(ident),
+            None => None,
+        }
     }
 }
 
@@ -200,20 +198,6 @@ impl Variables {
     pub fn get_declared(&self, ident: &Identifier) -> Option<&Declared> {
         let name = &ident.0.data;
         self.0.get(name)
-    }
-
-    fn join(&self, other: &Self) -> Self {
-        let mut declared = self.0.clone();
-        let mut defined = self.1.clone();
-
-        for (ident, dec) in other.0.clone() {
-            declared.insert(ident, dec);
-        }
-        for (ident, def) in other.1.clone() {
-            defined.insert(ident, def);
-        }
-
-        Self(declared, defined)
     }
 }
 
