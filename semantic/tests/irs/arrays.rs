@@ -26,8 +26,8 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x_var =
-        Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
+    let x_var = Variable::new("x_973384018644274198", Type::Pointer(Box::new(Type::I32)))
+        .set_meta(VariableMetadata::Pointer);
     let t0_var = Variable::new("__t_0", Type::I64);
     let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::Pointer);
@@ -142,8 +142,8 @@ void test() {
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
     // The start of the Array
-    let x_var =
-        Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
+    let x_var = Variable::new("x_973384018644274198", Type::Pointer(Box::new(Type::I32)))
+        .set_meta(VariableMetadata::Pointer);
 
     // The Variables needed for the first assignment
     let t0_var = Variable::new("__t_0", Type::I64);
@@ -151,7 +151,7 @@ void test() {
         .set_meta(VariableMetadata::Pointer);
 
     // The Variables needed for the second Assignment + Update
-    let tmp1_var = Variable::new("tmp1", Type::I32);
+    let tmp1_var = Variable::new("tmp1_9656661383669412478", Type::I32);
     let t2_var = Variable::new("__t_2", Type::I64);
     let t3_var = Variable::new("__t_3", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::Pointer);
@@ -165,7 +165,7 @@ void test() {
     let t9_var = Variable::tmp(9, Type::I32);
 
     // The Variables needed for the third Assignment + Update
-    let tmp2_var = Variable::new("tmp2", Type::I32);
+    let tmp2_var = Variable::new("tmp2_2108483379725238258", Type::I32);
     let t10_var = Variable::tmp(10, Type::I64);
     let t11_var =
         Variable::tmp(11, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);

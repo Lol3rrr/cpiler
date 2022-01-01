@@ -16,8 +16,8 @@ void test() {
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
 
-    let tmp_var = Variable::new("tmp", ir::Type::I32);
-    let x_var = Variable::new("x", ir::Type::I32);
+    let tmp_var = Variable::new("tmp_631366842563799064", ir::Type::I32);
+    let x_var = Variable::new("x_14387504199494487623", ir::Type::I32);
 
     let global_block = BasicBlock::initial(vec![Statement::Assignment {
         target: tmp_var.clone(),

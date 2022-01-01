@@ -28,7 +28,8 @@ pub use structaccess::*;
 pub enum AExpression {
     Literal(Literal),
     Variable {
-        ident: Identifier,
+        name: String,
+        src: Identifier,
         ty: SpanData<AType>,
     },
     AddressOf {
@@ -123,15 +124,20 @@ impl AExpression {
                 Ok(Self::SizeOf { ty: a_ty })
             }
             Expression::Identifier { ident } => {
-                let (var_type, var_span) = match vars.get_var(&ident) {
+                let var_dec = match vars.get_var(&ident) {
                     Some(tmp) => tmp,
                     None => {
                         return Err(SemanticError::UnknownIdentifier { name: ident });
                     }
                 };
 
+                let var_name = &var_dec.internal_name;
+                let var_type = &var_dec.ty;
+                let var_span = &var_dec.declaration;
+
                 Ok(AExpression::Variable {
-                    ident,
+                    name: var_name.clone(),
+                    src: ident,
                     ty: SpanData {
                         data: var_type.clone(),
                         span: var_span.clone(),
@@ -208,8 +214,8 @@ impl AExpression {
 
                                 let ty_info = match vars.get_var(&ident) {
                                     Some(v) => SpanData {
-                                        span: v.1.clone(),
-                                        data: v.0.clone(),
+                                        span: v.declaration.clone(),
+                                        data: v.ty.clone(),
                                     },
                                     None => panic!("Unknown Variable: {:?}", &ident),
                                 };
@@ -232,8 +238,8 @@ impl AExpression {
                                 Some(v) => (
                                     ident,
                                     SpanData {
-                                        span: v.1.clone(),
-                                        data: v.0.clone(),
+                                        span: v.declaration.clone(),
+                                        data: v.ty.clone(),
                                     },
                                 ),
                                 None => panic!("Unknown Variable: {:?}", &ident),
@@ -470,7 +476,7 @@ impl AExpression {
                 Literal::StringLiteral(SpanData { span, .. }) => span.clone(),
                 Literal::CharLiteral(SpanData { span, .. }) => span.clone(),
             },
-            Self::Variable { ident, .. } => ident.0.span.clone(),
+            Self::Variable { src, .. } => src.0.span.clone(),
             Self::AddressOf { base, .. } => base.entire_span(),
             Self::SizeOf { .. } => panic!("SizeOf Operand"),
             Self::ArrayAccess { base, .. } => base.entire_span(),
@@ -495,7 +501,11 @@ impl AExpression {
 
     pub fn assign_target(self) -> AAssignTarget {
         match self {
-            Self::Variable { ident, ty } => AAssignTarget::Variable { ident, ty_info: ty },
+            Self::Variable { name, src, ty } => AAssignTarget::Variable {
+                name,
+                src,
+                ty_info: ty,
+            },
             Self::ArrayAccess { base, index, ty } => {
                 AAssignTarget::ArrayAccess(ArrayAccessTarget {
                     target: Box::new(base.assign_target()),
@@ -515,9 +525,9 @@ impl AExpression {
     pub fn used_variables(&self) -> BTreeSet<String> {
         match self {
             Self::Literal(_) => BTreeSet::new(),
-            Self::Variable { ident, .. } => {
+            Self::Variable { name, .. } => {
                 let mut tmp = BTreeSet::new();
-                tmp.insert(ident.0.data.clone());
+                tmp.insert(name.clone());
                 tmp
             }
             Self::AddressOf { base, .. } => base.used_variables(),
@@ -626,8 +636,8 @@ impl AExpression {
     pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) -> Value {
         match self {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
-            AExpression::Variable { ident, .. } => {
-                let var = block.definition(&ident.0.data, &|| ctx.next_tmp()).unwrap();
+            AExpression::Variable { name, .. } => {
+                let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
                 Value::Variable(var)
             }
             AExpression::BinaryOperator { op, left, right } => {
@@ -755,7 +765,7 @@ impl AExpression {
     /// calculate some offest from it, like for a struct or array access
     pub fn ir_address(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Value {
         match self {
-            Self::Variable { ident, ty } => {
+            Self::Variable { name, ty, .. } => {
                 match ty.data.ty() {
                     AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {}
                     other => {
@@ -764,7 +774,7 @@ impl AExpression {
                         todo!("Unexpected Variable")
                     }
                 };
-                let var = block.definition(&ident.0.data, &|| ctx.next_tmp()).unwrap();
+                let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
 
                 ir::Value::Variable(var)
             }

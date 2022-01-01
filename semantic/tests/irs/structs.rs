@@ -29,7 +29,10 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x_var = Variable::new("x", ir::Type::Pointer(Box::new(ir::Type::Void)));
+    let x_var = Variable::new(
+        "x_12621672828407718478",
+        ir::Type::Pointer(Box::new(ir::Type::Void)),
+    );
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -97,7 +100,10 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x_var = Variable::new("x", ir::Type::Pointer(Box::new(ir::Type::Void)));
+    let x_var = Variable::new(
+        "x_12621672828407718478",
+        ir::Type::Pointer(Box::new(ir::Type::Void)),
+    );
     let t0_var = Variable::new("__t_0", Type::Pointer(Box::new(Type::Void)));
     let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::Void)));
     let t2_var = Variable::new("__t_2", Type::Pointer(Box::new(Type::Void)));
@@ -210,7 +216,10 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x_var = Variable::new("x", Type::Pointer(Box::new(Type::Void)));
+    let x_var = Variable::new(
+        "x_12621672828407718478",
+        Type::Pointer(Box::new(Type::Void)),
+    );
     let t0_var = Variable::new("__t_0", Type::Pointer(Box::new(Type::Void)));
     let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::Void)));
     let t2_var = Variable::new("__t_2", Type::I32);
@@ -332,7 +341,7 @@ void test() {
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
     let x_var = Variable::new(
-        "x",
+        "x_10573110594158173564",
         Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Void)))),
     );
     let t0_var = Variable::new("__t_0", Type::I64);
@@ -439,7 +448,7 @@ void test() {
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
     let x_var = Variable::new(
-        "x",
+        "x_10573110594158173564",
         Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Void)))),
     );
     let t0_var = Variable::new("__t_0", Type::I64);
@@ -451,7 +460,7 @@ void test() {
         "__t_2",
         Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Void)))),
     );
-    let tmp_var = Variable::new("tmp", Type::I32);
+    let tmp_var = Variable::new("tmp_14764528945755187508", Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],

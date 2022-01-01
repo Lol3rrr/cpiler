@@ -26,13 +26,15 @@ mod conversion;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration {
+    internal_name: String,
     ty: AType,
     declaration: Span,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AFunctionArg {
-    pub name: Identifier,
+    pub name: String,
+    pub src: Identifier,
     pub ty: AType,
 }
 
@@ -57,20 +59,20 @@ pub fn parse(ast: AST) -> Result<AAST, SemanticError> {
 }
 
 pub trait VariableContainer {
-    fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)>;
+    fn get_var(&self, ident: &Identifier) -> Option<&VariableDeclaration>;
 
     fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration>;
 }
 
 pub enum FuncOrVar {
-    Var(AType, Span),
+    Var(VariableDeclaration),
     Function(FunctionDeclaration),
 }
 impl VariableContainer for HashMap<String, FuncOrVar> {
-    fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
+    fn get_var(&self, ident: &Identifier) -> Option<&VariableDeclaration> {
         let ident_name = &ident.0.data;
         self.get(ident_name).into_iter().find_map(|r| match r {
-            FuncOrVar::Var(t, s) => Some((t, s)),
+            FuncOrVar::Var(v) => Some(v),
             _ => None,
         })
     }

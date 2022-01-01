@@ -26,7 +26,7 @@ void test() {
     let global = BasicBlock::initial(vec![]);
 
     let t0_var = Variable::new("__t_0", Type::I64);
-    let x0_var = Variable::new("x", Type::I32);
+    let x0_var = Variable::new("x_13661097461077092700", Type::I32);
 
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
@@ -124,7 +124,7 @@ void test() {
     let global = BasicBlock::initial(vec![]);
 
     let t0_var = Variable::new("__t_0", Type::I64);
-    let x0_var = Variable::new("x", Type::I32);
+    let x0_var = Variable::new("x_13661097461077092700", Type::I32);
 
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
@@ -221,7 +221,7 @@ void test() {
     let global = BasicBlock::initial(vec![]);
 
     let t0_var = Variable::new("__t_0", Type::I64);
-    let x0_var = Variable::new("x", Type::I32);
+    let x0_var = Variable::new("x_13661097461077092700", Type::I32);
 
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
@@ -321,7 +321,7 @@ void test() {
     let global = BasicBlock::initial(vec![]);
 
     let t0_var = Variable::new("__t_0", Type::I64);
-    let x0_var = Variable::new("x", Type::I32);
+    let x0_var = Variable::new("x_13661097461077092700", Type::I32);
 
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 

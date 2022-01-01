@@ -26,11 +26,11 @@ void test() {
 
     let global_block = BasicBlock::initial(vec![]);
 
-    let x_var = Variable::new("x", Type::I32);
+    let x_var = Variable::new("x_973384018644274198", Type::I32);
     let t0_var = Variable::new("__t_0", Type::I64);
     let t1_var = Variable::new("__t_1", Type::I32);
     let x1_var = x_var.next_gen();
-    let y_var = Variable::new("y", Type::I32);
+    let y_var = Variable::new("y_13143486146492289088", Type::I32);
 
     let function_arg_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
@@ -142,12 +142,12 @@ void test() {
 
     let function_start_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x0_var = Variable::new("x", Type::I32);
+    let x0_var = Variable::new("x_973384018644274198", Type::I32);
     let x1_var = x0_var.next_gen();
     let x2_var = x1_var.next_gen();
     let t0_var = Variable::new("__t_0", Type::I64);
     let t1_phi_var = Variable::new("__t_1", Type::I32);
-    let y_var = Variable::new("y", Type::I32);
+    let y_var = Variable::new("y_9205855845031901256", Type::I32);
 
     let function_first = BasicBlock::new(
         vec![function_start_block.weak_ptr()],

@@ -20,7 +20,8 @@ asm(\"mov ${out}, 13\", {}, out);
             function_definitions: vec![].into_iter().collect(),
             statements: vec![
                 AStatement::DeclareVar {
-                    name: Identifier(SpanData {
+                    name: "out_3599231011511905905".to_string(),
+                    src: Identifier(SpanData {
                         span: Span::new_source(source.clone(), 5..8),
                         data: "out".to_string(),
                     }),
@@ -71,7 +72,8 @@ asm(\"mov ${out}, ${in}\", {in}, out);
             function_definitions: vec![].into_iter().collect(),
             statements: vec![
                 AStatement::DeclareVar {
-                    name: Identifier(SpanData {
+                    name: "out_3599231011511905905".to_string(),
+                    src: Identifier(SpanData {
                         span: Span::new_source(source.clone(), 5..8),
                         data: "out".to_string(),
                     }),
@@ -79,7 +81,8 @@ asm(\"mov ${out}, ${in}\", {in}, out);
                 },
                 AStatement::Assignment {
                     target: AAssignTarget::Variable {
-                        ident: Identifier(SpanData {
+                        name: "in_9219883154635435264".to_string(),
+                        src: Identifier(SpanData {
                             span: Span::new_source(source.clone(), 14..16),
                             data: "in".to_string(),
                         }),

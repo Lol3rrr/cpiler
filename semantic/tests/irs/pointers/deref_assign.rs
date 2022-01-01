@@ -25,8 +25,8 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let x_var =
-        Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
+    let x_var = Variable::new("x_17563920617334630623", Type::Pointer(Box::new(Type::I32)))
+        .set_meta(VariableMetadata::Pointer);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -94,13 +94,12 @@ void test() {
 
     let func_initial = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
 
-    let y0_var = Variable::new("y", Type::I32);
+    let y0_var = Variable::new("y_8304944181907028059", Type::I32);
     let y1_var = y0_var.next_gen();
-    let x_var = Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(
-        VariableMetadata::VarPointer {
+    let x_var = Variable::new("x_5934430639642140251", Type::Pointer(Box::new(Type::I32)))
+        .set_meta(VariableMetadata::VarPointer {
             var: Box::new(y0_var.clone()),
-        },
-    );
+        });
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],

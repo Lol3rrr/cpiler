@@ -34,7 +34,8 @@ var.first = 1;
         global_scope: ARootScope(AScope {
             statements: vec![
                 AStatement::DeclareVar {
-                    name: Identifier(SpanData {
+                    name: "var_8850448685002068515".to_string(),
+                    src: Identifier(SpanData {
                         span: Span::new_source(source.clone(), 44..47),
                         data: "var".to_string(),
                     }),
@@ -46,7 +47,8 @@ var.first = 1;
                 AStatement::Assignment {
                     target: AAssignTarget::StructField(StructFieldTarget {
                         target: Box::new(AAssignTarget::Variable {
-                            ident: Identifier(SpanData {
+                            name: "var_8850448685002068515".to_string(),
+                            src: Identifier(SpanData {
                                 span: Span::new_source(source.clone(), 49..52),
                                 data: "var".to_string(),
                             }),

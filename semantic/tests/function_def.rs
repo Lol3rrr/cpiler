@@ -33,7 +33,8 @@ void test(int arg_1, int arg_2) {
                             SpanData {
                                 span: Span::new_source(input_source.clone(), 11..20),
                                 data: AFunctionArg {
-                                    name: Identifier(SpanData {
+                                    name: "arg_1_17890622940299703966".to_string(),
+                                    src: Identifier(SpanData {
                                         data: "arg_1".to_string(),
                                         span: Span::new_source(input_source.clone(), 15..20),
                                     }),
@@ -43,7 +44,8 @@ void test(int arg_1, int arg_2) {
                             SpanData {
                                 span: Span::new_source(input_source.clone(), 22..31),
                                 data: AFunctionArg {
-                                    name: Identifier(SpanData {
+                                    name: "arg_2_18286672610069985839".to_string(),
+                                    src: Identifier(SpanData {
                                         data: "arg_2".to_string(),
                                         span: Span::new_source(input_source.clone(), 26..31),
                                     }),
@@ -57,7 +59,8 @@ void test(int arg_1, int arg_2) {
                         function_definitions: HashMap::new(),
                         statements: vec![AStatement::Assignment {
                             target: AAssignTarget::Variable {
-                                ident: Identifier(SpanData {
+                                name: "rand_9262185021779511104".to_string(),
+                                src: Identifier(SpanData {
                                     span: Span::new_source(input_source.clone(), 43..47),
                                     data: "rand".to_string(),
                                 }),
@@ -69,7 +72,8 @@ void test(int arg_1, int arg_2) {
                             value: AExpression::BinaryOperator {
                                 op: AOperator::Arithmetic(ArithemticOp::Add),
                                 left: Box::new(AExpression::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "arg_1_17890622940299703966".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(input_source.clone(), 50..55),
                                         data: "arg_1".to_string(),
                                     }),
@@ -79,7 +83,8 @@ void test(int arg_1, int arg_2) {
                                     },
                                 }),
                                 right: Box::new(AExpression::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "arg_2_18286672610069985839".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(input_source.clone(), 58..63),
                                         data: "arg_2".to_string(),
                                     }),

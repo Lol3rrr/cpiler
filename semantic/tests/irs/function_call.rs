@@ -22,7 +22,7 @@ void test() {
 
     let global_block = BasicBlock::initial(vec![]);
 
-    let x_var = Variable::new("x", Type::I32);
+    let x_var = Variable::new("x_17227083962473714508", Type::I32);
     let t0_var = Variable::tmp(0, Type::I32);
 
     let func_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
@@ -87,8 +87,8 @@ void test() {
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
 
-    let x_var = Variable::new("x", Type::I32);
-    let y_var = Variable::new("y", Type::I32);
+    let x_var = Variable::new("x_3421002591759186305", Type::I32);
+    let y_var = Variable::new("y_6298470074920897498", Type::I32);
     let t0_var = Variable::tmp(0, Type::I32);
     let t1_var = Variable::tmp(1, Type::I32);
 
@@ -173,10 +173,10 @@ void test() {
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
 
-    let x_var =
-        Variable::new("x", Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
+    let x_var = Variable::new("x_9131165162366007046", Type::Pointer(Box::new(Type::I32)))
+        .set_meta(VariableMetadata::Pointer);
     let x_2_var = x_var.next_gen();
-    let y_var = Variable::new("y", Type::I32);
+    let y_var = Variable::new("y_516652289463271765", Type::I32);
     let t0_var = Variable::tmp(0, Type::I32);
 
     let global = BasicBlock::initial(vec![]);

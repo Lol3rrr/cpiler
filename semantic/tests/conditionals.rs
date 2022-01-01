@@ -38,7 +38,8 @@ void test() {
                         statements: vec![
                             AStatement::Assignment {
                                 target: AAssignTarget::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "before_13637938142874503404".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(source.clone(), 23..29),
                                         data: "before".to_string(),
                                     }),
@@ -66,7 +67,8 @@ void test() {
                                     function_definitions: vec![].into_iter().collect(),
                                     statements: vec![AStatement::Assignment {
                                         target: AAssignTarget::Variable {
-                                            ident: Identifier(SpanData {
+                                            name: "inner_3904140568307149187".to_string(),
+                                            src: Identifier(SpanData {
                                                 span: Span::new_source(source.clone(), 61..66),
                                                 data: "inner".to_string(),
                                             }),
@@ -90,7 +92,8 @@ void test() {
                             },
                             AStatement::Assignment {
                                 target: AAssignTarget::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "after_10058698591396841273".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(source.clone(), 87..92),
                                         data: "after".to_string(),
                                     }),
@@ -159,7 +162,8 @@ void test() {
                         statements: vec![
                             AStatement::Assignment {
                                 target: AAssignTarget::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "before_13637938142874503404".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(source.clone(), 23..29),
                                         data: "before".to_string(),
                                     }),
@@ -187,7 +191,8 @@ void test() {
                                     function_definitions: vec![].into_iter().collect(),
                                     statements: vec![AStatement::Assignment {
                                         target: AAssignTarget::Variable {
-                                            ident: Identifier(SpanData {
+                                            name: "inner_1_3648312257416805102".to_string(),
+                                            src: Identifier(SpanData {
                                                 span: Span::new_source(source.clone(), 61..68),
                                                 data: "inner_1".to_string(),
                                             }),
@@ -211,7 +216,8 @@ void test() {
                                     function_definitions: vec![].into_iter().collect(),
                                     statements: vec![AStatement::Assignment {
                                         target: AAssignTarget::Variable {
-                                            ident: Identifier(SpanData {
+                                            name: "inner_2_715247315407271392".to_string(),
+                                            src: Identifier(SpanData {
                                                 span: Span::new_source(source.clone(), 100..107),
                                                 data: "inner_2".to_string(),
                                             }),
@@ -237,7 +243,8 @@ void test() {
                             },
                             AStatement::Assignment {
                                 target: AAssignTarget::Variable {
-                                    ident: Identifier(SpanData {
+                                    name: "after_8183258524668199613".to_string(),
+                                    src: Identifier(SpanData {
                                         span: Span::new_source(source.clone(), 128..133),
                                         data: "after".to_string(),
                                     }),

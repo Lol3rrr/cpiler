@@ -84,7 +84,8 @@ impl StructFieldTarget {
 #[derive(Debug, PartialEq, Clone)]
 pub enum AAssignTarget {
     Variable {
-        ident: Identifier,
+        name: String,
+        src: Identifier,
         /// The Type of the Variable itself
         ty_info: SpanData<AType>,
     },
@@ -127,16 +128,17 @@ impl AAssignTarget {
     {
         match raw {
             AssignTarget::Variable(ident) => {
-                let (ty, sp) = match vars.get_var(&ident) {
+                let var_dec = match vars.get_var(&ident) {
                     Some(t) => t,
                     None => return Err(SemanticError::UnknownIdentifier { name: ident }),
                 };
 
                 Ok(AAssignTarget::Variable {
-                    ident,
+                    name: var_dec.internal_name.clone(),
+                    src: ident,
                     ty_info: SpanData {
-                        span: sp.clone(),
-                        data: ty.clone(),
+                        span: var_dec.declaration.clone(),
+                        data: var_dec.ty.clone(),
                     },
                 })
             }
@@ -294,13 +296,14 @@ impl AAssignTarget {
         ctx: &ConvertContext,
     ) -> (ir::Value, AType) {
         match self {
-            Self::Variable { ident, ty_info } => {
+            Self::Variable { name, src, ty_info } => {
                 dbg!(&ty_info);
 
                 match ty_info.data.ty() {
                     AType::Struct { def, area } => {
                         let var = AExpression::Variable {
-                            ident,
+                            name,
+                            src,
                             ty: SpanData {
                                 span: ty_info.span,
                                 data: AType::Struct {
@@ -314,7 +317,8 @@ impl AAssignTarget {
                     }
                     AType::Array(arr) => {
                         let var = AExpression::Variable {
-                            ident,
+                            name,
+                            src,
                             ty: SpanData {
                                 span: ty_info.span,
                                 data: AType::Array(arr.clone()),
@@ -325,7 +329,8 @@ impl AAssignTarget {
                     }
                     AType::Pointer(base_ty) => {
                         let var = AExpression::Variable {
-                            ident,
+                            name,
+                            src,
                             ty: SpanData {
                                 span: ty_info.span,
                                 data: AType::Pointer(base_ty.clone()),

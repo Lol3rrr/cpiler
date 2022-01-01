@@ -13,7 +13,8 @@ pub use target::*;
 #[derive(Debug, PartialEq, Clone)]
 pub enum AStatement {
     DeclareVar {
-        name: Identifier,
+        name: String,
+        src: Identifier,
         ty: AType,
     },
     Assignment {
@@ -87,10 +88,12 @@ impl AStatement {
                     for arg in arguments {
                         let tmp_ty =
                             AType::parse(arg.data.ty, parse_state.type_defs(), parse_state)?;
+                        let int_name = ParseState::unique_var_name(&arg.data.name, &arg.span);
                         tmp.push(SpanData {
                             span: arg.span,
                             data: AFunctionArg {
-                                name: arg.data.name,
+                                name: int_name,
+                                src: arg.data.name,
                                 ty: tmp_ty,
                             },
                         });
@@ -126,9 +129,14 @@ impl AStatement {
                             AType::parse(arg.data.ty, parse_state.type_defs(), parse_state)?;
                         let name = arg.data.name;
 
+                        let int_name = ParseState::unique_var_name(&name, &arg.span);
                         tmp.push(SpanData {
                             span: arg.span,
-                            data: AFunctionArg { name, ty: tmp_ty },
+                            data: AFunctionArg {
+                                name: int_name,
+                                src: name,
+                                ty: tmp_ty,
+                            },
                         });
                     }
                     tmp
@@ -150,7 +158,7 @@ impl AStatement {
                     let arg = &tmp_arg.data;
 
                     function_scope.add_variable_declaration(
-                        arg.name.clone(),
+                        arg.src.clone(),
                         tmp_arg.span.clone(),
                         arg.ty.clone(),
                     );
@@ -221,13 +229,15 @@ impl AStatement {
                     panic!("Redeclaration Error");
                 }
 
-                let result = AStatement::DeclareVar {
-                    name: name.clone(),
-                    ty: ty.clone(),
-                };
-
                 let declaration = name.0.span.clone();
-                parse_state.add_variable_declaration(name, declaration, ty);
+                let int_name =
+                    parse_state.add_variable_declaration(name.clone(), declaration, ty.clone());
+
+                let result = AStatement::DeclareVar {
+                    name: int_name,
+                    src: name,
+                    ty,
+                };
 
                 Ok(Some(result))
             }
@@ -446,10 +456,12 @@ impl AStatement {
 
                 *block = following_block;
             }
-            AStatement::DeclareVar { name, ty: raw_ty } => {
+            AStatement::DeclareVar {
+                name, ty: raw_ty, ..
+            } => {
                 let ty = raw_ty.ty();
 
-                let target_name = name.0.data;
+                let target_name = name;
 
                 match ty {
                     AType::Array(arr) => {
@@ -515,14 +527,13 @@ impl AStatement {
             }
             AStatement::Assignment { target, value } => {
                 match target {
-                    AAssignTarget::Variable { ident, ty_info } => {
-                        let var_name = ident.0.data;
-                        let next_var = match block.definition(&var_name, &|| ctx.next_tmp()) {
+                    AAssignTarget::Variable { name, ty_info, .. } => {
+                        let next_var = match block.definition(&name, &|| ctx.next_tmp()) {
                             Some(var) => var.next_gen(),
                             None => {
                                 let target_ty = ty_info.data.to_ir();
 
-                                ir::Variable::new(var_name.clone(), target_ty)
+                                ir::Variable::new(name.clone(), target_ty)
                             }
                         };
 

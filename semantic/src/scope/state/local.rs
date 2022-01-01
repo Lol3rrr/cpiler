@@ -3,12 +3,14 @@ use std::collections::HashMap;
 use general::Span;
 use syntax::Identifier;
 
-use crate::{AType, Declared, FunctionDeclaration, VariableDeclaration};
+use crate::{AType, FunctionDeclaration, ParseState, VariableDeclaration};
 
 /// The Local State for a Scope
 #[derive(Debug)]
 pub struct LocalState {
+    /// Takes the Source Name as the Key
     vars: HashMap<String, VariableDeclaration>,
+    /// Takes the Source Name as the Key
     funcs: HashMap<String, FunctionDeclaration>,
 }
 
@@ -53,14 +55,19 @@ impl LocalState {
     }
 
     /// Adds a Variable Declaration for this Scope
-    pub fn declare_var(&mut self, name: Identifier, ty: AType, decl: Span) {
+    pub fn declare_var(&mut self, name: Identifier, ty: AType, decl: Span) -> String {
+        let internal_name = ParseState::unique_var_name(&name, &decl);
+
         self.vars.insert(
             name.0.data,
             VariableDeclaration {
+                internal_name: internal_name.clone(),
                 ty,
                 declaration: decl,
             },
         );
+
+        internal_name
     }
     /// Adds a Function Declaration for this Scope
     pub fn declare_func(&mut self, name: Identifier, func: FunctionDeclaration) {

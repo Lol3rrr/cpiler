@@ -25,7 +25,7 @@ pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
             let mut tmp = Vec::new();
 
             for arg in func_dec.arguments.iter() {
-                let name = arg.data.name.0.data.clone();
+                let name = arg.data.name.clone();
                 let ty = arg.data.ty.clone().to_ir();
 
                 tmp.push((name, ty));
@@ -77,7 +77,7 @@ fn convert_function(
         for tmp_arg in func_dec.arguments.iter() {
             let var_data = &tmp_arg.data;
             let var_ty = tmp_arg.data.ty.clone().to_ir();
-            let var = Variable::new(&var_data.name.0.data, var_ty);
+            let var = Variable::new(&var_data.name, var_ty);
 
             tmp.push(Statement::Assignment {
                 target: var,

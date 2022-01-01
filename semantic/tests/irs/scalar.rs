@@ -24,9 +24,9 @@ void test() {
     let global_block = BasicBlock::initial(vec![]);
     let global_weak = global_block.weak_ptr();
 
-    let x_var = Variable::new("x", Type::I64);
+    let x_var = Variable::new("x_14996960715402433870", Type::I64);
     let x1_var = x_var.next_gen();
-    let y_var = Variable::new("y", Type::I64);
+    let y_var = Variable::new("y_12304173411602300563", Type::I64);
     let y1_var = y_var.next_gen();
 
     let initial_block = BasicBlock::new(vec![global_weak], vec![]);
@@ -102,9 +102,9 @@ void test(int arg) {
 
     let global_block = BasicBlock::initial(vec![]);
 
-    let arg_var = Variable::new("arg", Type::I32);
-    let x_var = Variable::new("x", Type::I32);
-    let y_var = Variable::new("y", Type::I32);
+    let arg_var = Variable::new("arg_7757918524739752622", Type::I32);
+    let x_var = Variable::new("x_16654679891977327093", Type::I32);
+    let y_var = Variable::new("y_11784424694190178094", Type::I32);
 
     let func_initial_block = BasicBlock::new(
         vec![global_block.weak_ptr()],
@@ -143,7 +143,7 @@ void test(int arg) {
             "test".to_string(),
             FunctionDefinition {
                 name: "test".to_string(),
-                arguments: vec![("arg".to_string(), Type::I32)],
+                arguments: vec![("arg_7757918524739752622".to_string(), Type::I32)],
                 return_ty: Type::Void,
                 block: func_initial_block,
             },

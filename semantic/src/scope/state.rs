@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
 
 use general::{Span, SpanData};
 use syntax::Identifier;
@@ -111,8 +114,13 @@ impl<'p> ParseState<'p> {
         );
     }
 
-    pub fn add_variable_declaration(&mut self, name: Identifier, declaration: Span, ty: AType) {
-        self.local.declare_var(name, ty, declaration);
+    pub fn add_variable_declaration(
+        &mut self,
+        name: Identifier,
+        declaration: Span,
+        ty: AType,
+    ) -> String {
+        self.local.declare_var(name, ty, declaration)
     }
 
     pub fn add_function_definition(
@@ -135,10 +143,23 @@ impl Default for ParseState<'_> {
     }
 }
 
+impl ParseState<'_> {
+    pub fn unique_var_name(name: &Identifier, decl: &Span) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        name.0.data.hash(&mut hasher);
+        decl.content().hash(&mut hasher);
+        decl.source().name().hash(&mut hasher);
+        hasher.write_usize(decl.source_area().start);
+        hasher.write_usize(decl.source_area().end);
+        let id = hasher.finish();
+        format!("{}_{}", name.0.data, id)
+    }
+}
+
 impl VariableContainer for ParseState<'_> {
-    fn get_var(&self, ident: &Identifier) -> Option<(&AType, &Span)> {
+    fn get_var(&self, ident: &Identifier) -> Option<&VariableDeclaration> {
         if let Some(var) = self.local.get_var_declared(ident) {
-            return Some((&var.ty, &var.declaration));
+            return Some(var);
         }
 
         match self.parent {
@@ -185,9 +206,24 @@ impl Variables {
         self.1.contains_key(&ident.0.data)
     }
 
-    pub fn declare_variable(&mut self, name: Identifier, ty: AType, declaration: Span) {
-        let data = Declared::Variable(VariableDeclaration { ty, declaration });
+    pub fn declare_variable(&mut self, name: Identifier, ty: AType, declaration: Span) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        name.0.data.hash(&mut hasher);
+        declaration.content().hash(&mut hasher);
+        declaration.source().name().hash(&mut hasher);
+        hasher.write_usize(declaration.source_area().start);
+        hasher.write_usize(declaration.source_area().end);
+        let id = hasher.finish();
+        let internal_name = format!("{}_{}", name.0.data, id);
+
+        let data = Declared::Variable(VariableDeclaration {
+            internal_name: internal_name.clone(),
+            ty,
+            declaration,
+        });
         self.0.insert(name.0.data, data);
+
+        internal_name
     }
     pub fn declare_function(&mut self, name: Identifier, func_dec: FunctionDeclaration) {
         let data = Declared::Function(func_dec);
