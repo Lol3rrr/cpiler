@@ -35,7 +35,7 @@ void other() {
                     AScope {
                         statements: vec![
                             AStatement::DeclareVar {
-                                name: "".to_string(),
+                                name: "test_2149230751987271372".to_string(),
                                 src: Identifier(SpanData {
                                     span: Span::new_source(input_source.clone(), 24..28),
                                     data: "test".to_string(),
@@ -50,7 +50,7 @@ void other() {
                                 body: AScope {
                                     statements: vec![AStatement::Assignment {
                                         target: AAssignTarget::Variable {
-                                            name: "".to_string(),
+                                            name: "test_2149230751987271372".to_string(),
                                             src: Identifier(SpanData {
                                                 span: Span::new_source(
                                                     input_source.clone(),
