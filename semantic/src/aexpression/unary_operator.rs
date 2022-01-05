@@ -79,6 +79,7 @@ impl UnaryOperator {
 
                 let result_var = ir::Variable::tmp(ctx.next_tmp(), base.result_type().to_ir())
                     .set_description("Temp Variable holding Value before Incrementing");
+
                 let result_assign = ir::Statement::Assignment {
                     target: result_var.clone(),
                     value: base_value,

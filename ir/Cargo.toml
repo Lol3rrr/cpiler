@@ -7,3 +7,10 @@ edition = "2021"
 
 [dependencies]
 graphviz = { path = "../graphviz" }
+
+[dev-dependencies]
+general = { path = "../general" }
+tokenizer = { path = "../tokenizer" }
+syntax = { path = "../syntax" }
+semantic = { path = "../semantic" }
+optimizer = { path = "../optimizer" }

@@ -28,8 +28,8 @@ void test() {
 
     let x_var = Variable::new("x_973384018644274198", Type::I32);
     let t0_var = Variable::new("__t_0", Type::I64);
-    let t1_var = Variable::new("__t_1", Type::I32);
     let x1_var = x_var.next_gen();
+    let x2_var = x_var.next_gen();
     let y_var = Variable::new("y_13143486146492289088", Type::I32);
 
     let function_arg_block = BasicBlock::new(vec![global_block.weak_ptr()], vec![]);
@@ -68,7 +68,7 @@ void test() {
         vec![inner_if_block.weak_ptr(), function_first_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t1_var.clone(),
+                target: x2_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -84,7 +84,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t1_var.clone()),
+                value: Value::Variable(x2_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -145,8 +145,8 @@ void test() {
     let x0_var = Variable::new("x_973384018644274198", Type::I32);
     let x1_var = x0_var.next_gen();
     let x2_var = x1_var.next_gen();
+    let x3_var = x2_var.next_gen();
     let t0_var = Variable::new("__t_0", Type::I64);
-    let t1_phi_var = Variable::new("__t_1", Type::I32);
     let y_var = Variable::new("y_9205855845031901256", Type::I32);
 
     let function_first = BasicBlock::new(
@@ -195,7 +195,7 @@ void test() {
         vec![true_block.weak_ptr(), false_block.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: t1_phi_var.clone(),
+                target: x3_var.clone(),
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
@@ -211,7 +211,7 @@ void test() {
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t1_phi_var.clone()),
+                value: Value::Variable(x3_var.clone()),
             },
             Statement::Return(None),
         ],

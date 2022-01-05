@@ -27,13 +27,13 @@ impl Iterator for BlockIter {
         let current_ptr = current.as_ptr();
         self.visited.insert(current_ptr);
 
-        let mut current_succs = current.successors();
-        for already_visited in self.visited.iter() {
-            current_succs.remove(already_visited);
-        }
+        let following_iter = current
+            .successors()
+            .into_iter()
+            .filter(|s| !self.visited.contains(&s.0))
+            .map(|(_, b)| b.0);
 
-        self.left
-            .extend(current_succs.into_iter().map(|(_, b)| b.0));
+        self.left.extend(following_iter);
 
         Some(current)
     }

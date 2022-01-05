@@ -221,10 +221,10 @@ void test() {
         Type::Pointer(Box::new(Type::Void)),
     );
     let t0_var = Variable::new("__t_0", Type::Pointer(Box::new(Type::Void)));
-    let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::Void)));
-    let t2_var = Variable::new("__t_2", Type::I32);
+    let t1_var = Variable::new("__t_1", Type::I32);
+    let t2_var = Variable::new("__t_2", Type::I64);
     let t3_var = Variable::new("__t_3", Type::I64);
-    let t4_var = Variable::new("__t_4", Type::I64);
+    let t4_var = Variable::new("__t_4", Type::Pointer(Box::new(Type::Void)));
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -246,46 +246,46 @@ void test() {
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            // This is the Address of the Field we want to read
+            // This reads the Value from the Field
             Statement::Assignment {
                 target: t1_var.clone(),
+                value: Value::Expression(Expression::ReadMemory {
+                    address: Operand::Variable(t0_var.clone()),
+                    read_ty: Type::I32,
+                }),
+            },
+            // Cast the Read Value to an I64
+            Statement::Assignment {
+                target: t2_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    base: Operand::Variable(t1_var.clone()),
+                    target: Type::I64,
+                }),
+            },
+            // Add the 13 to the Value
+            Statement::Assignment {
+                target: t3_var.clone(),
+                value: Value::Expression(Expression::BinaryOp {
+                    op: BinaryOp::Arith(BinaryArithmeticOp::Add),
+                    left: Operand::Variable(t2_var.clone()),
+                    right: Operand::Constant(Constant::I64(13)),
+                }),
+            },
+            // This is the Address of the Field we want to read
+            Statement::Assignment {
+                target: t4_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
                     left: Operand::Variable(x_var.clone()),
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            // This reads the Value from the Field
-            Statement::Assignment {
-                target: t2_var.clone(),
-                value: Value::Expression(Expression::ReadMemory {
-                    address: Operand::Variable(t1_var.clone()),
-                    read_ty: Type::I32,
-                }),
-            },
-            // Cast the Read Value to an I64
-            Statement::Assignment {
-                target: t3_var.clone(),
-                value: Value::Expression(Expression::Cast {
-                    base: Operand::Variable(t2_var.clone()),
-                    target: Type::I64,
-                }),
-            },
-            // Add the 13 to the Value
-            Statement::Assignment {
-                target: t4_var.clone(),
-                value: Value::Expression(Expression::BinaryOp {
-                    op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(t3_var.clone()),
-                    right: Operand::Constant(Constant::I64(13)),
-                }),
-            },
             // Store the new Value back into the target Field
             Statement::WriteMemory {
-                target: Operand::Variable(t0_var.clone()),
+                target: Operand::Variable(t4_var.clone()),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
-                    base: Operand::Variable(t4_var.clone()),
+                    base: Operand::Variable(t3_var.clone()),
                 }),
             },
             Statement::Return(None),

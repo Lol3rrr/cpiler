@@ -7,7 +7,7 @@ use std::{
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
-    PhiEntry, Statement, ToDot, Type, Value, Variable,
+    DominanceTree, InterferenceGraph, NodeId, PhiEntry, Statement, ToDot, Type, Value, Variable,
 };
 
 mod inner;
@@ -218,7 +218,6 @@ impl BasicBlock {
             };
         }
 
-        let tmp_var_numb = tmp_numb();
         let tmp_var = Variable::new(name, Type::Void);
         let phi_stmnt = Statement::Assignment {
             target: tmp_var,
@@ -252,9 +251,15 @@ impl BasicBlock {
             return None;
         }
 
-        let ty = sources.get(0).unwrap().var.ty.clone();
+        let var = sources.get(0).unwrap().var.clone();
+        if sources.iter().all(|entry| entry.var.eq(&var)) {
+            let mut tmp = self.0.parts.write().unwrap();
+            tmp.pop();
 
-        let final_var = Variable::tmp(tmp_var_numb, ty);
+            return Some(var);
+        }
+
+        let final_var = var.next_gen();
         let tmp_stmnt = Statement::Assignment {
             target: final_var.clone(),
             value: Value::Phi { sources },
@@ -268,6 +273,42 @@ impl BasicBlock {
         }
 
         Some(final_var)
+    }
+
+    pub fn refresh_phis(&self) {
+        let mut statements = self.get_statements();
+
+        let preds = self.get_predecessors();
+
+        for stmnt in statements.iter_mut() {
+            let target = match stmnt {
+                Statement::Assignment {
+                    target,
+                    value: Value::Phi { .. },
+                } => target,
+                _ => continue,
+            };
+
+            let mut sources = Vec::with_capacity(preds.len());
+            for raw_pred in preds.iter() {
+                let c_pred = raw_pred.clone();
+                let pred = match raw_pred.upgrade() {
+                    Some(p) => p,
+                    None => continue,
+                };
+
+                if let Some(var) = pred.definition(&target.name, &|| panic!()) {
+                    sources.push(PhiEntry { var, block: c_pred });
+                }
+            }
+
+            *stmnt = Statement::Assignment {
+                target: target.clone(),
+                value: Value::Phi { sources },
+            };
+        }
+
+        self.set_statements(statements);
     }
 
     /// Checks if there exists a Variable Definition/Assignment for the given Name
@@ -317,6 +358,218 @@ impl BasicBlock {
                 _ => {}
             };
         }
+
+        result
+    }
+
+    /// Gets the Number of uses for all the Variables used in the current Block
+    pub fn block_used_vars(&self) -> HashMap<Variable, usize> {
+        let mut result = HashMap::new();
+
+        let stmnts = self.0.parts.read().unwrap();
+        for tmp in stmnts.iter() {
+            tmp.used_vars().into_iter().for_each(|u_v| {
+                match result.get_mut(&u_v) {
+                    Some(u_count) => {
+                        *u_count = *u_count + 1;
+                    }
+                    None => {
+                        result.insert(u_v, 1);
+                    }
+                };
+            });
+        }
+
+        result
+    }
+
+    /// Gets the Number of uses for all the Variables used in the successors of this Block
+    pub fn following_uses(&self) -> HashMap<Variable, usize> {
+        let mut base = HashMap::new();
+
+        for succ in self.block_iter().skip(1) {
+            let succ_uses = succ.block_used_vars();
+
+            for (u_v, u_c) in succ_uses.into_iter() {
+                match base.get_mut(&u_v) {
+                    Some(b_c) => {
+                        *b_c = *b_c + u_c;
+                    }
+                    None => {
+                        base.insert(u_v, u_c);
+                    }
+                };
+            }
+        }
+
+        base
+    }
+
+    pub(crate) fn earliest_common_block(&self, other: &Self) -> Option<Self> {
+        let own_iter = self.block_iter();
+        let other_iter = other.block_iter();
+
+        let own_succs: HashMap<*const InnerBlock, BasicBlock> =
+            own_iter.map(|b| (b.as_ptr(), b)).collect();
+
+        for other_succ in other_iter {
+            let other_ptr = other_succ.as_ptr();
+
+            if own_succs.contains_key(&other_ptr) {
+                return Some(other_succ);
+            }
+        }
+
+        None
+    }
+
+    pub(crate) fn interference_graph<T>(
+        &self,
+        graph: &mut T,
+        live_vars: &mut HashSet<Variable>,
+        visited: &mut HashSet<*const InnerBlock>,
+    ) where
+        T: InterferenceGraph,
+    {
+        visited.insert(self.as_ptr());
+
+        let mut block_uses = self.block_used_vars();
+        let following_uses = self.following_uses();
+        let statements = self.get_statements();
+
+        for stmnt in statements.into_iter() {
+            match &stmnt {
+                Statement::Assignment { target, .. } => {
+                    let target_node = NodeId::new(target.clone());
+                    graph.add_node(target_node.clone());
+
+                    for live in live_vars.iter() {
+                        graph.add_edge(target_node.clone(), NodeId::new(live.clone()));
+                    }
+
+                    live_vars.insert(target.clone());
+                }
+                _ => {}
+            };
+
+            let tmp_used = stmnt.used_vars();
+
+            for used in tmp_used {
+                match block_uses.get_mut(&used) {
+                    Some(b_u) => {
+                        *b_u = *b_u - 1;
+
+                        if *b_u == 0 {
+                            block_uses.remove(&used);
+
+                            if !following_uses.contains_key(&used) {
+                                live_vars.remove(&used);
+                            }
+                        }
+                    }
+                    None => {
+                        dbg!(&used);
+                    }
+                };
+            }
+        }
+
+        let succs: HashMap<_, _> = self
+            .successors()
+            .into_iter()
+            .filter(|(p, _)| !visited.contains(p))
+            .collect();
+        if succs.is_empty() {
+            return;
+        }
+
+        if succs.len() == 1 {
+            let (_, single_succ) = succs.into_iter().next().unwrap();
+            single_succ.interference_graph(graph, live_vars, visited);
+            return;
+        }
+
+        assert!(succs.len() == 2);
+        let (left, right) = {
+            let mut tmp = succs.into_iter().map(|(_, b)| b);
+            (tmp.next().unwrap(), tmp.next().unwrap())
+        };
+
+        let end_block = left.earliest_common_block(&right).unwrap();
+
+        visited.insert(end_block.as_ptr());
+        let mut left_live = live_vars.clone();
+        left.interference_graph(graph, &mut left_live, visited);
+
+        let mut right_live = live_vars.clone();
+        right.interference_graph(graph, &mut right_live, visited);
+
+        let mut n_live = {
+            let mut tmp = left_live;
+            tmp.extend(right_live);
+            tmp
+        };
+        end_block.interference_graph(graph, &mut n_live, visited);
+        return;
+    }
+
+    pub fn dominance_tree(&self, visited: &mut HashSet<*const InnerBlock>) -> DominanceTree {
+        visited.insert(self.as_ptr());
+
+        let mut result = DominanceTree::new();
+
+        let statements = self.get_statements();
+        for stmnt in statements {
+            match stmnt {
+                Statement::Assignment { target, .. } => {
+                    result.append(target);
+                }
+                _ => {}
+            };
+        }
+
+        let succs = self.successors();
+
+        if succs.is_empty() {
+            return result;
+        }
+
+        if succs.len() == 1 {
+            let (_, succ) = succs.into_iter().next().unwrap();
+            if visited.contains(&succ.as_ptr()) {
+                return result;
+            }
+
+            let succ_tree = succ.dominance_tree(visited);
+
+            result.append_tree(succ_tree);
+
+            return result;
+        }
+
+        assert!(succs.len() == 2);
+
+        let current_node = result.current_node().unwrap();
+
+        let mut succ_iter = succs.into_iter();
+        let (_, left_block) = succ_iter.next().unwrap();
+        let (_, right_block) = succ_iter.next().unwrap();
+
+        let common_block = left_block.earliest_common_block(&right_block).unwrap();
+        visited.insert(common_block.as_ptr());
+
+        if !visited.contains(&left_block.as_ptr()) {
+            let left_tree = left_block.dominance_tree(visited);
+            result.append_tree_to_node(&current_node, left_tree);
+        }
+        if !visited.contains(&right_block.as_ptr()) {
+            let right_tree = right_block.dominance_tree(visited);
+            result.append_tree_to_node(&current_node, right_tree);
+        }
+        visited.remove(&common_block.as_ptr());
+
+        let common_tree = common_block.dominance_tree(visited);
+        result.append_tree_to_node(&current_node, common_tree);
 
         result
     }
@@ -451,32 +704,35 @@ mod tests {
 
     #[test]
     fn definition_in_multiple_predecessors() {
+        let var_test0 = Variable::new("test", Type::I8);
+        let var_test1 = var_test0.next_gen();
+
         let predecessor_1 = BasicBlock::initial(vec![Statement::Assignment {
-            target: Variable::new_test("test", 0, Type::I8),
+            target: var_test0.clone(),
             value: Value::Constant(Constant::I8(1)),
         }]);
         let pred_1 = predecessor_1.weak_ptr();
 
         let predecessor_2 = BasicBlock::initial(vec![Statement::Assignment {
-            target: Variable::new_test("test", 1, Type::I8),
+            target: var_test1.clone(),
             value: Value::Constant(Constant::I8(2)),
         }]);
         let pred_2 = predecessor_2.weak_ptr();
 
         let block = BasicBlock::new(vec![pred_1.clone(), pred_2.clone()], vec![]);
 
-        let expected = Some(Variable::new_test("__t_0", 0, Type::I8));
+        let expected = Some(Variable::new_test("test", 2, Type::I8));
         let expected_block_stmnts = vec![Statement::Assignment {
-            target: Variable::new_test("__t_0", 0, Type::I8),
+            target: Variable::new_test("test", 2, Type::I8),
             value: Value::Phi {
                 sources: vec![
                     PhiEntry {
                         block: pred_1,
-                        var: Variable::new_test("test", 0, Type::I8),
+                        var: var_test0,
                     },
                     PhiEntry {
                         block: pred_2,
-                        var: Variable::new_test("test", 1, Type::I8),
+                        var: var_test1,
                     },
                 ],
             },
@@ -484,6 +740,7 @@ mod tests {
 
         let result = block.definition("test", &|| 0);
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
+        dbg!(&result_block_stmnts);
 
         let mut tmp_map = HashMap::new();
         for (expected_stmnt, result_stmnt) in expected_block_stmnts
@@ -515,22 +772,8 @@ mod tests {
         predecessor_2.add_statement(Statement::Jump(block.clone()));
         predecessor_3.add_statement(Statement::Jump(block.clone()));
 
-        let expected = Some(Variable::new_test("__t_0", 0, Type::I8));
-        let expected_block_stmnts = vec![Statement::Assignment {
-            target: Variable::new_test("__t_0", 0, Type::I8),
-            value: Value::Phi {
-                sources: vec![
-                    PhiEntry {
-                        block: predecessor_1.weak_ptr(),
-                        var: test_var.clone(),
-                    },
-                    PhiEntry {
-                        block: predecessor_1.weak_ptr(),
-                        var: test_var.clone(),
-                    },
-                ],
-            },
-        }];
+        let expected = Some(test_var.clone());
+        let expected_block_stmnts: Vec<Statement> = vec![];
 
         let result = block.definition("test", &|| 0);
         dbg!(&result);

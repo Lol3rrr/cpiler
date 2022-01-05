@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use general::{arch::Arch, Source, Span};
 use ir::{
-    BasicBlock, Constant, Expression, FunctionDefinition, Operand, Program, Statement, Type, Value,
-    Variable,
+    BasicBlock, BinaryArithmeticOp, BinaryOp, Constant, Expression, FunctionDefinition, Operand,
+    PhiEntry, Program, Statement, Type, UnaryArithmeticOp, UnaryOp, Value, Variable,
 };
 
 #[test]
@@ -103,7 +103,6 @@ void test() {
 }
 
 #[test]
-#[ignore = "This is currently not yet supported"]
 fn while_loop_modifying_in_cond_inner() {
     let input = "
 void test() {
@@ -123,40 +122,94 @@ void test() {
 
     let global = BasicBlock::initial(vec![]);
 
-    let t0_var = Variable::new("__t_0", Type::I64);
-    let x0_var = Variable::new("x_13661097461077092700", Type::I32);
+    let t0_var = Variable::new("__t_0", Type::I32);
+    let x0_var = Variable::new("x_973384018644274198", Type::I32);
+    let x1_var = x0_var.next_gen();
+    let x2_var = x1_var.next_gen();
+    let x3_var = x2_var.next_gen();
+    let t1_var = Variable::tmp(1, Type::I64);
+    let t2_var = Variable::tmp(2, Type::I64);
+    let t3_var = Variable::tmp(3, Type::I64);
 
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
-    let func_first_block = BasicBlock::new(vec![func_initial_block.weak_ptr()], vec![]);
+    let func_first_block = BasicBlock::new(
+        vec![func_initial_block.weak_ptr()],
+        vec![Statement::Assignment {
+            target: x0_var.clone(),
+            value: Value::Expression(Expression::Cast {
+                target: Type::I32,
+                base: Operand::Constant(Constant::I64(0)),
+            }),
+        }],
+    );
     func_initial_block.add_statement(Statement::Jump(func_first_block.clone()));
 
+    let loop_inner_block = BasicBlock::new(vec![], vec![]);
     let loop_cond_block = BasicBlock::new(
         vec![func_first_block.weak_ptr()],
-        vec![Statement::Assignment {
-            target: t0_var.clone(),
-            value: Value::Constant(Constant::I64(2)),
-        }],
+        vec![
+            Statement::Assignment {
+                target: x1_var.clone(),
+                value: Value::Phi {
+                    sources: vec![
+                        PhiEntry {
+                            var: x0_var.clone(),
+                            block: func_first_block.weak_ptr(),
+                        },
+                        PhiEntry {
+                            var: x3_var.clone(),
+                            block: loop_inner_block.weak_ptr(),
+                        },
+                    ],
+                },
+            },
+            Statement::Assignment {
+                target: t0_var.clone(),
+                value: Value::Variable(x1_var.clone()),
+            },
+            Statement::Assignment {
+                target: x2_var.clone(),
+                value: Value::Expression(Expression::UnaryOp {
+                    op: UnaryOp::Arith(UnaryArithmeticOp::Decrement),
+                    base: Operand::Variable(x1_var.clone()),
+                }),
+            },
+            Statement::Assignment {
+                target: t1_var.clone(),
+                value: Value::Variable(t0_var.clone()),
+            },
+            Statement::JumpTrue(t1_var.clone(), loop_inner_block.clone()),
+        ],
     );
     func_first_block.add_statement(Statement::Jump(loop_cond_block.clone()));
 
-    let loop_inner_block = BasicBlock::new(
-        vec![loop_cond_block.weak_ptr()],
-        vec![
-            Statement::Assignment {
-                target: x0_var.clone(),
-                value: Value::Expression(Expression::Cast {
-                    target: Type::I32,
-                    base: Operand::Constant(Constant::I64(0)),
-                }),
-            },
-            Statement::Jump(loop_cond_block.clone()),
-        ],
-    );
-    loop_cond_block.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
-        loop_inner_block.clone(),
-    ));
+    loop_inner_block.add_predecessor(loop_inner_block.weak_ptr());
+    loop_inner_block.set_statements(vec![
+        Statement::Assignment {
+            target: t2_var.clone(),
+            value: Value::Expression(Expression::Cast {
+                target: Type::I64,
+                base: Operand::Variable(x2_var.clone()),
+            }),
+        },
+        Statement::Assignment {
+            target: t3_var.clone(),
+            value: Value::Expression(Expression::BinaryOp {
+                op: BinaryOp::Arith(BinaryArithmeticOp::Sub),
+                left: Operand::Variable(t2_var.clone()),
+                right: Operand::Constant(Constant::I64(1)),
+            }),
+        },
+        Statement::Assignment {
+            target: x3_var.clone(),
+            value: Value::Expression(Expression::Cast {
+                target: Type::I32,
+                base: Operand::Variable(t3_var.clone()),
+            }),
+        },
+        Statement::Jump(loop_cond_block.clone()),
+    ]);
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
 
     let func_end_block = BasicBlock::new(

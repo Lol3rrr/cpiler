@@ -42,4 +42,8 @@ impl Type {
     pub fn is_ptr(&self) -> bool {
         matches!(self, Self::Pointer(_) | Self::Array(_, _))
     }
+
+    pub fn signed(&self) -> bool {
+        matches!(self, Self::I8 | Self::I16 | Self::I32 | Self::I64)
+    }
 }

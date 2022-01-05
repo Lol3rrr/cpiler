@@ -159,10 +159,10 @@ void test() {
     let t5_var = Variable::tmp(5, Type::I64);
     let t6_var =
         Variable::tmp(6, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
-    let t7_var = Variable::tmp(7, Type::I64);
-    let t8_var =
-        Variable::tmp(8, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
-    let t9_var = Variable::tmp(9, Type::I32);
+    let t7_var = Variable::tmp(7, Type::I32);
+    let t8_var = Variable::tmp(8, Type::I64);
+    let t9_var =
+        Variable::tmp(9, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
 
     // The Variables needed for the third Assignment + Update
     let tmp2_var = Variable::new("tmp2_2108483379725238258", Type::I32);
@@ -173,10 +173,10 @@ void test() {
     let t13_var = Variable::tmp(13, Type::I64);
     let t14_var =
         Variable::tmp(14, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
-    let t15_var = Variable::tmp(15, Type::I64);
-    let t16_var =
-        Variable::tmp(16, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
-    let t17_var = Variable::tmp(17, Type::I32);
+    let t15_var = Variable::tmp(15, Type::I32);
+    let t16_var = Variable::tmp(16, Type::I64);
+    let t17_var =
+        Variable::tmp(17, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -254,6 +254,13 @@ void test() {
             },
             Statement::Assignment {
                 target: t7_var.clone(),
+                value: Value::Expression(Expression::ReadMemory {
+                    address: Operand::Variable(t6_var.clone()),
+                    read_ty: Type::I32,
+                }),
+            },
+            Statement::Assignment {
+                target: t8_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
                     left: Operand::Constant(Constant::I64(0)),
@@ -261,25 +268,18 @@ void test() {
                 }),
             },
             Statement::Assignment {
-                target: t8_var.clone(),
+                target: t9_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
                     left: Operand::Variable(x_var.clone()),
-                    right: Operand::Variable(t7_var.clone()),
-                }),
-            },
-            Statement::Assignment {
-                target: t9_var.clone(),
-                value: Value::Expression(Expression::ReadMemory {
-                    address: Operand::Variable(t8_var.clone()),
-                    read_ty: Type::I32,
+                    right: Operand::Variable(t8_var.clone()),
                 }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t6_var.clone()),
+                target: Operand::Variable(t9_var.clone()),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
-                    base: Operand::Variable(t9_var.clone()),
+                    base: Operand::Variable(t7_var.clone()),
                 }),
             },
             Statement::Assignment {
@@ -328,6 +328,13 @@ void test() {
             },
             Statement::Assignment {
                 target: t15_var.clone(),
+                value: Value::Expression(Expression::ReadMemory {
+                    address: Operand::Variable(t14_var.clone()),
+                    read_ty: Type::I32,
+                }),
+            },
+            Statement::Assignment {
+                target: t16_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
                     left: Operand::Constant(Constant::I64(0)),
@@ -335,25 +342,18 @@ void test() {
                 }),
             },
             Statement::Assignment {
-                target: t16_var.clone(),
+                target: t17_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
                     left: Operand::Variable(x_var.clone()),
-                    right: Operand::Variable(t15_var.clone()),
-                }),
-            },
-            Statement::Assignment {
-                target: t17_var.clone(),
-                value: Value::Expression(Expression::ReadMemory {
-                    address: Operand::Variable(t16_var.clone()),
-                    read_ty: Type::I32,
+                    right: Operand::Variable(t16_var.clone()),
                 }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t14_var.clone()),
+                target: Operand::Variable(t17_var.clone()),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Decrement),
-                    base: Operand::Variable(t17_var.clone()),
+                    base: Operand::Variable(t15_var.clone()),
                 }),
             },
             Statement::Assignment {

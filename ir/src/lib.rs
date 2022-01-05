@@ -29,6 +29,12 @@ pub use function::*;
 mod statement;
 pub use statement::*;
 
+mod interference;
+pub use interference::*;
+
+mod dominance;
+pub use dominance::*;
+
 mod comp;
 
 /// The overall Program Structure that contains all the needed information about the Program itself

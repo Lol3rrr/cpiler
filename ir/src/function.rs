@@ -1,6 +1,9 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use crate::{BasicBlock, ToDot, Type};
+use crate::{BasicBlock, DominanceTree, InterferenceGraph, Statement, ToDot, Type, WeakBlockPtr};
+
+mod debug;
+use debug::DebugBlocks;
 
 /// A definition of a Function
 #[derive(Clone, PartialEq)]
@@ -13,36 +16,6 @@ pub struct FunctionDefinition {
     pub block: BasicBlock,
     /// The Return Type of the Function
     pub return_ty: Type,
-}
-
-struct DebugBlocks {
-    start: BasicBlock,
-}
-
-impl Debug for DebugBlocks {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut f_blocks = f.debug_struct("Blocks");
-
-        let mut blocks_printed = HashSet::new();
-        let mut blocks_left = vec![self.start.clone()];
-        while let Some(block) = blocks_left.pop() {
-            let name = format!("0x{:x}", block.as_ptr() as usize);
-
-            f_blocks.field(&name, &block);
-
-            for (ptr, block) in block.successors() {
-                if blocks_printed.contains(&ptr) {
-                    continue;
-                }
-
-                blocks_printed.insert(ptr);
-                blocks_left.push(block);
-            }
-        }
-        f_blocks.finish()?;
-
-        Ok(())
-    }
 }
 
 impl Debug for FunctionDefinition {
@@ -85,5 +58,20 @@ impl ToDot for FunctionDefinition {
 
     fn name(&self, _: &crate::dot::Context) -> String {
         format!("func_{}", self.name)
+    }
+}
+
+impl FunctionDefinition {
+    /// This is used generate the Interference Graph for a given Function
+    pub fn interference_graph<T>(&self, graph: &mut T)
+    where
+        T: InterferenceGraph,
+    {
+        self.block
+            .interference_graph(graph, &mut HashSet::new(), &mut HashSet::new());
+    }
+
+    pub fn dominance_tree(&self) -> DominanceTree {
+        self.block.dominance_tree(&mut HashSet::new())
     }
 }

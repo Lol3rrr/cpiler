@@ -526,6 +526,8 @@ impl AStatement {
                 };
             }
             AStatement::Assignment { target, value } => {
+                let value_exp = value.to_ir(block, ctx);
+
                 match target {
                     AAssignTarget::Variable { name, ty_info, .. } => {
                         let next_var = match block.definition(&name, &|| ctx.next_tmp()) {
@@ -537,7 +539,6 @@ impl AStatement {
                             }
                         };
 
-                        let value_exp = value.to_ir(block, ctx);
                         let target_meta = value_exp.assign_meta(&next_var);
                         let target_var = next_var.set_meta(target_meta);
 
@@ -550,8 +551,6 @@ impl AStatement {
                         let address_value = exp.to_ir(block, ctx);
 
                         let target_oper = AExpression::val_to_operand(address_value, block, ctx);
-
-                        let value_exp = value.to_ir(block, ctx);
 
                         if let ir::Operand::Variable(target_var) = &target_oper {
                             if let ir::VariableMetadata::VarPointer { var } = target_var.meta() {
@@ -577,8 +576,6 @@ impl AStatement {
                         let target_value = ir::Value::Expression(target_exp);
                         let target_oper = AExpression::val_to_operand(target_value, block, ctx);
 
-                        let value_exp = value.to_ir(block, ctx);
-
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
                             value: value_exp,
@@ -590,11 +587,9 @@ impl AStatement {
                         let target_value = ir::Value::Expression(target_exp);
                         let target_oper = AExpression::val_to_operand(target_value, block, ctx);
 
-                        let value = value.to_ir(block, ctx);
-
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
-                            value,
+                            value: value_exp,
                         });
                     }
                 };
@@ -604,41 +599,9 @@ impl AStatement {
                     AExpression::FunctionCall(call) => {
                         call.to_standalone_ir(block, ctx);
                     }
-                    AExpression::UnaryOperator { base, op } => match op {
-                        UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixIncrement) => {
-                            let target = base.clone().assign_target();
-
-                            let assign_statement = AStatement::Assignment {
-                                target,
-                                value: AExpression::UnaryOperator {
-                                    op: UnaryOperator::Arithmetic(
-                                        UnaryArithmeticOp::SuffixIncrement,
-                                    ),
-                                    base,
-                                },
-                            };
-                            assign_statement.to_ir(block, ctx);
-                        }
-                        UnaryOperator::Arithmetic(UnaryArithmeticOp::SuffixDecrement) => {
-                            let target = base.clone().assign_target();
-
-                            let assign_statement = AStatement::Assignment {
-                                target,
-                                value: AExpression::UnaryOperator {
-                                    op: UnaryOperator::Arithmetic(
-                                        UnaryArithmeticOp::SuffixDecrement,
-                                    ),
-                                    base,
-                                },
-                            };
-                            assign_statement.to_ir(block, ctx);
-                        }
-                        other => {
-                            dbg!(&base, &other);
-
-                            todo!("Standalone Unary OP")
-                        }
-                    },
+                    AExpression::UnaryOperator { base, op } => {
+                        op.to_ir(base, block, ctx);
+                    }
                     other => {
                         dbg!(&other);
 
@@ -713,6 +676,18 @@ impl AStatement {
                 let inner_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
                 let end_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
 
+                for var in condition.used_variables() {
+                    let definition: ir::Variable =
+                        start_block.definition(&var, &|| ctx.next_tmp()).unwrap();
+
+                    let target = definition.next_gen();
+
+                    start_block.add_statement(ir::Statement::Assignment {
+                        target,
+                        value: ir::Value::Phi { sources: vec![] },
+                    });
+                }
+
                 // Generate the first iteration of the start Block
                 {
                     let mut cond_start = start_block.clone();
@@ -734,13 +709,15 @@ impl AStatement {
                 {
                     let loop_ctx = ctx.with_loop(start_block.clone(), end_block.clone());
 
+                    start_block.add_predecessor(inner_block.weak_ptr());
+
                     let inner_end_block = body.to_ir(&inner_block, &loop_ctx);
                     inner_end_block.add_statement(ir::Statement::Jump(start_block.clone()));
+                    start_block.remove_predecessor(inner_block.weak_ptr());
                     start_block.add_predecessor(inner_end_block.weak_ptr());
                 }
 
-                // TODO
-                // Regenerate the condition of the Loop
+                start_block.refresh_phis();
 
                 block.add_statement(ir::Statement::Jump(start_block));
                 *block = end_block;
@@ -752,14 +729,22 @@ impl AStatement {
             } => {
                 dbg!(&condition, &body, &updates);
 
-                let used_vars_in_cond = condition.used_variables();
-                for tmp_var in used_vars_in_cond {
-                    dbg!(&tmp_var);
-                }
+                let condition_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
 
                 // The Block containing the Condition
-                let (condition_block, cond_var) = {
-                    let condition_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                let cond_var = {
+                    for var in condition.used_variables() {
+                        let definition: ir::Variable = condition_block
+                            .definition(&var, &|| ctx.next_tmp())
+                            .unwrap();
+
+                        let target = definition.next_gen();
+
+                        condition_block.add_statement(ir::Statement::Assignment {
+                            target,
+                            value: ir::Value::Phi { sources: vec![] },
+                        });
+                    }
 
                     let mut cond_val_block = condition_block.clone();
                     let cond_value = condition.to_ir(&mut cond_val_block, ctx);
@@ -770,7 +755,7 @@ impl AStatement {
                         value: cond_value,
                     });
 
-                    (condition_block, cond_var)
+                    cond_var
                 };
 
                 // The Block updating some parts after every iteration
@@ -793,7 +778,20 @@ impl AStatement {
                     .add_statement(ir::Statement::JumpTrue(cond_var, content_start_block));
                 condition_block.add_statement(ir::Statement::Jump(end_block.clone()));
 
-                block.add_statement(ir::Statement::Jump(condition_block));
+                // Generate the content of the Update Block
+                {
+                    let mut end_update_block = update_block.clone();
+                    for update in updates {
+                        update.to_ir(&mut end_update_block, ctx);
+
+                        assert_eq!(update_block.as_ptr(), end_update_block.as_ptr());
+                    }
+                }
+
+                block.add_statement(ir::Statement::Jump(condition_block.clone()));
+
+                condition_block.refresh_phis();
+
                 *block = end_block;
             }
             AStatement::Break => {
