@@ -11,6 +11,7 @@ preprocessor = { path = "../preprocessor" }
 syntax = { path = "../syntax" }
 semantic = { path = "../semantic" }
 optimizer = { path = "../optimizer" }
+backend = { path = "../backend" }
 
 # For Fancy error messages
 ariadne = "0.1.3"

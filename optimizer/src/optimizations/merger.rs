@@ -1,4 +1,6 @@
-use ir::{BasicBlock, Statement};
+use std::{collections::HashMap, os::unix::prelude::MetadataExt};
+
+use ir::{BasicBlock, InnerBlock, Statement, WeakBlockPtr};
 
 use crate::OptimizationPass;
 
@@ -15,7 +17,7 @@ impl Merger {
         Self {}
     }
 
-    fn merge(&self, block: &BasicBlock) {
+    fn merge(&self, block: &BasicBlock, mappings: &mut HashMap<*const InnerBlock, WeakBlockPtr>) {
         let mut block_statements = block.get_statements();
 
         let last = match block_statements.pop() {
@@ -24,7 +26,7 @@ impl Merger {
         };
 
         if let Statement::Jump(target) = last {
-            self.merge(&target);
+            self.merge(&target, mappings);
 
             let mut target_preds = target.get_predecessors();
             if target_preds.len() != 1 {
@@ -50,6 +52,8 @@ impl Merger {
                 };
             });
 
+            mappings.insert(target_ptr.as_ptr(), block_ptr);
+
             let merged: Vec<_> = block_statements
                 .into_iter()
                 .chain(target_statements.into_iter())
@@ -57,6 +61,41 @@ impl Merger {
 
             block.set_statements(merged);
         }
+    }
+
+    fn phis(&self, block: &BasicBlock, mappings: &HashMap<*const InnerBlock, WeakBlockPtr>) {
+        let mut statements = block.get_statements();
+        dbg!(&statements);
+
+        for tmp in statements.iter_mut() {
+            match tmp {
+                Statement::Assignment {
+                    target,
+                    value: ir::Value::Phi { sources },
+                } => {
+                    let n_sources = sources
+                        .clone()
+                        .into_iter()
+                        .map(|mut s| match mappings.get(&s.block.as_ptr()) {
+                            Some(n) => {
+                                s.block = n.clone();
+                                s
+                            }
+                            None => s,
+                        })
+                        .collect();
+
+                    *tmp = Statement::Assignment {
+                        target: target.clone(),
+                        value: ir::Value::Phi { sources: n_sources },
+                    };
+                }
+                _ => {}
+            };
+        }
+
+        dbg!(&statements);
+        block.set_statements(statements);
     }
 }
 
@@ -72,7 +111,13 @@ impl OptimizationPass for Merger {
     }
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
-        self.merge(&ir.block);
+        let mut merge_mappings = HashMap::new();
+
+        self.merge(&ir.block, &mut merge_mappings);
+
+        for tmp in ir.block.block_iter() {
+            self.phis(&tmp, &merge_mappings);
+        }
 
         ir
     }

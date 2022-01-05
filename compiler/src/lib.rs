@@ -29,5 +29,8 @@ where
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 
+    let backend_config = backend::Config::new(general::arch::Arch::AArch64);
+    backend::codegen(ir, backend_config);
+
     Ok(())
 }

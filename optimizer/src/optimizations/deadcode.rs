@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ir::{Constant, Statement, Variable};
 
@@ -15,18 +15,30 @@ impl DeadCode {
 
     fn filter_functions<SI>(
         &self,
-        used_vars: &HashSet<Variable>,
+        used_vars: &mut HashMap<Variable, usize>,
         const_vars: &HashMap<Variable, Constant>,
         stmnt_iter: SI,
     ) -> Vec<Statement>
     where
-        SI: Iterator<Item = Statement>,
+        SI: DoubleEndedIterator<Item = Statement>,
     {
         let mut result = Vec::new();
 
         for stmnt in stmnt_iter {
             match &stmnt {
-                ir::Statement::Assignment { target, .. } if !used_vars.contains(target) => {}
+                ir::Statement::Assignment { target, .. } if !used_vars.contains_key(target) => {
+                    let used = stmnt.used_vars();
+
+                    used.into_iter().for_each(|u| {
+                        if let Some(u_count) = used_vars.get_mut(&u) {
+                            *u_count = *u_count - 1;
+
+                            if *u_count == 0 {
+                                used_vars.remove(&u);
+                            }
+                        }
+                    });
+                }
                 ir::Statement::JumpTrue(var, _) if const_vars.contains_key(var) => {
                     let const_val = const_vars.get(var).unwrap();
 
@@ -66,14 +78,23 @@ impl OptimizationPass for DeadCode {
     }
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
-        let mut used_vars = HashSet::new();
+        let mut used_vars = HashMap::new();
         let mut const_vars = HashMap::new();
 
         for block in ir.block.block_iter() {
             let statements = block.get_statements();
 
             for tmp_stmnt in statements {
-                used_vars.extend(tmp_stmnt.used_vars());
+                for tmp in tmp_stmnt.used_vars() {
+                    match used_vars.get_mut(&tmp) {
+                        Some(v) => {
+                            *v = *v + 1;
+                        }
+                        None => {
+                            used_vars.insert(tmp, 1);
+                        }
+                    };
+                }
 
                 if let ir::Statement::Assignment {
                     target,
@@ -89,7 +110,7 @@ impl OptimizationPass for DeadCode {
             let statements = block.get_statements();
 
             let n_statments: Vec<_> =
-                self.filter_functions(&used_vars, &const_vars, statements.into_iter());
+                self.filter_functions(&mut used_vars, &const_vars, statements.into_iter());
 
             block.set_statements(n_statments);
         }
