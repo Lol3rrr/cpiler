@@ -1,7 +1,10 @@
 // https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
 // https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    process::Command,
+};
 
 use ir::Variable;
 
@@ -20,9 +23,10 @@ impl Backend {
     }
 
     /// General Purpose Registers
-    fn registers() -> [ArmRegister; 39] {
+    fn registers() -> [ArmRegister; 42] {
         [
             //ArmRegister::GeneralPurpose(8),
+            /*
             ArmRegister::GeneralPurpose(9),
             ArmRegister::GeneralPurpose(10),
             ArmRegister::GeneralPurpose(11),
@@ -30,10 +34,10 @@ impl Backend {
             ArmRegister::GeneralPurpose(13),
             ArmRegister::GeneralPurpose(14),
             ArmRegister::GeneralPurpose(15),
+            */
             //ArmRegister::GeneralPurpose(16),
             //ArmRegister::GeneralPurpose(17),
             //ArmRegister::GeneralPurpose(18),
-            /*
             ArmRegister::GeneralPurpose(19),
             ArmRegister::GeneralPurpose(20),
             ArmRegister::GeneralPurpose(21),
@@ -44,7 +48,6 @@ impl Backend {
             ArmRegister::GeneralPurpose(26),
             ArmRegister::GeneralPurpose(27),
             ArmRegister::GeneralPurpose(28),
-            */
             //ArmRegister::GeneralPurpose(29),
             //ArmRegister::GeneralPurpose(30),
             ArmRegister::FloatingPoint(0),
@@ -91,26 +94,55 @@ impl Backend {
             todo!()
         }
 
-        let stack_space = codegen::stack_space(func);
-        dbg!(&stack_space);
+        let used_registers: HashSet<_> = register_map.iter().map(|(_, r)| r.clone()).collect();
+        dbg!(&used_registers);
+
+        let stack_space = codegen::stack_space(func, &used_registers);
 
         // TODO
-        // Allocate space for all the Variables that need to be on the Stack
+        // Allocate space for all the Variables that need to be on the Stack and save the used
+        // Registers to the Stack
 
-        let stack_setup = asm::Instruction::StpPreIndex {
+        let mut stack_setup = vec![asm::Instruction::StpPreIndex {
             first: asm::GPRegister::DWord(29),
             second: asm::GPRegister::DWord(30),
             base: asm::GpOrSpRegister::SP,
             offset: -(stack_space as i16),
-        };
-        dbg!(&stack_setup);
+        }];
 
-        let pre_return_instr = vec![asm::Instruction::LdpPostIndex {
+        let mut pre_return_instr = vec![asm::Instruction::LdpPostIndex {
             first: asm::GPRegister::DWord(29),
             second: asm::GPRegister::DWord(30),
             base: asm::GpOrSpRegister::SP,
             offset: stack_space as i16,
         }];
+
+        {
+            let base: i16 = 16;
+            for (index, raw_reg) in used_registers.iter().enumerate() {
+                let offset = base + (index as i16) * 8;
+                dbg!(&raw_reg, &offset);
+
+                let reg = match raw_reg {
+                    ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
+                    ArmRegister::FloatingPoint(_) => todo!(),
+                };
+
+                let store_instr = asm::Instruction::StoreRegisterUnscaled {
+                    reg: reg.clone(),
+                    base: asm::GpOrSpRegister::SP,
+                    offset,
+                };
+                let load_instr = asm::Instruction::LoadRegisterUnscaled {
+                    reg: reg.clone(),
+                    base: asm::GpOrSpRegister::SP,
+                    offset,
+                };
+
+                stack_setup.push(store_instr);
+                pre_return_instr.insert(0, load_instr);
+            }
+        }
 
         let mut asm_blocks: Vec<_> = func
             .block
@@ -118,13 +150,73 @@ impl Backend {
             .map(|b| codegen::block_to_asm(b, &register_map, pre_return_instr.clone()))
             .collect();
 
-        asm_blocks
-            .first_mut()
-            .unwrap()
-            .instructions
-            .insert(0, stack_setup);
+        asm_blocks.insert(
+            0,
+            asm::Block {
+                name: "main".to_string(),
+                instructions: vec![asm::Instruction::JumpLabel {
+                    target: codegen::block_name(&func.block),
+                }],
+            },
+        );
+
+        {
+            let first_block = asm_blocks.first_mut().unwrap();
+
+            let n_instr: Vec<_> = stack_setup
+                .into_iter()
+                .chain(std::mem::take(&mut first_block.instructions))
+                .collect();
+            first_block.instructions = n_instr;
+        }
 
         dbg!(&asm_blocks);
+
+        let mut asm_text = "
+.global main
+.align 2
+"
+        .to_string();
+        for block in asm_blocks.iter() {
+            let block_text = block.to_text();
+            asm_text.push_str(&block_text);
+        }
+
+        std::fs::write("./code.s", asm_text);
+
+        {
+            let output = Command::new("as")
+                .args(["-o", "./code.o", "./code.s"])
+                .output()
+                .expect("Failed to assemble");
+
+            let err_str = String::from_utf8(output.stderr).unwrap();
+            println!("{}", err_str);
+
+            assert!(output.status.success());
+        }
+
+        {
+            let output = Command::new("ld")
+                .args(["-macosx_version_min", "12.0.0"])
+                .args(["-o", "code"])
+                .args(["code.o"])
+                .args([
+                    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/lib",
+                    "-lSystem",
+                    "-e",
+                    "main",
+                    "-arch",
+                    "arm64",
+                ])
+                .output()
+                .expect("Failed to link");
+
+            let err_str = String::from_utf8(output.stderr).unwrap();
+            println!("{}", err_str);
+
+            assert!(output.status.success());
+        }
 
         todo!("Codegen for Function")
     }

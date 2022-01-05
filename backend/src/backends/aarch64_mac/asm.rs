@@ -1,5 +1,10 @@
 // https://developer.arm.com/documentation/ddi0487/latest/
 
+mod instruction;
+use std::fmt::Display;
+
+pub use instruction::*;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum GPRegister {
     /// A single Word Register, meaning the 32-Bit Register is used
@@ -8,10 +13,28 @@ pub enum GPRegister {
     DWord(u8),
 }
 
+impl Display for GPRegister {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Word(n) => write!(f, "w{}", n),
+            Self::DWord(n) => write!(f, "x{}", n),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum GpOrSpRegister {
     GP(GPRegister),
     SP,
+}
+
+impl Display for GpOrSpRegister {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GP(gp) => gp.fmt(f),
+            Self::SP => write!(f, "sp"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,87 +55,45 @@ pub enum Cond {
     Lt,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Instruction {
-    Nop,
-    /// Moves the Value from the given Regsiter into the StackPointer Register
-    MovToSP {
-        src: GPRegister,
-    },
-    /// Moves the Value of the StackPointer Register in to the dest Register
-    MovFromSP {
-        dest: GPRegister,
-    },
-    /// Moves/Copies the value from the src Register to the dest Register
-    MovRegister {
-        dest: GPRegister,
-        src: GPRegister,
-    },
-    /// Moves the unsigned immediate into the given Register and optionally shift it
-    Movz {
-        dest: GPRegister,
-        shift: u8,
-        immediate: u16,
-    },
-    AddCarry {
-        dest: GPRegister,
-        src1: GPRegister,
-        src2: GPRegister,
-    },
-    AddImmediate {
-        dest: GPRegister,
-        src: GPRegister,
-        immediate: u16,
-        shift: u8,
-    },
-    SubImmediate {
-        dest: GPRegister,
-        src: GPRegister,
-        immediate: u16,
-        shift: u8,
-    },
-    StpPreIndex {
-        first: GPRegister,
-        second: GPRegister,
-        base: GpOrSpRegister,
-        offset: i16,
-    },
-    LdpPostIndex {
-        first: GPRegister,
-        second: GPRegister,
-        base: GpOrSpRegister,
-        offset: i16,
-    },
-    JumpLabel {
-        target: String,
-    },
-    CmpImmediate {
-        reg: GPRegister,
-        immediate: u16,
-        shift: u8,
-    },
-    /// Set the Target register to 1 if the Condition is true or to 0 if it is false
-    CSet {
-        target: GPRegister,
-        condition: Cond,
-    },
-    /// Checks if the Value of the Register is Non Zero and then branches to the Target
-    BranchNonZeroLabel {
-        reg: GPRegister,
-        target: String,
-    },
-    BranchLabelCond {
-        target: String,
-        condition: Cond,
-    },
-    Call {
-        target: String,
-    },
-    Return,
+impl Display for Cond {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gt => write!(f, "ge"),
+            other => {
+                dbg!(&other);
+
+                todo!()
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub name: String,
     pub instructions: Vec<Instruction>,
+}
+
+impl Block {
+    pub fn to_text(&self) -> String {
+        let mut result = String::new();
+
+        result.push_str(&self.name);
+        result.push_str(": ");
+
+        if let Some(first_instr) = self.instructions.first() {
+            let instr_str = format!("{}\n", first_instr);
+
+            result.push_str(&instr_str);
+        }
+
+        let indent = self.name.len() + 2;
+        for instr in self.instructions.iter().skip(1) {
+            let instr_str = format!("{:indent$}{}\n", "", instr, indent = indent);
+
+            result.push_str(&instr_str);
+        }
+
+        result
+    }
 }

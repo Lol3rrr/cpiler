@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ir::{
     BasicBlock, BinaryArithmeticOp, BinaryLogicOp, BinaryOp, Constant, Expression, Operand,
@@ -75,8 +75,6 @@ pub fn block_to_asm(
                 target,
                 value: Value::Expression(exp),
             } => {
-                dbg!(&target, &exp);
-
                 let target_reg = reg_map.get(&target).unwrap();
                 let t_reg = match target_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
@@ -85,12 +83,8 @@ pub fn block_to_asm(
 
                 match exp {
                     Expression::Cast { base, target } => {
-                        dbg!(&target);
-
                         match base {
                             Operand::Variable(base_var) => {
-                                dbg!(&base_var, &target);
-
                                 // TODO
                                 // Properly handle this
 
@@ -109,16 +103,10 @@ pub fn block_to_asm(
                         };
                     }
                     Expression::BinaryOp { op, left, right } => {
-                        dbg!(&op, &left, &right);
-
                         match op {
                             BinaryOp::Logic(log_op) => {
-                                dbg!(&log_op);
-
                                 match (&left, &right) {
                                     (Operand::Variable(var), Operand::Constant(con)) => {
-                                        dbg!(&var, &con);
-
                                         let var_reg = match reg_map.get(&var).unwrap() {
                                             ArmRegister::GeneralPurpose(n) => {
                                                 asm::GPRegister::DWord(*n)
@@ -127,8 +115,6 @@ pub fn block_to_asm(
                                                 panic!("Not yet supported")
                                             }
                                         };
-                                        dbg!(&var_reg);
-
                                         let immediate = match con {
                                             Constant::I64(val) => {
                                                 if *val >= 0 && *val < 4096 {
@@ -181,8 +167,6 @@ pub fn block_to_asm(
                                         Operand::Variable(var),
                                         Operand::Constant(con),
                                     ) => {
-                                        dbg!(&var, &con);
-
                                         let var_reg = match reg_map.get(&var).unwrap() {
                                             ArmRegister::GeneralPurpose(n) => {
                                                 asm::GPRegister::DWord(*n)
@@ -191,7 +175,6 @@ pub fn block_to_asm(
                                                 panic!("Not yet supported")
                                             }
                                         };
-                                        dbg!(&var_reg);
 
                                         let immediate = match con {
                                             Constant::I64(val) => {
@@ -282,8 +265,23 @@ pub fn block_to_asm(
     asm::Block { name, instructions }
 }
 
-pub fn stack_space(func: &ir::FunctionDefinition) -> usize {
+pub fn stack_space(func: &ir::FunctionDefinition, used_register: &HashSet<ArmRegister>) -> usize {
     let mut base = 16;
 
-    base
+    for reg in used_register.iter() {
+        match reg {
+            ArmRegister::GeneralPurpose(_) => {
+                base += 8;
+            }
+            ArmRegister::FloatingPoint(_) => {
+                todo!()
+            }
+        };
+    }
+
+    if base % 16 == 0 {
+        base
+    } else {
+        base + (16 - (base % 16))
+    }
 }
