@@ -1,4 +1,4 @@
-use std::{collections::HashMap, os::unix::prelude::MetadataExt};
+use std::collections::HashMap;
 
 use ir::{BasicBlock, InnerBlock, Statement, WeakBlockPtr};
 
@@ -65,7 +65,6 @@ impl Merger {
 
     fn phis(&self, block: &BasicBlock, mappings: &HashMap<*const InnerBlock, WeakBlockPtr>) {
         let mut statements = block.get_statements();
-        dbg!(&statements);
 
         for tmp in statements.iter_mut() {
             match tmp {
@@ -76,12 +75,17 @@ impl Merger {
                     let n_sources = sources
                         .clone()
                         .into_iter()
-                        .map(|mut s| match mappings.get(&s.block.as_ptr()) {
-                            Some(n) => {
-                                s.block = n.clone();
-                                s
+                        .map(|s| {
+                            let mut last = s;
+                            loop {
+                                match mappings.get(&last.block.as_ptr()) {
+                                    Some(n) => {
+                                        last.block = n.clone();
+                                    }
+                                    None => break,
+                                };
                             }
-                            None => s,
+                            last
                         })
                         .collect();
 

@@ -3,6 +3,7 @@ use ir::{
     BasicBlock, Constant, Expression, FunctionDefinition, Operand, Statement, Type, Value,
     Variable, VariableMetadata,
 };
+use semantic::StructFieldTarget;
 
 #[test]
 fn function_call_no_args() {
@@ -39,9 +40,10 @@ void test() {
                 }),
             },
             Statement::Assignment {
-                target: x_var,
+                target: x_var.clone(),
                 value: Value::Variable(t0_var),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Return(None),
         ],
     );
@@ -106,6 +108,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(13)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: t0_var.clone(),
                 value: Value::Expression(Expression::Cast {
@@ -128,6 +131,7 @@ void test() {
                 target: y_var.clone(),
                 value: Value::Variable(t1_var.clone()),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );
@@ -193,6 +197,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(13)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: t0_var.clone(),
                 value: Value::Expression(Expression::FunctionCall {
@@ -209,6 +214,7 @@ void test() {
                 target: y_var.clone(),
                 value: Value::Variable(t0_var.clone()),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );

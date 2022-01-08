@@ -20,7 +20,6 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
                     Some(b) => b,
                     None => {
                         panic!("Block does not exist anymore");
-                        continue;
                     }
                 };
 
@@ -30,13 +29,14 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
                     .iter()
                     .enumerate()
                     .find(|(_, s)| match s {
-                        Statement::Assignment { target, .. } if target == &source.var => true,
+                        Statement::Jump(b) if b.as_ptr() == c_block.as_ptr() => true,
+                        Statement::JumpTrue(_, b) if b.as_ptr() == c_block.as_ptr() => true,
                         _ => false,
                     })
                     .unwrap();
 
                 s_stmnts.insert(
-                    assign_index + 1,
+                    assign_index,
                     Statement::Assignment {
                         target: p_target.clone(),
                         value: Value::Variable(source.var.clone()),

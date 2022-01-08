@@ -34,6 +34,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(123)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Return(None),
         ],
     );
@@ -83,7 +84,7 @@ void test() {
     let x_var = Variable::new("x_973384018644274198", Type::I32);
     let y_var = Variable::new("y_2817108257342626404", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::VarPointer {
-            var: Box::new(x_var.clone()),
+            var: Box::new(x_var.name.clone()),
         });
 
     let func_inner = BasicBlock::new(
@@ -96,12 +97,14 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::AdressOf {
                     base: Operand::Variable(x_var.clone()),
                 }),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );
@@ -154,7 +157,7 @@ void test() {
         .set_meta(VariableMetadata::Pointer);
     let x_var = Variable::new("x_1617816566900823775", Type::I32);
     let y1_var = y0_var.next_gen().set_meta(VariableMetadata::VarPointer {
-        var: Box::new(x_var.clone()),
+        var: Box::new(x_var.name.clone()),
     });
     let y2_var = y1_var.next_gen().set_meta(VariableMetadata::Pointer);
 
@@ -168,6 +171,9 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable {
+                var: y0_var.clone(),
+            },
             Statement::Assignment {
                 target: x_var.clone(),
                 value: Value::Expression(Expression::Cast {
@@ -175,11 +181,15 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: y1_var.clone(),
                 value: Value::Expression(Expression::AdressOf {
                     base: Operand::Variable(x_var.clone()),
                 }),
+            },
+            Statement::SaveVariable {
+                var: y1_var.clone(),
             },
             Statement::Assignment {
                 target: y2_var.clone(),
@@ -187,6 +197,9 @@ void test() {
                     target: Type::Pointer(Box::new(Type::I32)),
                     base: Operand::Constant(Constant::I64(13)),
                 }),
+            },
+            Statement::SaveVariable {
+                var: y2_var.clone(),
             },
             Statement::Return(None),
         ],

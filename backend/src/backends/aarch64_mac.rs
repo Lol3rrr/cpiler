@@ -85,75 +85,36 @@ impl Backend {
         ]
     }
 
-    fn codegen(&self, func: &ir::FunctionDefinition, register_map: HashMap<Variable, ArmRegister>) {
+    fn codegen(
+        &self,
+        func: &ir::FunctionDefinition,
+        register_map: HashMap<Variable, ArmRegister>,
+    ) -> Vec<asm::Block> {
         let arg_targets = codegen::arguments(func.arguments.iter().map(|(_, t)| t.clone()));
-        dbg!(&func.arguments, &arg_targets);
-
         for (arg, arg_register) in func.arguments.iter().zip(arg_targets.iter()) {
             dbg!(&arg, &arg_register);
             todo!()
         }
 
-        let used_registers: HashSet<_> = register_map.iter().map(|(_, r)| r.clone()).collect();
-        dbg!(&used_registers);
+        let stack_allocation = codegen::stack::allocate_stack(&func, &register_map);
 
-        let stack_space = codegen::stack_space(func, &used_registers);
-
-        // TODO
-        // Allocate space for all the Variables that need to be on the Stack and save the used
-        // Registers to the Stack
-
-        let mut stack_setup = vec![asm::Instruction::StpPreIndex {
-            first: asm::GPRegister::DWord(29),
-            second: asm::GPRegister::DWord(30),
-            base: asm::GpOrSpRegister::SP,
-            offset: -(stack_space as i16),
-        }];
-
-        let mut pre_return_instr = vec![asm::Instruction::LdpPostIndex {
-            first: asm::GPRegister::DWord(29),
-            second: asm::GPRegister::DWord(30),
-            base: asm::GpOrSpRegister::SP,
-            offset: stack_space as i16,
-        }];
-
-        {
-            let base: i16 = 16;
-            for (index, raw_reg) in used_registers.iter().enumerate() {
-                let offset = base + (index as i16) * 8;
-                dbg!(&raw_reg, &offset);
-
-                let reg = match raw_reg {
-                    ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
-                    ArmRegister::FloatingPoint(_) => todo!(),
-                };
-
-                let store_instr = asm::Instruction::StoreRegisterUnscaled {
-                    reg: reg.clone(),
-                    base: asm::GpOrSpRegister::SP,
-                    offset,
-                };
-                let load_instr = asm::Instruction::LoadRegisterUnscaled {
-                    reg: reg.clone(),
-                    base: asm::GpOrSpRegister::SP,
-                    offset,
-                };
-
-                stack_setup.push(store_instr);
-                pre_return_instr.insert(0, load_instr);
-            }
-        }
+        let asm_ctx = codegen::Context {
+            registers: register_map,
+            var: stack_allocation.var_offsets,
+            pre_ret_instr: stack_allocation.pre_return_instr.clone(),
+            stack_allocs: stack_allocation.allocations,
+        };
 
         let mut asm_blocks: Vec<_> = func
             .block
             .block_iter()
-            .map(|b| codegen::block_to_asm(b, &register_map, pre_return_instr.clone()))
+            .map(|b| codegen::block_to_asm(b, &asm_ctx))
             .collect();
 
         asm_blocks.insert(
             0,
             asm::Block {
-                name: "main".to_string(),
+                name: func.name.clone(),
                 instructions: vec![asm::Instruction::JumpLabel {
                     target: codegen::block_name(&func.block),
                 }],
@@ -163,21 +124,52 @@ impl Backend {
         {
             let first_block = asm_blocks.first_mut().unwrap();
 
-            let n_instr: Vec<_> = stack_setup
+            let n_instr: Vec<_> = stack_allocation
+                .setup_instr
                 .into_iter()
                 .chain(std::mem::take(&mut first_block.instructions))
                 .collect();
             first_block.instructions = n_instr;
         }
 
-        dbg!(&asm_blocks);
+        asm_blocks
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum ArmRegister {
+    GeneralPurpose(u8),
+    FloatingPoint(u8),
+}
+
+impl util::registers::Register for ArmRegister {
+    fn reg_type(&self) -> util::registers::RegisterType {
+        match self {
+            Self::GeneralPurpose(_) => util::registers::RegisterType::GeneralPurpose,
+            Self::FloatingPoint(_) => util::registers::RegisterType::FloatingPoint,
+        }
+    }
+}
+
+impl Target for Backend {
+    fn generate(&self, program: ir::Program) {
+        let all_registers = Self::registers();
+        let mut blocks = Vec::new();
+        for (_, func) in program.functions.iter() {
+            let registers = util::registers::allocate_registers(func, &all_registers);
+
+            util::destructure::destructure_func(func);
+
+            let func_blocks = self.codegen(func, registers);
+            blocks.extend(func_blocks);
+        }
 
         let mut asm_text = "
 .global main
 .align 2
 "
         .to_string();
-        for block in asm_blocks.iter() {
+        for block in blocks.iter() {
             let block_text = block.to_text();
             asm_text.push_str(&block_text);
         }
@@ -218,39 +210,8 @@ impl Backend {
             assert!(output.status.success());
         }
 
-        todo!("Codegen for Function")
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ArmRegister {
-    GeneralPurpose(u8),
-    FloatingPoint(u8),
-}
-
-impl util::registers::Register for ArmRegister {
-    fn reg_type(&self) -> util::registers::RegisterType {
-        match self {
-            Self::GeneralPurpose(_) => util::registers::RegisterType::GeneralPurpose,
-            Self::FloatingPoint(_) => util::registers::RegisterType::FloatingPoint,
-        }
-    }
-}
-
-impl Target for Backend {
-    fn generate(&self, program: ir::Program) {
-        let all_registers = Self::registers();
-        for (_, func) in program.functions.iter() {
-            dbg!(&func);
-
-            let registers = util::registers::allocate_registers(func, &all_registers);
-
-            dbg!(&registers);
-
-            util::destructure::destructure_func(func);
-
-            self.codegen(func, registers);
-        }
+        std::fs::remove_file("./code.s");
+        std::fs::remove_file("./code.o");
 
         todo!()
     }

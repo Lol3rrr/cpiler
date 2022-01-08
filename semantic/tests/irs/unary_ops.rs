@@ -36,6 +36,9 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable {
+                var: var_i0.clone(),
+            },
             Statement::Assignment {
                 target: var_t0.clone(),
                 value: Value::Variable(var_i0.clone()),
@@ -46,6 +49,9 @@ void test() {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
                     base: Operand::Variable(var_i0.clone()),
                 }),
+            },
+            Statement::SaveVariable {
+                var: var_i1.clone(),
             },
         ],
     );
@@ -105,6 +111,9 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable {
+                var: var_i0.clone(),
+            },
             Statement::Assignment {
                 target: var_t0.clone(),
                 value: Value::Variable(var_i0.clone()),
@@ -116,10 +125,14 @@ void test() {
                     base: Operand::Variable(var_i0.clone()),
                 }),
             },
+            Statement::SaveVariable {
+                var: var_i1.clone(),
+            },
             Statement::Assignment {
                 target: var_x.clone(),
                 value: Value::Variable(var_t0.clone()),
             },
+            Statement::SaveVariable { var: var_x.clone() },
         ],
     );
     func_start.add_statement(Statement::Jump(func_content));

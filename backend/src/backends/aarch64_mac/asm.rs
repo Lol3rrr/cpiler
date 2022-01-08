@@ -58,7 +58,8 @@ pub enum Cond {
 impl Display for Cond {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Gt => write!(f, "ge"),
+            Self::Gt => write!(f, "gt"),
+            Self::Lt => write!(f, "lt"),
             other => {
                 dbg!(&other);
 

@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use ir::BasicBlock;
 use syntax::Scope;
 
-use crate::{conversion::ConvertContext, AStatement, FunctionDeclaration, SemanticError};
+use crate::{
+    conversion::ConvertContext, AAssignTarget, AStatement, FunctionDeclaration, SemanticError,
+};
 
 mod state;
 pub use state::*;
@@ -74,5 +76,38 @@ impl AScope {
         }
 
         block
+    }
+
+    pub fn used_vars(&self) -> BTreeSet<String> {
+        let mut result = BTreeSet::new();
+
+        for stmnt in self.statements.iter() {
+            match stmnt {
+                AStatement::If {
+                    condition,
+                    body,
+                    else_,
+                } => {
+                    result.extend(condition.used_variables());
+                    result.extend(body.used_vars());
+                    if let Some(else_scope) = else_.as_ref() {
+                        result.extend(else_scope.used_vars());
+                    }
+                }
+                AStatement::Assignment { target, value } => {
+                    result.extend(target.used_vars());
+                    result.extend(value.used_variables());
+                }
+                AStatement::Expression(exp) => {
+                    result.extend(exp.used_variables());
+                }
+                other => {
+                    dbg!(&other);
+                    todo!()
+                }
+            };
+        }
+
+        result
     }
 }

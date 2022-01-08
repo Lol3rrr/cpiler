@@ -179,6 +179,7 @@ long test() {
 }
 
 #[test]
+#[ignore = ""]
 fn looped_program() {
     let content = "
 long test() {

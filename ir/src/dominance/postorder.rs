@@ -9,16 +9,9 @@ impl<'t> PostOrderDominance<'t> {
     pub fn new(base: &'t DominanceTree) -> Self {
         let start_node = match base.root.clone() {
             Some(root_index) => {
-                let mut final_index = Some(root_index);
-                let mut node = base.nodes.get(root_index).unwrap();
+                let final_index = Self::find_first_child(base, root_index);
 
-                while !node.children.is_empty() {
-                    let next_index = *node.children.get(0).unwrap();
-                    final_index = Some(next_index);
-                    node = base.nodes.get(next_index).unwrap();
-                }
-
-                final_index
+                Some(final_index)
             }
             None => None,
         };
@@ -27,6 +20,19 @@ impl<'t> PostOrderDominance<'t> {
             tree: base,
             next_node: start_node,
         }
+    }
+
+    fn find_first_child(tree: &DominanceTree, start: usize) -> usize {
+        let mut final_index = start;
+        let mut node = tree.nodes.get(final_index).unwrap();
+
+        while !node.children.is_empty() {
+            let next_index = *node.children.get(0).unwrap();
+            final_index = next_index;
+            node = tree.nodes.get(final_index).unwrap();
+        }
+
+        final_index
     }
 }
 
@@ -50,8 +56,10 @@ impl Iterator for PostOrderDominance<'_> {
                 let next_child_index = child_index + 1;
 
                 if next_child_index < parent_node.children.len() {
-                    let next_node_index = parent_node.children.get(next_child_index).unwrap();
-                    Some(*next_node_index)
+                    let base_next_node_index = parent_node.children.get(next_child_index).unwrap();
+
+                    let next_node_index = Self::find_first_child(self.tree, *base_next_node_index);
+                    Some(next_node_index)
                 } else {
                     Some(p_index)
                 }

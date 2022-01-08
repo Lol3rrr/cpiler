@@ -503,6 +503,9 @@ void test() {
                     read_ty: Type::I32,
                 }),
             },
+            Statement::SaveVariable {
+                var: tmp_var.clone(),
+            },
             Statement::Return(None),
         ],
     );

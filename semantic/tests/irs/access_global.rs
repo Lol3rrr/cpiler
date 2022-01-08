@@ -28,10 +28,13 @@ void test() {
 
     let func_inner = BasicBlock::new(
         vec![func_start.weak_ptr()],
-        vec![Statement::Assignment {
-            target: x_var.clone(),
-            value: Value::Variable(tmp_var.clone()),
-        }],
+        vec![
+            Statement::Assignment {
+                target: x_var.clone(),
+                value: Value::Variable(tmp_var.clone()),
+            },
+            Statement::SaveVariable { var: x_var.clone() },
+        ],
     );
     func_start.add_statement(Statement::Jump(func_inner.clone()));
 

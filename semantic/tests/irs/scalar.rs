@@ -38,6 +38,7 @@ void test() {
                 target: x_var.clone(),
                 value: Value::Constant(Constant::I64(13)),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
@@ -46,9 +47,13 @@ void test() {
                     right: Operand::Constant(Constant::I64(5)),
                 }),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Assignment {
                 target: x1_var.clone(),
                 value: Value::Constant(Constant::I64(12)),
+            },
+            Statement::SaveVariable {
+                var: x1_var.clone(),
             },
             Statement::Assignment {
                 target: y1_var.clone(),
@@ -57,6 +62,9 @@ void test() {
                     left: Operand::Variable(y_var.clone()),
                     right: Operand::Constant(Constant::I64(1)),
                 }),
+            },
+            Statement::SaveVariable {
+                var: y1_var.clone(),
             },
             Statement::Return(None),
         ],
@@ -124,6 +132,7 @@ void test(int arg) {
                     base: Operand::Constant(Constant::I64(13)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
@@ -132,6 +141,7 @@ void test(int arg) {
                     right: Operand::Variable(x_var.clone()),
                 }),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );

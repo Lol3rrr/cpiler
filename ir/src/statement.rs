@@ -31,6 +31,10 @@ pub enum Statement {
         /// The Arguments for the Function
         arguments: Vec<Operand>,
     },
+    /// This indicates that the Variable should be saved, usually on the Stack
+    SaveVariable { var: Variable },
+    /// This indicates that the Variable should be reloaded, usually from the Stack
+    LoadVariable { var: Variable },
     /// Returns the given Variable from the Function
     Return(Option<Variable>),
     /// Jumps to the given Block unconditionally
@@ -77,6 +81,12 @@ impl CompareGraph for Statement {
                     arguments: o_arguments,
                 },
             ) => s_name == o_name && s_arguments == o_arguments,
+            (Self::SaveVariable { var: s_var }, Self::SaveVariable { var: o_var }) => {
+                s_var == o_var
+            }
+            (Self::LoadVariable { var: s_var }, Self::LoadVariable { var: o_var }) => {
+                s_var == o_var
+            }
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
             (Self::Jump(s_next), Self::Jump(o_next)) => {
                 s_next.compare(o_next, blocks, current_block)
@@ -101,6 +111,12 @@ impl Debug for Statement {
                 .field("target", &target)
                 .field("value", &value)
                 .finish(),
+            Self::SaveVariable { var } => {
+                f.debug_struct("SaveVariable").field("var", &var).finish()
+            }
+            Self::LoadVariable { var } => {
+                f.debug_struct("LoadVariable").field("var", &var).finish()
+            }
             Self::WriteMemory { target, value } => f
                 .debug_struct("WriteMemory")
                 .field("target", &target)
@@ -157,6 +173,22 @@ impl ToDot for Statement {
         match self {
             Self::Assignment { target, value } => {
                 let content = format!("{:?} = {:?}", target, value);
+                lines.add_node(
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
+
+                lines.add_edge(graphviz::Edge::new(src, &name));
+            }
+            Self::SaveVariable { var } => {
+                let content = format!("SaveVariable {:?}", var);
+                lines.add_node(
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
+
+                lines.add_edge(graphviz::Edge::new(src, &name));
+            }
+            Self::LoadVariable { var } => {
+                let content = format!("LoadVariable {:?}", var);
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
@@ -244,6 +276,8 @@ impl Statement {
     pub fn used_vars(&self) -> Vec<Variable> {
         match self {
             Self::Assignment { value, .. } => value.used_vars(),
+            Self::SaveVariable { var } => vec![var.clone()],
+            Self::LoadVariable { .. } => Vec::new(),
             Self::WriteMemory { target, value } => {
                 let mut tmp = target.used_vars();
                 tmp.extend(value.used_vars());

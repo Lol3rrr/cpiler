@@ -1,21 +1,20 @@
-use std::collections::{HashMap, HashSet};
-
-use ir::{
-    BasicBlock, BinaryArithmeticOp, BinaryLogicOp, BinaryOp, Constant, Expression, Operand,
-    Statement, Value, Variable,
-};
+use ir::{BasicBlock, Constant, Expression, Operand, Statement, Value};
 
 use crate::backends::aarch64_mac::{asm, ArmRegister};
+
+use super::Context;
+
+mod binaryop;
+mod function_call;
+mod load;
+mod unaryop;
+mod write;
 
 pub fn block_name(block: &BasicBlock) -> String {
     format!("block_{:x}", block.as_ptr() as usize)
 }
 
-pub fn block_to_asm(
-    block: BasicBlock,
-    reg_map: &HashMap<Variable, ArmRegister>,
-    pre_ret_instr: Vec<asm::Instruction>,
-) -> asm::Block {
+pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
     let statements = block.get_statements();
 
     let name = block_name(&block);
@@ -23,12 +22,62 @@ pub fn block_to_asm(
 
     for stmnt in statements {
         match stmnt {
+            Statement::SaveVariable { var } => {
+                let src_reg = ctx.registers.get(&var).unwrap();
+                let s_reg = match src_reg {
+                    ArmRegister::GeneralPurpose(n) => match &var.ty {
+                        ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                            asm::GPRegister::DWord(*n)
+                        }
+                        _ => asm::GPRegister::Word(*n),
+                    },
+                    ArmRegister::FloatingPoint(_) => todo!(),
+                };
+
+                let var_offset = *ctx.var.get(&var.name).unwrap();
+
+                match var.ty {
+                    ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                        instructions.push(asm::Instruction::StoreRegisterUnscaled {
+                            reg: s_reg,
+                            base: asm::GpOrSpRegister::SP,
+                            offset: var_offset as i16,
+                        });
+                    }
+                    ir::Type::I32 | ir::Type::U32 => {
+                        instructions.push(asm::Instruction::StoreRegisterUnscaled {
+                            reg: s_reg,
+                            base: asm::GpOrSpRegister::SP,
+                            offset: var_offset as i16,
+                        });
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
+            }
+            Statement::Assignment {
+                target,
+                value: Value::Unknown,
+            } => {
+                let target_ty = target.ty.clone();
+                load::load_var(target, target_ty, ctx, &mut instructions);
+            }
             Statement::Assignment {
                 target,
                 value: Value::Variable(src_var),
             } => {
-                let target_reg = reg_map.get(&target).unwrap();
-                let src_reg = reg_map.get(&src_var).unwrap();
+                let target_reg = ctx.registers.get(&target).unwrap();
+                let src_reg = match ctx.registers.get(&src_var) {
+                    Some(r) => r,
+                    None => {
+                        dbg!(&src_var, &ctx.registers);
+                        dbg!(&block);
+
+                        todo!()
+                    }
+                };
 
                 let t_reg = match target_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
@@ -50,7 +99,7 @@ pub fn block_to_asm(
             } => {
                 dbg!(&target, &con);
 
-                let target_reg = reg_map.get(&target).unwrap();
+                let target_reg = ctx.registers.get(&target).unwrap();
                 let t_reg = match target_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
                     ArmRegister::FloatingPoint(n) => panic!("Not yet supported"),
@@ -58,7 +107,7 @@ pub fn block_to_asm(
 
                 match con {
                     Constant::I32(val) => {
-                        if val < (i16::MAX as i32) && val > 0 {
+                        if val < (i16::MAX as i32) && val >= 0 {
                             instructions.push(asm::Instruction::Movz {
                                 dest: t_reg,
                                 shift: 0,
@@ -75,7 +124,14 @@ pub fn block_to_asm(
                 target,
                 value: Value::Expression(exp),
             } => {
-                let target_reg = reg_map.get(&target).unwrap();
+                let target_reg = match ctx.registers.get(&target) {
+                    Some(r) => r,
+                    None => {
+                        dbg!(&target, &ctx.registers);
+
+                        todo!()
+                    }
+                };
                 let t_reg = match target_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
                     ArmRegister::FloatingPoint(n) => panic!("Not yet supported"),
@@ -88,7 +144,7 @@ pub fn block_to_asm(
                                 // TODO
                                 // Properly handle this
 
-                                let base_reg = reg_map.get(&base_var).unwrap();
+                                let base_reg = ctx.registers.get(&base_var).unwrap();
                                 let b_reg = match base_reg {
                                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
                                     ArmRegister::FloatingPoint(n) => panic!("Not yet supported"),
@@ -102,112 +158,85 @@ pub fn block_to_asm(
                             Operand::Constant(con) => todo!("Cast Const"),
                         };
                     }
-                    Expression::BinaryOp { op, left, right } => {
-                        match op {
-                            BinaryOp::Logic(log_op) => {
-                                match (&left, &right) {
-                                    (Operand::Variable(var), Operand::Constant(con)) => {
-                                        let var_reg = match reg_map.get(&var).unwrap() {
-                                            ArmRegister::GeneralPurpose(n) => {
-                                                asm::GPRegister::DWord(*n)
-                                            }
-                                            ArmRegister::FloatingPoint(n) => {
-                                                panic!("Not yet supported")
-                                            }
-                                        };
-                                        let immediate = match con {
-                                            Constant::I64(val) => {
-                                                if *val >= 0 && *val < 4096 {
-                                                    *val as u16
-                                                } else {
-                                                    panic!()
-                                                }
-                                            }
-                                            other => {
-                                                dbg!(&other);
-                                                todo!()
-                                            }
-                                        };
+                    ir::Expression::BinaryOp { op, left, right } => {
+                        binaryop::to_asm(op, t_reg, left, right, ctx, &mut instructions);
+                    }
+                    ir::Expression::UnaryOp { op, base } => {
+                        unaryop::to_asm(op, t_reg, base, ctx, &mut instructions);
+                    }
+                    ir::Expression::AdressOf {
+                        base: ir::Operand::Variable(var),
+                    } => {
+                        dbg!(&var);
 
-                                        instructions.push(asm::Instruction::CmpImmediate {
-                                            reg: var_reg,
-                                            immediate,
-                                            shift: 0,
-                                        });
-                                    }
-                                    other => {
-                                        dbg!(&other);
-                                        todo!()
-                                    }
-                                };
+                        let offset = *ctx.var.get(&var.name).unwrap();
+                        dbg!(&offset);
 
-                                let condition = match log_op {
-                                    BinaryLogicOp::Greater => {
-                                        if left.ty().signed() {
-                                            asm::Cond::Gt
-                                        } else {
-                                            todo!("Unsigned Greater than comparison")
-                                        }
-                                    }
-                                    other => {
-                                        dbg!(&other);
-                                        todo!()
-                                    }
-                                };
+                        if offset >= 0 && offset < 4096 {
+                            let addr_instr = asm::Instruction::AddImmediate {
+                                dest: t_reg,
+                                src: asm::GpOrSpRegister::SP,
+                                immediate: offset as u16,
+                                shift: 0,
+                            };
 
-                                instructions.push(asm::Instruction::CSet {
-                                    target: t_reg,
-                                    condition,
-                                });
+                            instructions.push(addr_instr);
+                        }
+                    }
+                    ir::Expression::StackAlloc { .. } => {
+                        let alloc_offset = *ctx.stack_allocs.get(&target).unwrap();
+
+                        if alloc_offset >= 0 && alloc_offset < 4096 {
+                            instructions.push(asm::Instruction::AddImmediate {
+                                dest: t_reg,
+                                src: asm::GpOrSpRegister::SP,
+                                immediate: alloc_offset as u16,
+                                shift: 0,
+                            });
+                        } else {
+                            panic!()
+                        }
+                    }
+                    ir::Expression::ReadMemory { address, read_ty } => {
+                        dbg!(&address, &read_ty);
+
+                        let base_reg = match address {
+                            ir::Operand::Variable(base_var) => {
+                                match ctx.registers.get(&base_var).unwrap() {
+                                    ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
+                                    ArmRegister::FloatingPoint(_) => {
+                                        todo!("Floating Point Register")
+                                    }
+                                }
                             }
-                            BinaryOp::Arith(arith_op) => {
-                                match (arith_op, left, right) {
-                                    (
-                                        BinaryArithmeticOp::Sub,
-                                        Operand::Variable(var),
-                                        Operand::Constant(con),
-                                    ) => {
-                                        let var_reg = match reg_map.get(&var).unwrap() {
-                                            ArmRegister::GeneralPurpose(n) => {
-                                                asm::GPRegister::DWord(*n)
-                                            }
-                                            ArmRegister::FloatingPoint(n) => {
-                                                panic!("Not yet supported")
-                                            }
-                                        };
+                            ir::Operand::Constant(base_con) => {
+                                dbg!(&base_con);
 
-                                        let immediate = match con {
-                                            Constant::I64(val) => {
-                                                if val >= 0 && val < 4096 {
-                                                    val as u16
-                                                } else {
-                                                    panic!()
-                                                }
-                                            }
-                                            other => {
-                                                dbg!(&other);
-                                                todo!()
-                                            }
-                                        };
-
-                                        instructions.push(asm::Instruction::SubImmediate {
-                                            dest: t_reg,
-                                            src: var_reg,
-                                            immediate,
-                                            shift: 0,
-                                        });
-                                    }
-                                    other => {
-                                        dbg!(&other);
-                                        todo!()
-                                    }
-                                };
-                            }
-                            other => {
-                                dbg!(&other);
                                 todo!()
                             }
                         };
+
+                        load::load(
+                            t_reg,
+                            read_ty,
+                            asm::GpOrSpRegister::GP(base_reg),
+                            0,
+                            &mut instructions,
+                        );
+                    }
+                    ir::Expression::FunctionCall {
+                        name,
+                        arguments,
+                        return_ty,
+                    } => {
+                        function_call::to_asm(
+                            name,
+                            arguments,
+                            return_ty,
+                            Some(t_reg),
+                            ctx,
+                            &mut instructions,
+                        );
                     }
                     other => {
                         dbg!(&other);
@@ -225,7 +254,7 @@ pub fn block_to_asm(
             Statement::JumpTrue(condition, target) => {
                 let target_name = block_name(&target);
 
-                let cond_reg = reg_map.get(&condition).unwrap();
+                let cond_reg = ctx.registers.get(&condition).unwrap();
 
                 let c_reg = match cond_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
@@ -240,7 +269,7 @@ pub fn block_to_asm(
             Statement::Return(Some(ret_var)) => {
                 dbg!(&ret_var);
 
-                let ret_var_reg = reg_map.get(&ret_var).unwrap();
+                let ret_var_reg = ctx.registers.get(&ret_var).unwrap();
                 let ret_reg = match ret_var_reg {
                     ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
                     ArmRegister::FloatingPoint(n) => panic!("Not yet supported"),
@@ -252,8 +281,12 @@ pub fn block_to_asm(
                     dest: asm::GPRegister::DWord(0),
                 });
 
-                instructions.extend(pre_ret_instr.clone());
+                instructions.extend(ctx.pre_ret_instr.clone());
                 instructions.push(asm::Instruction::Return);
+            }
+            ir::Statement::WriteMemory { target, value } => {
+                let write_instr = write::write(target, value, ctx);
+                instructions.extend(write_instr);
             }
             other => {
                 dbg!(&other);
@@ -265,18 +298,19 @@ pub fn block_to_asm(
     asm::Block { name, instructions }
 }
 
-pub fn stack_space(func: &ir::FunctionDefinition, used_register: &HashSet<ArmRegister>) -> usize {
+pub fn stack_space<ISI, IS>(allocations: ISI) -> usize
+where
+    ISI: IntoIterator<IntoIter = IS, Item = (usize, usize)>,
+    IS: Iterator<Item = (usize, usize)>,
+{
     let mut base = 16;
 
-    for reg in used_register.iter() {
-        match reg {
-            ArmRegister::GeneralPurpose(_) => {
-                base += 8;
-            }
-            ArmRegister::FloatingPoint(_) => {
-                todo!()
-            }
-        };
+    for (align, size) in allocations.into_iter() {
+        if base % align != 0 {
+            base += align - (base % align);
+        }
+
+        base += size;
     }
 
     if base % 16 == 0 {

@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use general::{Span, SpanData};
 use ir::BasicBlock;
 use syntax::{AssignTarget, Identifier};
@@ -384,5 +386,27 @@ impl AAssignTarget {
                 todo!("Non Variable Target");
             }
         }
+    }
+
+    pub fn used_vars(&self) -> BTreeSet<String> {
+        let mut result = BTreeSet::new();
+
+        match self {
+            Self::Variable { name, .. } => {
+                result.insert(name.clone());
+            }
+            Self::Deref { exp, .. } => {
+                result.extend(exp.used_variables());
+            }
+            Self::ArrayAccess(arr) => {
+                result.extend(arr.target.used_vars());
+                result.extend(arr.index.used_variables());
+            }
+            Self::StructField(field) => {
+                result.extend(field.target.used_vars());
+            }
+        };
+
+        result
     }
 }

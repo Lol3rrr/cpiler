@@ -81,8 +81,8 @@ long test() {
     expected_tree.append(var_x);
     expected_tree.append(var_y);
     expected_tree.append(var_tmp0);
-    expected_tree.append(var_z0);
-    expected_tree.insert_at_level(var_z1);
+    expected_tree.append(var_z1);
+    expected_tree.insert_at_level(var_z0);
     expected_tree.insert_at_level(var_w);
     expected_tree.append(var_tmp1);
 

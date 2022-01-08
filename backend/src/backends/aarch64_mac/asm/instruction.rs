@@ -3,6 +3,23 @@ use std::fmt::Display;
 use super::{Cond, GPRegister, GpOrSpRegister};
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Shift {
+    LSL,
+    LSR,
+    ASR,
+}
+
+impl Display for Shift {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LSL => write!(f, "LSL"),
+            Self::LSR => write!(f, "LSR"),
+            Self::ASR => write!(f, "ASR"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Instruction {
     Nop,
     /// Moves the Value from the given Regsiter into the StackPointer Register
@@ -29,17 +46,40 @@ pub enum Instruction {
         src1: GPRegister,
         src2: GPRegister,
     },
+    /// Page: 883
     AddImmediate {
         dest: GPRegister,
-        src: GPRegister,
+        src: GpOrSpRegister,
         immediate: u16,
         shift: u8,
+    },
+    /// Page: 885
+    AddRegisterShifted {
+        dest: GPRegister,
+        src1: GPRegister,
+        src2: GPRegister,
+        shift: Shift,
+        amount: u8,
     },
     SubImmediate {
         dest: GPRegister,
         src: GPRegister,
         immediate: u16,
         shift: u8,
+    },
+    /// Page: 1457
+    SubRegisterShifted {
+        dest: GPRegister,
+        src1: GPRegister,
+        src2: GPRegister,
+        shift: Shift,
+        amount: u8,
+    },
+    /// Page: 1243
+    MultiplyRegister {
+        dest: GPRegister,
+        src1: GPRegister,
+        src2: GPRegister,
     },
     /// Page: 1434
     StoreRegisterUnscaled {
@@ -59,6 +99,36 @@ pub enum Instruction {
         base: GpOrSpRegister,
         offset: i16,
     },
+    /// Page: 1198
+    LoadSignedWordUnscaled {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: i16,
+    },
+    /// Page: 1193
+    LoadHalfWordUnscaled {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: i16,
+    },
+    /// Page: 1196
+    LoadSignedHalfWordUnscaled {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: i16,
+    },
+    /// Page: 1192
+    LoadByteUnscaled {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: i16,
+    },
+    /// Page: 1194
+    LoadSignedByteUnscaled {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: i16,
+    },
     LdpPostIndex {
         first: GPRegister,
         second: GPRegister,
@@ -73,6 +143,13 @@ pub enum Instruction {
         immediate: u16,
         shift: u8,
     },
+    /// Page: 984
+    CmpShifted {
+        first: GPRegister,
+        second: GPRegister,
+        shift: Shift,
+        amount: u8,
+    },
     /// Set the Target register to 1 if the Condition is true or to 0 if it is false
     CSet {
         target: GPRegister,
@@ -86,6 +163,10 @@ pub enum Instruction {
     BranchLabelCond {
         target: String,
         condition: Cond,
+    },
+    /// Page: 934
+    BranchLinkLabel {
+        target: String,
     },
     Call {
         target: String,
@@ -110,6 +191,9 @@ impl Display for Instruction {
             Self::LoadRegisterUnscaled { reg, base, offset } => {
                 write!(f, "ldur {}, [{}, #{}]", reg, base, offset)
             }
+            Self::LoadSignedWordUnscaled { reg, base, offset } => {
+                write!(f, "ldursw {}, [{}, #{}]", reg, base, offset)
+            }
             Self::LdpPostIndex {
                 first,
                 second,
@@ -128,6 +212,23 @@ impl Display for Instruction {
             Self::MovRegister { dest, src } => {
                 write!(f, "mov {}, {}", dest, src)
             }
+            Self::AddImmediate {
+                dest,
+                src,
+                immediate,
+                shift,
+            } => {
+                write!(f, "add {}, {}, #{}, LSL #{}", dest, src, immediate, shift)
+            }
+            Self::AddRegisterShifted {
+                dest,
+                src1,
+                src2,
+                shift,
+                amount,
+            } => {
+                write!(f, "add {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
+            }
             Self::SubImmediate {
                 dest,
                 src,
@@ -136,12 +237,32 @@ impl Display for Instruction {
             } => {
                 write!(f, "sub {}, {}, #{}, LSL #{}", dest, src, immediate, shift)
             }
+            Self::SubRegisterShifted {
+                dest,
+                src1,
+                src2,
+                shift,
+                amount,
+            } => {
+                write!(f, "sub {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
+            }
+            Self::MultiplyRegister { dest, src1, src2 } => {
+                write!(f, "mul {}, {}, {}", dest, src1, src2)
+            }
             Self::CmpImmediate {
                 reg,
                 immediate,
                 shift,
             } => {
                 write!(f, "cmp {}, #{}, LSL #{}", reg, immediate, shift)
+            }
+            Self::CmpShifted {
+                first,
+                second,
+                shift,
+                amount,
+            } => {
+                write!(f, "cmp {}, {}, {} #{}", first, second, shift, amount)
             }
             Self::CSet { target, condition } => {
                 write!(f, "cset {}, {}", target, condition)
@@ -151,6 +272,9 @@ impl Display for Instruction {
             }
             Self::BranchNonZeroLabel { reg, target } => {
                 write!(f, "cbnz {}, {}", reg, target)
+            }
+            Self::BranchLinkLabel { target } => {
+                write!(f, "bl {}", target)
             }
             Self::Return => {
                 write!(f, "ret")

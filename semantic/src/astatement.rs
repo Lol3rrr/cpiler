@@ -4,8 +4,10 @@ use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
     atype, conversion::ConvertContext, AExpression, AFunctionArg, APrimitive, AScope, AType,
-    FunctionDeclaration, ParseState, SemanticError, UnaryArithmeticOp, UnaryOperator,
+    FunctionDeclaration, ParseState, SemanticError,
 };
+
+mod for_to_while;
 
 mod target;
 pub use target::*;
@@ -543,32 +545,37 @@ impl AStatement {
                         let target_var = next_var.set_meta(target_meta);
 
                         block.add_statement(ir::Statement::Assignment {
-                            target: target_var,
+                            target: target_var.clone(),
                             value: value_exp,
                         });
+                        block.add_statement(ir::Statement::SaveVariable { var: target_var });
                     }
                     AAssignTarget::Deref { exp, .. } => {
                         let address_value = exp.to_ir(block, ctx);
 
                         let target_oper = AExpression::val_to_operand(address_value, block, ctx);
 
+                        block.add_statement(ir::Statement::WriteMemory {
+                            target: target_oper.clone(),
+                            value: value_exp.clone(),
+                        });
+
                         if let ir::Operand::Variable(target_var) = &target_oper {
-                            if let ir::VariableMetadata::VarPointer { var } = target_var.meta() {
+                            if let ir::VariableMetadata::VarPointer { var: var_name } =
+                                target_var.meta()
+                            {
+                                let var = block.definition(&var_name, &|| ctx.next_tmp()).unwrap();
+
                                 let next_var = var.next_gen();
                                 let target_meta = value_exp.assign_meta(&next_var);
                                 let target_var = next_var.set_meta(target_meta);
 
                                 block.add_statement(ir::Statement::Assignment {
                                     target: target_var,
-                                    value: value_exp.clone(),
+                                    value: ir::Value::Unknown,
                                 });
                             }
                         }
-
-                        block.add_statement(ir::Statement::WriteMemory {
-                            target: target_oper,
-                            value: value_exp,
-                        });
                     }
                     AAssignTarget::ArrayAccess(target) => {
                         let target_exp = target.to_exp(block, ctx);
@@ -675,6 +682,7 @@ impl AStatement {
                 let start_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
                 let inner_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
                 let end_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
+                start_block.add_predecessor(inner_block.weak_ptr());
 
                 for var in condition.used_variables() {
                     let definition: ir::Variable =
@@ -704,6 +712,7 @@ impl AStatement {
                         .add_statement(ir::Statement::JumpTrue(cond_var, inner_block.clone()));
                     start_block.add_statement(ir::Statement::Jump(end_block.clone()));
                 }
+                start_block.remove_predecessor(inner_block.weak_ptr());
 
                 // Generate the inner Part of the Loop
                 {
@@ -729,70 +738,8 @@ impl AStatement {
             } => {
                 dbg!(&condition, &body, &updates);
 
-                let condition_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
-
-                // The Block containing the Condition
-                let cond_var = {
-                    for var in condition.used_variables() {
-                        let definition: ir::Variable = condition_block
-                            .definition(&var, &|| ctx.next_tmp())
-                            .unwrap();
-
-                        let target = definition.next_gen();
-
-                        condition_block.add_statement(ir::Statement::Assignment {
-                            target,
-                            value: ir::Value::Phi { sources: vec![] },
-                        });
-                    }
-
-                    let mut cond_val_block = condition_block.clone();
-                    let cond_value = condition.to_ir(&mut cond_val_block, ctx);
-                    let cond_var = ir::Variable::tmp(ctx.next_tmp(), ir::Type::I64);
-
-                    condition_block.add_statement(ir::Statement::Assignment {
-                        target: cond_var.clone(),
-                        value: cond_value,
-                    });
-
-                    cond_var
-                };
-
-                // The Block updating some parts after every iteration
-                let update_block = BasicBlock::new(vec![], vec![]);
-                condition_block.add_predecessor(update_block.weak_ptr());
-
-                // The Block after the Loop
-                let end_block = BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
-
-                // The starting Block of the internal Scope
-                let content_start_block = BasicBlock::new(vec![condition_block.weak_ptr()], vec![]);
-                {
-                    let inner_ctx = ctx.with_loop(update_block.clone(), end_block.clone());
-
-                    let content_end_block = body.to_ir(&content_start_block, &inner_ctx);
-                    content_end_block.add_statement(ir::Statement::Jump(update_block.clone()));
-                    update_block.add_predecessor(content_end_block.weak_ptr());
-                }
-                condition_block
-                    .add_statement(ir::Statement::JumpTrue(cond_var, content_start_block));
-                condition_block.add_statement(ir::Statement::Jump(end_block.clone()));
-
-                // Generate the content of the Update Block
-                {
-                    let mut end_update_block = update_block.clone();
-                    for update in updates {
-                        update.to_ir(&mut end_update_block, ctx);
-
-                        assert_eq!(update_block.as_ptr(), end_update_block.as_ptr());
-                    }
-                }
-
-                block.add_statement(ir::Statement::Jump(condition_block.clone()));
-
-                condition_block.refresh_phis();
-
-                *block = end_block;
+                let while_statement = for_to_while::convert(condition, body, updates);
+                while_statement.to_ir(block, ctx);
             }
             AStatement::Break => {
                 let loop_end_block = match ctx.get_loop_end() {

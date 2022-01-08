@@ -61,7 +61,7 @@ impl Value {
                 }),
                 _,
             ) => VariableMetadata::VarPointer {
-                var: Box::new(base_var.clone()),
+                var: Box::new(base_var.name.clone()),
             },
             (_, VariableMetadata::VarPointer { .. }) => VariableMetadata::Pointer,
             _ => target_meta.clone(),

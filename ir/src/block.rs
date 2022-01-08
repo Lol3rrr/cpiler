@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
     sync::{Arc, RwLock},
 };
@@ -8,6 +8,7 @@ use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
     DominanceTree, InterferenceGraph, NodeId, PhiEntry, Statement, ToDot, Type, Value, Variable,
+    VariableMetadata,
 };
 
 mod inner;
@@ -218,7 +219,7 @@ impl BasicBlock {
             };
         }
 
-        let tmp_var = Variable::new(name, Type::Void);
+        let tmp_var = Variable::new(name, Type::Void).set_meta(VariableMetadata::Temporary);
         let phi_stmnt = Statement::Assignment {
             target: tmp_var,
             value: Value::Phi { sources: vec![] },
@@ -252,7 +253,7 @@ impl BasicBlock {
         }
 
         let var = sources.get(0).unwrap().var.clone();
-        if sources.iter().all(|entry| entry.var.eq(&var)) {
+        if sources.iter().all(|s| s.var == var) && sources.len() > 1 {
             let mut tmp = self.0.parts.write().unwrap();
             tmp.pop();
 
@@ -339,8 +340,8 @@ impl BasicBlock {
     }
 
     /// Loads all the direct Successors of this Block
-    pub fn successors(&self) -> HashMap<*const InnerBlock, Self> {
-        let mut result = HashMap::new();
+    pub fn successors(&self) -> BTreeMap<*const InnerBlock, Self> {
+        let mut result = BTreeMap::new();
 
         let parts = self.0.parts.read().unwrap();
         for tmp in parts.iter() {
@@ -495,7 +496,23 @@ impl BasicBlock {
             (tmp.next().unwrap(), tmp.next().unwrap())
         };
 
-        let end_block = left.earliest_common_block(&right).unwrap();
+        dbg!(&self);
+        dbg!(&self.as_ptr());
+        let end_block = match left.earliest_common_block(&right) {
+            Some(b) => b,
+            None => {
+                dbg!(&left, &right);
+
+                for left_succ in left.block_iter() {
+                    dbg!(left_succ.as_ptr());
+                }
+                for right_succ in right.block_iter() {
+                    dbg!(right_succ.as_ptr());
+                }
+
+                todo!()
+            }
+        };
 
         visited.insert(end_block.as_ptr());
         let mut left_live = live_vars.clone();

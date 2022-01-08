@@ -286,6 +286,9 @@ void test() {
                 target: tmp1_var.clone(),
                 value: Value::Variable(t4_var.clone()),
             },
+            Statement::SaveVariable {
+                var: tmp1_var.clone(),
+            },
             // The second Update + Assignment
             Statement::Assignment {
                 target: t10_var.clone(),
@@ -359,6 +362,9 @@ void test() {
             Statement::Assignment {
                 target: tmp2_var.clone(),
                 value: Value::Variable(t12_var.clone()),
+            },
+            Statement::SaveVariable {
+                var: tmp2_var.clone(),
             },
             Statement::Return(None),
         ],

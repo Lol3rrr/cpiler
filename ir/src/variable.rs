@@ -15,8 +15,10 @@ pub enum VariableMetadata {
     /// The Metadata for a Pointer to another Variable
     VarPointer {
         /// The Variable that this Variable Points to
-        var: Box<Variable>,
+        var: Box<String>,
     },
+    /// This marks a Variable as a Temporary Variable that should not be in the final IR
+    Temporary,
 }
 
 /// A single Variable that will only ever be assigned to once
@@ -123,6 +125,25 @@ impl PartialEq for Variable {
 }
 
 impl Eq for Variable {}
+
+impl PartialOrd for Variable {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.name < other.name {
+            return Some(std::cmp::Ordering::Less);
+        }
+        if self.name > other.name {
+            return Some(std::cmp::Ordering::Greater);
+        }
+
+        self.generation.partial_cmp(&other.generation)
+    }
+}
+
+impl Ord for Variable {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
 
 impl Hash for Variable {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

@@ -44,6 +44,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable { var: x_var.clone() },
             Statement::Assignment {
                 target: t0_var.clone(),
                 value: Value::Constant(Constant::I64(2)),
@@ -54,13 +55,18 @@ void test() {
 
     let inner_if_block = BasicBlock::new(
         vec![function_first_block.weak_ptr()],
-        vec![Statement::Assignment {
-            target: x1_var.clone(),
-            value: Value::Expression(Expression::Cast {
-                target: Type::I32,
-                base: Operand::Constant(Constant::I64(2)),
-            }),
-        }],
+        vec![
+            Statement::Assignment {
+                target: x1_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(2)),
+                }),
+            },
+            Statement::SaveVariable {
+                var: x1_var.clone(),
+            },
+        ],
     );
     function_first_block.add_statement(Statement::JumpTrue(t0_var.clone(), inner_if_block.clone()));
 
@@ -86,6 +92,7 @@ void test() {
                 target: y_var.clone(),
                 value: Value::Variable(x2_var.clone()),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );
@@ -159,6 +166,9 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
+            Statement::SaveVariable {
+                var: x0_var.clone(),
+            },
             Statement::Assignment {
                 target: t0_var.clone(),
                 value: Value::Constant(Constant::I64(2)),
@@ -169,25 +179,35 @@ void test() {
 
     let true_block = BasicBlock::new(
         vec![function_first.weak_ptr()],
-        vec![Statement::Assignment {
-            target: x1_var.clone(),
-            value: Value::Expression(Expression::Cast {
-                target: Type::I32,
-                base: Operand::Constant(Constant::I64(2)),
-            }),
-        }],
+        vec![
+            Statement::Assignment {
+                target: x1_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(2)),
+                }),
+            },
+            Statement::SaveVariable {
+                var: x1_var.clone(),
+            },
+        ],
     );
     function_first.add_statement(Statement::JumpTrue(t0_var.clone(), true_block.clone()));
 
     let false_block = BasicBlock::new(
         vec![function_first.weak_ptr()],
-        vec![Statement::Assignment {
-            target: x2_var.clone(),
-            value: Value::Expression(Expression::Cast {
-                target: Type::I32,
-                base: Operand::Constant(Constant::I64(3)),
-            }),
-        }],
+        vec![
+            Statement::Assignment {
+                target: x2_var.clone(),
+                value: Value::Expression(Expression::Cast {
+                    target: Type::I32,
+                    base: Operand::Constant(Constant::I64(3)),
+                }),
+            },
+            Statement::SaveVariable {
+                var: x2_var.clone(),
+            },
+        ],
     );
     function_first.add_statement(Statement::Jump(false_block.clone()));
 
@@ -213,6 +233,7 @@ void test() {
                 target: y_var.clone(),
                 value: Value::Variable(x3_var.clone()),
             },
+            Statement::SaveVariable { var: y_var.clone() },
             Statement::Return(None),
         ],
     );

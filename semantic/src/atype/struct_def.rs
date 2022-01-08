@@ -45,12 +45,11 @@ impl StructDef {
     }
 
     pub fn alignment(&self, arch: &Arch) -> usize {
-        let first_memb = match self.members.first() {
-            Some(m) => m,
-            None => return 1,
-        };
-
-        first_memb.ty.alignment(arch) as usize
+        self.members
+            .iter()
+            .map(|m| m.ty.alignment(arch) as usize)
+            .max()
+            .unwrap_or(1)
     }
 
     pub fn member_offset(&self, name: &str, arch: &Arch) -> Option<usize> {
