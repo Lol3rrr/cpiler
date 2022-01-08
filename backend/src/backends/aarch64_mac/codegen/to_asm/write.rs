@@ -1,4 +1,4 @@
-use crate::backends::aarch64_mac::{asm, codegen::Context, ArmRegister};
+use crate::backends::aarch64_mac::{asm, codegen::Context};
 
 pub fn write(addr_op: ir::Operand, value: ir::Value, ctx: &Context) -> Vec<asm::Instruction> {
     let mut result = Vec::with_capacity(1);
@@ -24,9 +24,13 @@ fn write_var(
 ) {
     dbg!(&addr, &value);
 
-    let base_reg = match ctx.registers.get(&addr).unwrap() {
-        ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
-        ArmRegister::FloatingPoint(_) => todo!("Floating Point Register"),
+    let raw_reg = ctx.registers.get_reg(&addr).unwrap();
+    let base_reg = match raw_reg {
+        asm::Register::GeneralPurpose(asm::GPRegister::DWord(n)) => asm::GPRegister::DWord(n),
+        other => {
+            dbg!(&other);
+            todo!()
+        }
     };
     dbg!(&base_reg);
 
@@ -34,7 +38,7 @@ fn write_var(
         ir::Value::Constant(con) => match con {
             ir::Constant::I32(val) => {
                 let val_register = asm::GPRegister::Word(9); // Register 9 should be a scratch register that can be used as seen fit
-                if val < 4096 && val >= 0 {
+                if (0..4096).contains(&val) {
                     instr.push(asm::Instruction::Movz {
                         dest: val_register.clone(),
                         immediate: val as u16,
@@ -48,7 +52,7 @@ fn write_var(
                 instr.push(asm::Instruction::StoreRegisterUnscaled {
                     reg: val_register,
                     base: asm::GpOrSpRegister::GP(base_reg),
-                    offset: 0,
+                    offset: asm::Imm9Signed::new(0),
                 });
             }
             other => {

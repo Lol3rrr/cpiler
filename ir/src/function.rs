@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use crate::{BasicBlock, DominanceTree, InterferenceGraph, Statement, ToDot, Type, WeakBlockPtr};
+use crate::{BasicBlock, DominanceTree, InterferenceGraph, ToDot, Type, Variable};
 
 mod debug;
 use debug::DebugBlocks;
@@ -63,14 +63,16 @@ impl ToDot for FunctionDefinition {
 
 impl FunctionDefinition {
     /// This is used generate the Interference Graph for a given Function
-    pub fn interference_graph<T>(&self, graph: &mut T)
+    pub fn interference_graph<T, F>(&self, graph: &mut T, mut update: F)
     where
         T: InterferenceGraph,
+        F: FnMut(&HashSet<Variable>, &BasicBlock, usize),
     {
         self.block
-            .interference_graph(graph, &mut HashSet::new(), &mut HashSet::new());
+            .interference_graph(graph, &mut HashSet::new(), &mut HashSet::new(), &mut update);
     }
 
+    /// Generates the Dominance Tree for this Function
     pub fn dominance_tree(&self) -> DominanceTree {
         self.block.dominance_tree(&mut HashSet::new())
     }

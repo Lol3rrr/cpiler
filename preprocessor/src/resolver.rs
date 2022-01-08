@@ -1,6 +1,8 @@
 use std::{iter::Peekable, path::PathBuf, str::FromStr};
 
-use crate::{directive::Directive, loader::LoadDirective, pir::PIR, state::State, Loader};
+use crate::{
+    directive::Directive, loader::LoadDirective, pir::PIR, state::State, Loader, ProcessError,
+};
 
 mod defines;
 pub use defines::DefineManager;
@@ -10,7 +12,11 @@ mod conditionals;
 
 mod extensions;
 
-pub fn resolve<I, L>(pir: I, loader: &L, state: &mut State) -> std::vec::IntoIter<PIR>
+pub fn resolve<I, L>(
+    pir: I,
+    loader: &L,
+    state: &mut State,
+) -> Result<std::vec::IntoIter<PIR>, ProcessError<L::LoadError>>
 where
     I: Iterator<Item = PIR>,
     L: Loader,
@@ -62,9 +68,16 @@ where
                             local_root,
                             relative_path: PathBuf::from_str(&path).unwrap(),
                         };
-                        let raw_included = loader.load_as_pir(load_directive, state).unwrap();
+                        let raw_included =
+                            loader.load_as_pir(load_directive, state).map_err(|e| {
+                                ProcessError::FailedInclude {
+                                    directive: span.span.clone(),
+                                    path: path.to_string(),
+                                    error: e,
+                                }
+                            })?;
 
-                        let full = resolve(raw_included.into_iter(), loader, state);
+                        let full = resolve(raw_included.into_iter(), loader, state)?;
 
                         result.extend(full);
                     }
@@ -112,7 +125,7 @@ where
         };
     }
 
-    result.into_iter()
+    Ok(result.into_iter())
 }
 
 fn evaluate_conditional<I, L>(
@@ -129,7 +142,7 @@ where
     if cond.evaluate(&state.defines).unwrap() {
         let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-        resolve(inner_iter, loader, state).collect()
+        resolve(inner_iter, loader, state).unwrap().collect()
     } else {
         let mut load_inner = false;
         for peeked in iter.by_ref() {
@@ -157,7 +170,7 @@ where
         if load_inner {
             let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-            resolve(inner_iter, loader, state).collect()
+            resolve(inner_iter, loader, state).unwrap().collect()
         } else {
             Vec::new()
         }

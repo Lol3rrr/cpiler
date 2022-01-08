@@ -1,14 +1,11 @@
 // https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
 // https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
 
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-};
+use std::{collections::HashMap, process::Command};
 
 use ir::Variable;
 
-use crate::util;
+use crate::{backends::aarch64_mac::codegen::ArgTarget, util};
 
 use super::Target;
 
@@ -23,7 +20,7 @@ impl Backend {
     }
 
     /// General Purpose Registers
-    fn registers() -> [ArmRegister; 42] {
+    fn registers() -> [ArmRegister; 34] {
         [
             //ArmRegister::GeneralPurpose(8),
             /*
@@ -50,6 +47,9 @@ impl Backend {
             ArmRegister::GeneralPurpose(28),
             //ArmRegister::GeneralPurpose(29),
             //ArmRegister::GeneralPurpose(30),
+            /*
+             * I think these are mainly used in Function Calls and I therefor would rather save
+             * them just to be save
             ArmRegister::FloatingPoint(0),
             ArmRegister::FloatingPoint(1),
             ArmRegister::FloatingPoint(2),
@@ -58,6 +58,7 @@ impl Backend {
             ArmRegister::FloatingPoint(5),
             ArmRegister::FloatingPoint(6),
             ArmRegister::FloatingPoint(7),
+            */
             ArmRegister::FloatingPoint(8),
             ArmRegister::FloatingPoint(9),
             ArmRegister::FloatingPoint(10),
@@ -90,16 +91,58 @@ impl Backend {
         func: &ir::FunctionDefinition,
         register_map: HashMap<Variable, ArmRegister>,
     ) -> Vec<asm::Block> {
-        let arg_targets = codegen::arguments(func.arguments.iter().map(|(_, t)| t.clone()));
-        for (arg, arg_register) in func.arguments.iter().zip(arg_targets.iter()) {
-            dbg!(&arg, &arg_register);
-            todo!()
-        }
+        let stack_allocation = codegen::stack::allocate_stack(func, &register_map);
 
-        let stack_allocation = codegen::stack::allocate_stack(&func, &register_map);
+        let arg_moves = {
+            let starting_statements = func.block.get_statements();
+            let mut statement_iter = starting_statements.into_iter();
+
+            let mut args_moves = Vec::new();
+            let arg_targets = codegen::arguments(func.arguments.iter().map(|(_, t)| t.clone()));
+            for ((arg, arg_src), s) in func
+                .arguments
+                .iter()
+                .zip(arg_targets.iter())
+                .zip(statement_iter.by_ref())
+            {
+                let target_reg = match s {
+                    ir::Statement::Assignment { target, value } => {
+                        assert_eq!(arg.0, target.name);
+                        assert_eq!(value, ir::Value::Unknown);
+
+                        match register_map.get(&target).unwrap() {
+                            ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
+                            ArmRegister::FloatingPoint(n) => todo!("Floating Point Register"),
+                        }
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
+
+                match arg_src {
+                    ArgTarget::GPRegister(n) => {
+                        args_moves.push(asm::Instruction::MovRegister {
+                            dest: target_reg,
+                            src: asm::GPRegister::DWord(*n),
+                        });
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
+            }
+
+            let remaining = statement_iter.collect();
+            func.block.set_statements(remaining);
+
+            args_moves
+        };
 
         let asm_ctx = codegen::Context {
-            registers: register_map,
+            registers: register_map.into(),
             var: stack_allocation.var_offsets,
             pre_ret_instr: stack_allocation.pre_return_instr.clone(),
             stack_allocs: stack_allocation.allocations,
@@ -110,6 +153,15 @@ impl Backend {
             .block_iter()
             .map(|b| codegen::block_to_asm(b, &asm_ctx))
             .collect();
+
+        {
+            let first = asm_blocks.get_mut(0).unwrap();
+
+            let mut final_instr = arg_moves;
+            final_instr.extend(std::mem::take(&mut first.instructions));
+            first.instructions = final_instr;
+            dbg!(&first);
+        }
 
         asm_blocks.insert(
             0,
@@ -134,12 +186,59 @@ impl Backend {
 
         asm_blocks
     }
+
+    fn assemble(&self, input_file: &str, target_file: &str) {
+        let output = Command::new("as")
+            .args(["-o", target_file, input_file])
+            .output()
+            .expect("Failed to assemble");
+
+        if !output.status.success() {
+            let err_str = String::from_utf8(output.stderr).unwrap();
+            panic!("{}", err_str);
+        }
+    }
+
+    fn link(&self, files: &[&str], target_file: &str) {
+        let output = Command::new("ld")
+            .args(["-macosx_version_min", "12.0.0"])
+            .args(["-o", target_file])
+            .args(files)
+            .args([
+                "-L/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/lib",
+                "-lSystem",
+                "-e",
+                "main",
+                "-arch",
+                "arm64",
+            ])
+            .output()
+            .expect("Failed to link");
+
+        if !output.status.success() {
+            let err_str = String::from_utf8(output.stderr).unwrap();
+            panic!("{}", err_str);
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ArmRegister {
     GeneralPurpose(u8),
     FloatingPoint(u8),
+}
+
+impl From<ArmRegister> for asm::Register {
+    fn from(src: ArmRegister) -> Self {
+        match src {
+            ArmRegister::GeneralPurpose(n) => {
+                asm::Register::GeneralPurpose(asm::GPRegister::DWord(n))
+            }
+            ArmRegister::FloatingPoint(n) => {
+                asm::Register::FloatingPoint(asm::FPRegister::DoublePrecision(n))
+            }
+        }
+    }
 }
 
 impl util::registers::Register for ArmRegister {
@@ -153,6 +252,12 @@ impl util::registers::Register for ArmRegister {
 
 impl Target for Backend {
     fn generate(&self, program: ir::Program) {
+        let global_statements = program.global.get_statements();
+        for stmnt in global_statements {
+            dbg!(&stmnt);
+            todo!("Generate Global stuff")
+        }
+
         let all_registers = Self::registers();
         let mut blocks = Vec::new();
         for (_, func) in program.functions.iter() {
@@ -174,45 +279,12 @@ impl Target for Backend {
             asm_text.push_str(&block_text);
         }
 
-        std::fs::write("./code.s", asm_text);
+        std::fs::write("./code.s", asm_text).unwrap();
 
-        {
-            let output = Command::new("as")
-                .args(["-o", "./code.o", "./code.s"])
-                .output()
-                .expect("Failed to assemble");
+        self.assemble("./code.s", "./code.o");
+        self.link(&["./code.o"], "./code");
 
-            let err_str = String::from_utf8(output.stderr).unwrap();
-            println!("{}", err_str);
-
-            assert!(output.status.success());
-        }
-
-        {
-            let output = Command::new("ld")
-                .args(["-macosx_version_min", "12.0.0"])
-                .args(["-o", "code"])
-                .args(["code.o"])
-                .args([
-                    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/lib",
-                    "-lSystem",
-                    "-e",
-                    "main",
-                    "-arch",
-                    "arm64",
-                ])
-                .output()
-                .expect("Failed to link");
-
-            let err_str = String::from_utf8(output.stderr).unwrap();
-            println!("{}", err_str);
-
-            assert!(output.status.success());
-        }
-
-        std::fs::remove_file("./code.s");
-        std::fs::remove_file("./code.o");
-
-        todo!()
+        std::fs::remove_file("./code.s").unwrap();
+        std::fs::remove_file("./code.o").unwrap();
     }
 }

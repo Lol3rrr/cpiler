@@ -1,10 +1,10 @@
 use crate::backends::aarch64_mac::asm;
 
-pub fn constant_to_asm(con: &ir::Constant, dest: asm::GPRegister) -> Vec<asm::Instruction> {
-    match con {
-        ir::Constant::I64(val) => {
+pub fn constant_to_asm(con: &ir::Constant, dest: asm::Register) -> Vec<asm::Instruction> {
+    match (dest, con) {
+        (asm::Register::GeneralPurpose(dest), ir::Constant::I64(val)) => {
             let val = *val;
-            if val >= 0 && val < 4096 {
+            if (0..4096).contains(&val) {
                 vec![asm::Instruction::Movz {
                     dest,
                     immediate: val as u16,

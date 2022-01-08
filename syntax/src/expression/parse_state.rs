@@ -360,6 +360,8 @@ impl ParseState {
             };
         }
 
-        final_stack.pop().ok_or(SyntaxError::UnexpectedEOF)
+        final_stack.pop().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: crate::EOFContext::Expression,
+        })
     }
 }

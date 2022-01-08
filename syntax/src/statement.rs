@@ -3,8 +3,8 @@ use itertools::PeekNth;
 use tokenizer::{ControlFlow, DataType, Keyword, Operator, Token, TokenData};
 
 use crate::{
-    expression::Expression, ExpectedToken, FunctionArgument, Identifier, Scope, SyntaxError,
-    TypeToken,
+    expression::Expression, EOFContext, ExpectedToken, FunctionArgument, Identifier, Scope,
+    SyntaxError, TypeToken,
 };
 
 mod assign_target;
@@ -122,20 +122,30 @@ impl Statement {
     where
         I: Iterator<Item = Token>,
     {
-        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+        let peeked = tokens.peek().ok_or_else(|| {
+            println!("Peeked Parse Statement");
+
+            SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            }
+        })?;
 
         match &peeked.data {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Return)) => {
                 let _ = tokens.next();
 
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 let exp = if is_termination(peeked.clone()).is_ok() {
                     let _ = tokens.next();
                     None
                 } else {
                     let exp = Expression::parse(tokens)?;
 
-                    let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Statement,
+                    })?;
                     is_termination(next_token)?;
 
                     Some(exp)
@@ -153,7 +163,9 @@ impl Statement {
                 let target = Expression::parse(tokens)?;
                 dbg!(&target);
 
-                let assign_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let assign_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 let assign_type = match assign_token.data {
                     TokenData::Assign(as_ty) => as_ty,
                     _ => {
@@ -168,7 +180,9 @@ impl Statement {
                 let raw_value = Expression::parse(tokens)?;
                 dbg!(&raw_value);
 
-                let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 is_termination(end_tok)?;
 
                 let value = assign_type::convert_assign(raw_value, assign_type, || {
@@ -183,7 +197,9 @@ impl Statement {
             TokenData::Operator(Operator::Increment) | TokenData::Operator(Operator::Decrement) => {
                 let exp = Expression::parse(tokens)?;
 
-                let ending_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let ending_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 is_termination(ending_tok)?;
 
                 Ok(Self::SingleExpression(exp))
@@ -194,12 +210,16 @@ impl Statement {
             TokenData::Keyword(Keyword::TypeDef) => {
                 let _ = tokens.next();
 
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match &peeked.data {
                     TokenData::Keyword(Keyword::DataType(DataType::Struct)) => {
                         let _ = tokens.next();
 
-                        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                            ctx: EOFContext::Statement,
+                        })?;
                         let (struct_name, start_span) = match &peeked.data {
                             TokenData::Literal { .. } => {
                                 let next = tokens.next().expect("We just peeked it");
@@ -220,12 +240,16 @@ impl Statement {
 
                         let members = structs::StructMembers::parse(tokens)?;
 
-                        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                            ctx: EOFContext::Statement,
+                        })?;
                         let end_span = peeked.span.clone();
 
                         let n_type_name = Identifier::parse(tokens)?;
 
-                        let term_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let term_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                            ctx: EOFContext::Statement,
+                        })?;
                         is_termination(term_token)?;
 
                         let entire_span = Span::new_arc_source(
@@ -254,7 +278,9 @@ impl Statement {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::If)) => {
                 let _ = tokens.next();
 
-                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match open_paren_token.data {
                     TokenData::OpenParen => {}
                     _ => {
@@ -267,7 +293,9 @@ impl Statement {
 
                 let condition_exp = Expression::parse(tokens)?;
 
-                let close_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let close_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match close_paren_token.data {
                     TokenData::CloseParen => {}
                     _ => {
@@ -278,7 +306,9 @@ impl Statement {
                     }
                 };
 
-                let open_brace_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let open_brace_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match open_brace_token.data {
                     TokenData::OpenBrace => {}
                     _ => {
@@ -316,7 +346,9 @@ impl Statement {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::While)) => {
                 let _ = tokens.next();
 
-                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match open_paren_token.data {
                     TokenData::OpenParen => {}
                     _ => {
@@ -329,7 +361,9 @@ impl Statement {
 
                 let condition_exp = Expression::parse(tokens)?;
 
-                let close_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let close_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match close_paren_token.data {
                     TokenData::CloseParen => {}
                     _ => {
@@ -340,7 +374,9 @@ impl Statement {
                     }
                 };
 
-                let open_brace_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let open_brace_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match open_brace_token.data {
                     TokenData::OpenBrace => {}
                     _ => {
@@ -361,7 +397,9 @@ impl Statement {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Break)) => {
                 let _ = tokens.next();
 
-                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match semi_colon_token.data {
                     TokenData::Semicolon => {}
                     _ => {
@@ -377,7 +415,9 @@ impl Statement {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::Continue)) => {
                 let _ = tokens.next();
 
-                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match semi_colon_token.data {
                     TokenData::Semicolon => {}
                     _ => {
@@ -393,7 +433,9 @@ impl Statement {
             TokenData::Keyword(Keyword::ControlFlow(ControlFlow::For)) => {
                 let _ = tokens.next();
 
-                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let open_paren_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match open_paren_token.data {
                     TokenData::OpenParen => {}
                     _ => {
@@ -408,7 +450,9 @@ impl Statement {
 
                 let cond_exp = Expression::parse(tokens)?;
 
-                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match semi_colon_token.data {
                     TokenData::Semicolon => {}
                     _ => {
@@ -428,7 +472,9 @@ impl Statement {
                 };
                 let post_statement = Self::parse(tokens, &post_statement_termination)?;
 
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
 
                 match &peeked.data {
                     TokenData::OpenBrace => {

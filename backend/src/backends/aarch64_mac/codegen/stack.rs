@@ -7,6 +7,7 @@ fn ty_size_align(ty: &ir::Type) -> (usize, usize) {
         ir::Type::I32 => (4, 4),
         ir::Type::I64 => (8, 8),
         ir::Type::Pointer(_) => (8, 8),
+        ir::Type::Float => (4, 4),
         other => {
             dbg!(&other);
             todo!()
@@ -72,7 +73,9 @@ pub fn allocate_stack(
         .iter()
         .map(|r| match r {
             ArmRegister::GeneralPurpose(_) => (8, 8),
-            ArmRegister::FloatingPoint(_) => todo!("Size and Alignemnt of Float Register"),
+            // Because on M1 Macs it only uses Doubles and not Long-Doubles, the Max used Size is
+            // 64 Bit
+            ArmRegister::FloatingPoint(_) => (8, 8),
         })
         .chain(
             raw_vars
@@ -99,26 +102,45 @@ pub fn allocate_stack(
     let start_base = {
         let base: i16 = 16;
         for (index, raw_reg) in used_registers.iter().enumerate() {
-            let offset = base + (index as i16) * 8;
+            let raw_offset = base + (index as i16) * 8;
+            let offset = asm::Imm9Signed::new(raw_offset);
 
-            let reg = match raw_reg {
-                ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
-                ArmRegister::FloatingPoint(_) => todo!(),
-            };
+            match raw_reg {
+                ArmRegister::GeneralPurpose(n) => {
+                    let reg = asm::GPRegister::DWord(*n);
 
-            let store_instr = asm::Instruction::StoreRegisterUnscaled {
-                reg: reg.clone(),
-                base: asm::GpOrSpRegister::SP,
-                offset,
-            };
-            let load_instr = asm::Instruction::LoadRegisterUnscaled {
-                reg: reg.clone(),
-                base: asm::GpOrSpRegister::SP,
-                offset,
-            };
+                    let store_instr = asm::Instruction::StoreRegisterUnscaled {
+                        reg: reg.clone(),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: offset.clone(),
+                    };
+                    let load_instr = asm::Instruction::LoadRegisterUnscaled {
+                        reg: reg.clone(),
+                        base: asm::GpOrSpRegister::SP,
+                        offset,
+                    };
 
-            setup.push(store_instr);
-            pre_ret_instr.push(load_instr);
+                    setup.push(store_instr);
+                    pre_ret_instr.push(load_instr);
+                }
+                ArmRegister::FloatingPoint(n) => {
+                    let reg = asm::FPRegister::DoublePrecision(*n);
+
+                    let store_instr = asm::Instruction::StoreFPUnscaled {
+                        reg: reg.clone(),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: offset.clone(),
+                    };
+                    let load_instr = asm::Instruction::LoadFPUnscaled {
+                        reg: reg.clone(),
+                        base: asm::GpOrSpRegister::SP,
+                        offset,
+                    };
+
+                    setup.push(store_instr);
+                    pre_ret_instr.push(load_instr);
+                }
+            };
         }
 
         base + (used_registers.len() as i16) * 8

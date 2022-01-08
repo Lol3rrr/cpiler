@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use super::{Cond, GPRegister, GpOrSpRegister};
+use super::{Cond, FPRegister, FloatImm8, GPRegister, GpOrSpRegister, Imm9Signed};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Shift {
@@ -35,11 +35,21 @@ pub enum Instruction {
         dest: GPRegister,
         src: GPRegister,
     },
+    /// Page: 1819
+    FMovRegister {
+        dest: FPRegister,
+        src: FPRegister,
+    },
     /// Moves the unsigned immediate into the given Register and optionally shift it
     Movz {
         dest: GPRegister,
         shift: u8,
         immediate: u16,
+    },
+    /// Page: 1824
+    FMovImmediate {
+        dest: FPRegister,
+        imm: FloatImm8,
     },
     AddCarry {
         dest: GPRegister,
@@ -61,6 +71,12 @@ pub enum Instruction {
         shift: Shift,
         amount: u8,
     },
+    /// Page: 1630
+    FPAdd {
+        dest: FPRegister,
+        src1: FPRegister,
+        src2: FPRegister,
+    },
     SubImmediate {
         dest: GPRegister,
         src: GPRegister,
@@ -75,6 +91,12 @@ pub enum Instruction {
         shift: Shift,
         amount: u8,
     },
+    /// Page: 1917
+    FPSub {
+        dest: FPRegister,
+        src1: FPRegister,
+        src2: FPRegister,
+    },
     /// Page: 1243
     MultiplyRegister {
         dest: GPRegister,
@@ -85,7 +107,13 @@ pub enum Instruction {
     StoreRegisterUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
+    },
+    /// Page: 2290
+    StoreFPUnscaled {
+        reg: FPRegister,
+        base: GpOrSpRegister,
+        offset: Imm9Signed,
     },
     StpPreIndex {
         first: GPRegister,
@@ -97,43 +125,59 @@ pub enum Instruction {
     LoadRegisterUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
     },
     /// Page: 1198
     LoadSignedWordUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
     },
     /// Page: 1193
     LoadHalfWordUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
     },
     /// Page: 1196
     LoadSignedHalfWordUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
     },
     /// Page: 1192
     LoadByteUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
     },
     /// Page: 1194
     LoadSignedByteUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
-        offset: i16,
+        offset: Imm9Signed,
+    },
+    /// Page: 1979
+    LoadFPUnscaled {
+        reg: FPRegister,
+        base: GpOrSpRegister,
+        offset: Imm9Signed,
     },
     LdpPostIndex {
         first: GPRegister,
         second: GPRegister,
         base: GpOrSpRegister,
         offset: i16,
+    },
+    /// Page: 2064
+    SignedIntegerToFloatingPoint {
+        src: GPRegister,
+        dest: FPRegister,
+    },
+    /// Page: 1698
+    FloatingPointToSignedIntegerMinusInf {
+        src: FPRegister,
+        dest: GPRegister,
     },
     JumpLabel {
         target: String,
@@ -180,6 +224,9 @@ impl Display for Instruction {
             Self::StoreRegisterUnscaled { reg, base, offset } => {
                 write!(f, "stur {}, [{}, #{}]", reg, base, offset)
             }
+            Self::StoreFPUnscaled { reg, base, offset } => {
+                write!(f, "str {}, [{}, #{}]", reg, base, offset)
+            }
             Self::StpPreIndex {
                 first,
                 second,
@@ -193,6 +240,9 @@ impl Display for Instruction {
             }
             Self::LoadSignedWordUnscaled { reg, base, offset } => {
                 write!(f, "ldursw {}, [{}, #{}]", reg, base, offset)
+            }
+            Self::LoadFPUnscaled { reg, base, offset } => {
+                write!(f, "ldur {}, [{}, #{}]", reg, base, offset)
             }
             Self::LdpPostIndex {
                 first,
@@ -212,6 +262,12 @@ impl Display for Instruction {
             Self::MovRegister { dest, src } => {
                 write!(f, "mov {}, {}", dest, src)
             }
+            Self::FMovImmediate { dest, imm } => {
+                write!(f, "fmov {}, #{}", dest, imm)
+            }
+            Self::FMovRegister { dest, src } => {
+                write!(f, "fmov {}, {}", dest, src)
+            }
             Self::AddImmediate {
                 dest,
                 src,
@@ -228,6 +284,9 @@ impl Display for Instruction {
                 amount,
             } => {
                 write!(f, "add {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
+            }
+            Self::FPAdd { dest, src1, src2 } => {
+                write!(f, "fadd {}, {}, {}", dest, src1, src2)
             }
             Self::SubImmediate {
                 dest,
@@ -246,8 +305,17 @@ impl Display for Instruction {
             } => {
                 write!(f, "sub {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
             }
+            Self::FPSub { dest, src1, src2 } => {
+                write!(f, "fsub {}, {}, {}", dest, src1, src2)
+            }
             Self::MultiplyRegister { dest, src1, src2 } => {
                 write!(f, "mul {}, {}, {}", dest, src1, src2)
+            }
+            Self::SignedIntegerToFloatingPoint { dest, src } => {
+                write!(f, "scvtf {}, {}", dest, src)
+            }
+            Self::FloatingPointToSignedIntegerMinusInf { dest, src } => {
+                write!(f, "fcvtms {}, {}", dest, src)
             }
             Self::CmpImmediate {
                 reg,

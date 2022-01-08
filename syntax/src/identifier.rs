@@ -2,7 +2,7 @@ use general::{Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
-use crate::{ExpectedToken, SyntaxError};
+use crate::{EOFContext, ExpectedToken, SyntaxError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Identifier(pub SpanData<String>);
@@ -12,7 +12,9 @@ impl Identifier {
     where
         I: Iterator<Item = Token>,
     {
-        let token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+        let token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Identifier,
+        })?;
         let name = match token.data {
             TokenData::Literal { content } => {
                 // TODO

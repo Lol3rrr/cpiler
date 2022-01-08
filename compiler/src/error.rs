@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportKind};
+use preprocessor::ProcessError;
 use semantic::SemanticError;
 use syntax::SyntaxError;
 
@@ -21,12 +22,38 @@ where
     pub fn display(self) {
         match self {
             Self::Preprocessor(pe) => {
-                dbg!(pe);
+                match pe {
+                    ProcessError::FailedInclude {
+                        directive,
+                        path,
+                        error,
+                    } => {
+                        dbg!(&error);
+
+                        let sources = SourceCache::from([&directive]);
+
+                        Report::build(ReportKind::Error, &directive, 0)
+                            .with_message(format!("Failed to include Path: \"{}\"", path))
+                            .with_label(
+                                Label::new((&directive, directive.source_area().clone()))
+                                    .with_message("This include could not be resolved"),
+                            )
+                            .finish()
+                            .print(sources)
+                            .unwrap();
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
             }
             Self::Syntax(se) => {
                 match se {
-                    SyntaxError::UnexpectedEOF => {
-                        dbg!("EOF");
+                    SyntaxError::UnexpectedEOF { ctx } => {
+                        dbg!(&ctx);
+
+                        todo!("EOF")
                     }
                     SyntaxError::UnexpectedToken { got, expected } => {
                         let content_area = got.source_area();
@@ -224,8 +251,6 @@ where
                         name,
                         previous_declaration,
                     } => {
-                        dbg!(&name, &previous_declaration);
-
                         let sources = SourceCache::from([&previous_declaration, &name.0.span]);
 
                         Report::build(ReportKind::Error, &previous_declaration, 0)
@@ -249,9 +274,24 @@ where
                         name,
                         previous_definition,
                     } => {
-                        dbg!(&name, &previous_definition);
+                        let sources = SourceCache::from([&name.0.span, &previous_definition]);
 
-                        todo!("Redefinition");
+                        Report::build(ReportKind::Error, &previous_definition, 0)
+                            .with_message(format!("{:?} was defined again", name.0.data))
+                            .with_label(
+                                Label::new((
+                                    &previous_definition,
+                                    previous_definition.source_area().clone(),
+                                ))
+                                .with_message("Previously defined here"),
+                            )
+                            .with_label(
+                                Label::new((&name.0.span, name.0.span.source_area().clone()))
+                                    .with_message("Redefined here"),
+                            )
+                            .finish()
+                            .print(sources)
+                            .unwrap();
                     }
                     SemanticError::MismatchedFunctionArgsCount { expected, received } => {
                         dbg!(&expected, &received);

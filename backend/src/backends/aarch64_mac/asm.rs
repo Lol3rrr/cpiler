@@ -1,9 +1,12 @@
 // https://developer.arm.com/documentation/ddi0487/latest/
 
-mod instruction;
 use std::fmt::Display;
 
+mod instruction;
 pub use instruction::*;
+
+mod immediate;
+pub use immediate::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum GPRegister {
@@ -23,6 +26,27 @@ impl Display for GPRegister {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum FPRegister {
+    SinglePrecision(u8),
+    DoublePrecision(u8),
+}
+
+impl Display for FPRegister {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SinglePrecision(n) => write!(f, "s{}", n),
+            Self::DoublePrecision(n) => write!(f, "d{}", n),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Register {
+    GeneralPurpose(GPRegister),
+    FloatingPoint(FPRegister),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum GpOrSpRegister {
     GP(GPRegister),
     SP,
@@ -37,6 +61,7 @@ impl Display for GpOrSpRegister {
     }
 }
 
+/// Page: 197
 #[derive(Debug, PartialEq, Clone)]
 pub enum Cond {
     Equal,
@@ -44,27 +69,34 @@ pub enum Cond {
     /// Unsigned greater than or unordered
     Hi,
     /// Unsiged lower than or equal
+    /// + Float less than or equal
     Ls,
     /// Signed greater than or equal
+    /// + Float greater than or equal
     Ge,
     /// Signed greater than
+    /// + Float greater than
     Gt,
     /// Signed less than or equal
     Le,
     /// Signed less than
     Lt,
+    /// Float less than
+    Mi,
 }
 
 impl Display for Cond {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Equal => write!(f, "eq"),
+            Self::NotEqual => write!(f, "ne"),
+            Self::Hi => write!(f, "hi"),
+            Self::Ls => write!(f, "ls"),
+            Self::Ge => write!(f, "ge"),
             Self::Gt => write!(f, "gt"),
+            Self::Le => write!(f, "le"),
             Self::Lt => write!(f, "lt"),
-            other => {
-                dbg!(&other);
-
-                todo!()
-            }
+            Self::Mi => write!(f, "mi"),
         }
     }
 }

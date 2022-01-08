@@ -25,7 +25,8 @@ where
                 todo!()
             }
             Type::Float | Type::Double | Type::LongDouble if nsrn < 8 => {
-                todo!()
+                result.push(ArgTarget::FPRegister(nsrn));
+                nsrn += 1;
             }
             Type::Float | Type::Double | Type::LongDouble => {
                 todo!()

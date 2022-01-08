@@ -85,7 +85,7 @@ impl<'p> ParseState<'p> {
     }
 
     pub fn is_defined(&self, ident: &Identifier) -> bool {
-        if self.local.is_defined(ident) {
+        if self.function_definitions.contains_key(&ident.0.data) {
             return true;
         }
 
@@ -169,8 +169,11 @@ impl VariableContainer for ParseState<'_> {
     }
 
     fn get_func(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
-        if let Some(func) = self.local.get_func_defined(ident) {
+        if let Some(func) = self.local.get_func_declared(ident) {
             return Some(func);
+        }
+        if let Some(func) = self.function_definitions.get(&ident.0.data) {
+            return Some(&func.0);
         }
 
         match self.parent {

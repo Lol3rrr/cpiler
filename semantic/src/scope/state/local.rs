@@ -11,7 +11,7 @@ pub struct LocalState {
     /// Takes the Source Name as the Key
     vars: HashMap<String, VariableDeclaration>,
     /// Takes the Source Name as the Key
-    funcs: HashMap<String, FunctionDeclaration>,
+    func_decs: HashMap<String, FunctionDeclaration>,
 }
 
 impl LocalState {
@@ -19,7 +19,7 @@ impl LocalState {
     pub fn new() -> Self {
         Self {
             vars: HashMap::new(),
-            funcs: HashMap::new(),
+            func_decs: HashMap::new(),
         }
     }
 
@@ -34,7 +34,7 @@ impl LocalState {
             return Some(var_dec.declaration.clone());
         }
 
-        if let Some(func_dec) = self.funcs.get(&ident.0.data) {
+        if let Some(func_dec) = self.func_decs.get(&ident.0.data) {
             return Some(func_dec.declaration.clone());
         }
 
@@ -45,13 +45,8 @@ impl LocalState {
     pub fn get_var_declared(&self, ident: &Identifier) -> Option<&VariableDeclaration> {
         self.vars.get(&ident.0.data)
     }
-    pub fn get_func_defined(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
-        self.funcs.get(&ident.0.data)
-    }
-
-    /// Checks if there is a definition for a given Ident
-    pub fn is_defined(&self, ident: &Identifier) -> bool {
-        self.funcs.contains_key(&ident.0.data)
+    pub fn get_func_declared(&self, ident: &Identifier) -> Option<&FunctionDeclaration> {
+        self.func_decs.get(&ident.0.data)
     }
 
     /// Adds a Variable Declaration for this Scope
@@ -71,6 +66,6 @@ impl LocalState {
     }
     /// Adds a Function Declaration for this Scope
     pub fn declare_func(&mut self, name: Identifier, func: FunctionDeclaration) {
-        self.funcs.insert(name.0.data, func);
+        self.func_decs.insert(name.0.data, func);
     }
 }

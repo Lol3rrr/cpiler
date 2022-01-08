@@ -15,7 +15,14 @@ mod state;
 
 #[derive(Debug)]
 pub enum ProcessError<L> {
-    UnknownDirective { raw: String },
+    UnknownDirective {
+        raw: String,
+    },
+    FailedInclude {
+        directive: general::Span,
+        path: String,
+        error: L,
+    },
     Loading(L),
 }
 
@@ -38,7 +45,7 @@ where
     let root_pir = into_pir(root_tokens);
 
     let mut state = state::State::new();
-    let processed = resolver::resolve(root_pir, loader, &mut state);
+    let processed = resolver::resolve(root_pir, loader, &mut state)?;
 
     let result = processed
         .map(|p| match p {

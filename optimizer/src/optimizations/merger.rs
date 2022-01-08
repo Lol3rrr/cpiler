@@ -98,7 +98,6 @@ impl Merger {
             };
         }
 
-        dbg!(&statements);
         block.set_statements(statements);
     }
 }

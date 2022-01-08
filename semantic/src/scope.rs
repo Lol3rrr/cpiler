@@ -3,9 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use ir::BasicBlock;
 use syntax::Scope;
 
-use crate::{
-    conversion::ConvertContext, AAssignTarget, AStatement, FunctionDeclaration, SemanticError,
-};
+use crate::{conversion::ConvertContext, AStatement, FunctionDeclaration, SemanticError};
 
 mod state;
 pub use state::*;

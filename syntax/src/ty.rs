@@ -2,7 +2,7 @@ use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 
-use crate::{ExpectedToken, Expression, Identifier, SyntaxError};
+use crate::{EOFContext, ExpectedToken, Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Modifier {
@@ -73,7 +73,9 @@ impl TypeToken {
     where
         I: Iterator<Item = Token>,
     {
-        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Type,
+        })?;
         let mut base = match next_tok.data {
             TokenData::Keyword(Keyword::DataType(DataType::Struct)) => {
                 let name = Identifier::parse(tokens)?;
@@ -122,12 +124,16 @@ impl TypeToken {
     where
         I: Iterator<Item = Token>,
     {
-        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Type,
+        })?;
         match &peeked.data {
             TokenData::Keyword(Keyword::DataType(DataType::Short)) => {
                 let next = tokens.next().unwrap();
 
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Type,
+                })?;
                 match &peeked.data {
                     TokenData::Literal { .. } => {}
                     TokenData::Keyword(Keyword::DataType(DataType::Int)) => {
@@ -151,7 +157,9 @@ impl TypeToken {
             TokenData::Keyword(Keyword::DataType(DataType::Long)) => {
                 let next = tokens.next().unwrap();
 
-                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Type,
+                })?;
                 match &peeked.data {
                     TokenData::Literal { .. } => Ok(Self::Primitive(SpanData {
                         data: DataType::Long,
@@ -250,7 +258,9 @@ impl TypeToken {
                 None => None,
             };
 
-            let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Type,
+            })?;
             match next_tok.data {
                 TokenData::CloseBracket => {}
                 _ => {

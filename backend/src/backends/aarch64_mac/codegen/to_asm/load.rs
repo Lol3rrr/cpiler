@@ -1,58 +1,79 @@
-use crate::backends::aarch64_mac::{asm, codegen::Context, ArmRegister};
+use crate::backends::aarch64_mac::{asm, codegen::Context};
 
 pub fn load(
-    target_reg: asm::GPRegister,
+    target_reg: asm::Register,
     read_ty: ir::Type,
     base: asm::GpOrSpRegister,
     offset: i16,
     instr: &mut Vec<asm::Instruction>,
 ) {
-    match read_ty {
-        ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) | ir::Type::U32 => {
-            let load_instr = asm::Instruction::LoadRegisterUnscaled {
-                reg: target_reg,
-                base,
-                offset,
+    match &read_ty {
+        ir::Type::Pointer(_)
+        | ir::Type::I64
+        | ir::Type::U64
+        | ir::Type::I32
+        | ir::Type::U32
+        | ir::Type::I16
+        | ir::Type::U16
+        | ir::Type::I8
+        | ir::Type::U8 => {
+            let target_reg = match target_reg {
+                asm::Register::GeneralPurpose(r) => r,
+                other => {
+                    dbg!(&other);
+                    panic!("")
+                }
             };
 
-            instr.push(load_instr);
-        }
-        ir::Type::I32 => {
-            let load_instr = asm::Instruction::LoadSignedWordUnscaled {
-                reg: target_reg,
-                base,
-                offset,
-            };
+            match &read_ty {
+                ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) | ir::Type::U32 => {
+                    let load_instr = asm::Instruction::LoadRegisterUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    };
 
-            instr.push(load_instr);
-        }
-        ir::Type::I16 => {
-            instr.push(asm::Instruction::LoadSignedHalfWordUnscaled {
-                reg: target_reg,
-                base,
-                offset,
-            });
-        }
-        ir::Type::U16 => {
-            instr.push(asm::Instruction::LoadHalfWordUnscaled {
-                reg: target_reg,
-                base,
-                offset,
-            });
-        }
-        ir::Type::I8 => {
-            instr.push(asm::Instruction::LoadSignedByteUnscaled {
-                reg: target_reg,
-                base,
-                offset,
-            });
-        }
-        ir::Type::U8 => {
-            instr.push(asm::Instruction::LoadByteUnscaled {
-                reg: target_reg,
-                base,
-                offset,
-            });
+                    instr.push(load_instr);
+                }
+                ir::Type::I32 => {
+                    let load_instr = asm::Instruction::LoadSignedWordUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    };
+
+                    instr.push(load_instr);
+                }
+                ir::Type::I16 => {
+                    instr.push(asm::Instruction::LoadSignedHalfWordUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    });
+                }
+                ir::Type::U16 => {
+                    instr.push(asm::Instruction::LoadHalfWordUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    });
+                }
+                ir::Type::I8 => {
+                    instr.push(asm::Instruction::LoadSignedByteUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    });
+                }
+                ir::Type::U8 => {
+                    instr.push(asm::Instruction::LoadByteUnscaled {
+                        reg: target_reg,
+                        base,
+                        offset: asm::Imm9Signed::new(offset),
+                    });
+                }
+                _ => {}
+            };
         }
         other => {
             dbg!(&other);
@@ -68,13 +89,22 @@ pub fn load_var(
     ctx: &Context,
     instr: &mut Vec<asm::Instruction>,
 ) {
-    let target_reg = match ctx.registers.get(&var).unwrap() {
-        ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
-        ArmRegister::FloatingPoint(_) => panic!("Floating Point Register"),
+    let target_reg = match ctx.registers.get_reg(&var).unwrap() {
+        asm::Register::GeneralPurpose(gp) => gp,
+        other => {
+            dbg!(&other);
+            todo!()
+        }
     };
 
     let base = asm::GpOrSpRegister::SP;
     let offset = *ctx.var.get(&var.name).unwrap() as i16;
 
-    load(target_reg, read_ty, base, offset, instr);
+    load(
+        asm::Register::GeneralPurpose(target_reg),
+        read_ty,
+        base,
+        offset,
+        instr,
+    );
 }

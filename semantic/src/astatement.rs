@@ -4,7 +4,7 @@ use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
     atype, conversion::ConvertContext, AExpression, AFunctionArg, APrimitive, AScope, AType,
-    FunctionDeclaration, ParseState, SemanticError,
+    FunctionDeclaration, ParseState, SemanticError, VariableContainer,
 };
 
 mod for_to_while;
@@ -119,7 +119,12 @@ impl AStatement {
                 body,
             } => {
                 if parse_state.is_defined(&name) {
-                    panic!("Redefinition Error");
+                    let prev = parse_state.get_func(&name).unwrap();
+
+                    return Err(SemanticError::Redefinition {
+                        name,
+                        previous_definition: prev.declaration.clone(),
+                    });
                 }
 
                 let r_ty = AType::parse(r_type, parse_state.type_defs(), parse_state)?;
@@ -564,7 +569,7 @@ impl AStatement {
                             if let ir::VariableMetadata::VarPointer { var: var_name } =
                                 target_var.meta()
                             {
-                                let var = block.definition(&var_name, &|| ctx.next_tmp()).unwrap();
+                                let var = block.definition(var_name, &|| ctx.next_tmp()).unwrap();
 
                                 let next_var = var.next_gen();
                                 let target_meta = value_exp.assign_meta(&next_var);

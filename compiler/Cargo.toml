@@ -12,6 +12,7 @@ syntax = { path = "../syntax" }
 semantic = { path = "../semantic" }
 optimizer = { path = "../optimizer" }
 backend = { path = "../backend" }
+ir = { path = "../ir" }
 
 # For Fancy error messages
 ariadne = "0.1.3"

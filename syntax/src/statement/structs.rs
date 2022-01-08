@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Token, TokenData};
 
-use crate::{ExpectedToken, Identifier, SyntaxError, TypeToken};
+use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 #[derive(Debug, PartialEq)]
 pub struct StructMembers {
@@ -13,7 +13,9 @@ impl StructMembers {
     where
         I: Iterator<Item = Token>,
     {
-        let opening_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+        let opening_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Statement,
+        })?;
         match opening_token.data {
             TokenData::OpenBrace => {}
             _ => {
@@ -33,7 +35,9 @@ impl StructMembers {
 
             let (ty, name) = TypeToken::parse_type_identifier(tokens)?;
 
-            let semicolon_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            let semicolon_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            })?;
             match semicolon_tok.data {
                 TokenData::Semicolon => {}
                 _ => {

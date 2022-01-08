@@ -93,6 +93,7 @@ dependencies = [
  "ariadne",
  "backend",
  "general",
+ "ir",
  "optimizer",
  "preprocessor",
  "semantic",

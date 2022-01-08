@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use graphviz::{Graph, Node};
+use graphviz::Graph;
 
 use crate::Variable;
 
@@ -11,10 +11,12 @@ pub struct NodeId {
 }
 
 impl NodeId {
+    /// Generates the NodeID for the given Variable
     pub fn new(var: Variable) -> Self {
         Self { var }
     }
 
+    /// Get the underlying Variable of this NodeID
     pub fn var(&self) -> &Variable {
         &self.var
     }
@@ -69,6 +71,7 @@ impl DefaultInterferenceGraph {
         }
     }
 
+    /// Convert the Graph into a Dot Graphviz format for easy visualization
     pub fn to_dot(&self) -> String {
         let mut graph = graphviz::RootGraph::new();
 
@@ -88,6 +91,7 @@ impl DefaultInterferenceGraph {
         graph.finalize()
     }
 
+    /// Get all the Nodes that are connected to the given Node
     pub fn neighbours<N>(&self, node: N) -> Vec<NodeId>
     where
         N: Into<NodeId>,
@@ -166,5 +170,11 @@ impl PartialEq for DefaultInterferenceGraph {
         dbg!(&other_edges);
 
         own_edges.eq(&other_edges)
+    }
+}
+
+impl Default for DefaultInterferenceGraph {
+    fn default() -> Self {
+        Self::new()
     }
 }

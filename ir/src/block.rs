@@ -276,6 +276,9 @@ impl BasicBlock {
         Some(final_var)
     }
 
+    /// This will update all the Phi Nodes in this Block to fill in any missing ways a Variable
+    /// might be defined by its predecessors and also filters out and dead Variables, where the
+    /// Block has been removed
     pub fn refresh_phis(&self) {
         let mut statements = self.get_statements();
 
@@ -372,7 +375,7 @@ impl BasicBlock {
             tmp.used_vars().into_iter().for_each(|u_v| {
                 match result.get_mut(&u_v) {
                     Some(u_count) => {
-                        *u_count = *u_count + 1;
+                        *u_count += 1;
                     }
                     None => {
                         result.insert(u_v, 1);
@@ -394,7 +397,7 @@ impl BasicBlock {
             for (u_v, u_c) in succ_uses.into_iter() {
                 match base.get_mut(&u_v) {
                     Some(b_c) => {
-                        *b_c = *b_c + u_c;
+                        *b_c += u_c;
                     }
                     None => {
                         base.insert(u_v, u_c);
@@ -424,13 +427,15 @@ impl BasicBlock {
         None
     }
 
-    pub(crate) fn interference_graph<T>(
+    pub(crate) fn interference_graph<T, F>(
         &self,
         graph: &mut T,
         live_vars: &mut HashSet<Variable>,
         visited: &mut HashSet<*const InnerBlock>,
+        update: &mut F,
     ) where
         T: InterferenceGraph,
+        F: FnMut(&HashSet<Variable>, &BasicBlock, usize),
     {
         visited.insert(self.as_ptr());
 
@@ -438,7 +443,7 @@ impl BasicBlock {
         let following_uses = self.following_uses();
         let statements = self.get_statements();
 
-        for stmnt in statements.into_iter() {
+        for (index, stmnt) in statements.into_iter().enumerate() {
             match &stmnt {
                 Statement::Assignment { target, .. } => {
                     let target_node = NodeId::new(target.clone());
@@ -450,15 +455,19 @@ impl BasicBlock {
 
                     live_vars.insert(target.clone());
                 }
+                Statement::LoadVariable { var } => {
+                    live_vars.insert(var.clone());
+                }
                 _ => {}
             };
 
-            let tmp_used = stmnt.used_vars();
+            update(live_vars, self, index);
 
+            let tmp_used = stmnt.used_vars();
             for used in tmp_used {
                 match block_uses.get_mut(&used) {
                     Some(b_u) => {
-                        *b_u = *b_u - 1;
+                        *b_u -= 1;
 
                         if *b_u == 0 {
                             block_uses.remove(&used);
@@ -473,6 +482,10 @@ impl BasicBlock {
                     }
                 };
             }
+
+            if let Statement::UnloadVariable { var } = &stmnt {
+                live_vars.remove(var);
+            }
         }
 
         let succs: HashMap<_, _> = self
@@ -486,7 +499,7 @@ impl BasicBlock {
 
         if succs.len() == 1 {
             let (_, single_succ) = succs.into_iter().next().unwrap();
-            single_succ.interference_graph(graph, live_vars, visited);
+            single_succ.interference_graph(graph, live_vars, visited, update);
             return;
         }
 
@@ -516,20 +529,21 @@ impl BasicBlock {
 
         visited.insert(end_block.as_ptr());
         let mut left_live = live_vars.clone();
-        left.interference_graph(graph, &mut left_live, visited);
+        left.interference_graph(graph, &mut left_live, visited, update);
 
         let mut right_live = live_vars.clone();
-        right.interference_graph(graph, &mut right_live, visited);
+        right.interference_graph(graph, &mut right_live, visited, update);
 
         let mut n_live = {
             let mut tmp = left_live;
             tmp.extend(right_live);
             tmp
         };
-        end_block.interference_graph(graph, &mut n_live, visited);
-        return;
+        end_block.interference_graph(graph, &mut n_live, visited, update);
     }
 
+    /// This will generate the Dominance Tree for this Block and all its immediate Successors that
+    /// have not already been visited
     pub fn dominance_tree(&self, visited: &mut HashSet<*const InnerBlock>) -> DominanceTree {
         visited.insert(self.as_ptr());
 
@@ -537,12 +551,9 @@ impl BasicBlock {
 
         let statements = self.get_statements();
         for stmnt in statements {
-            match stmnt {
-                Statement::Assignment { target, .. } => {
-                    result.append(target);
-                }
-                _ => {}
-            };
+            if let Statement::Assignment { target, .. } = stmnt {
+                result.append(target);
+            }
         }
 
         let succs = self.successors();

@@ -1,18 +1,19 @@
-use crate::backends::aarch64_mac::{asm, codegen::Context, ArmRegister};
+use crate::backends::aarch64_mac::{asm, codegen::Context};
 
 pub fn to_asm(
     op: ir::UnaryOp,
-    t_reg: asm::GPRegister,
+    t_reg: asm::Register,
     base: ir::Operand,
     ctx: &Context,
     instr: &mut Vec<asm::Instruction>,
 ) {
     let (base_reg, imm_reg) = match base {
-        ir::Operand::Variable(base_var) => match ctx.registers.get(&base_var).unwrap() {
-            ArmRegister::GeneralPurpose(n) => {
-                (asm::GPRegister::DWord(*n), asm::GPRegister::DWord(9))
-            }
-            ArmRegister::FloatingPoint(_) => {
+        ir::Operand::Variable(base_var) => match ctx.registers.get_reg(&base_var).unwrap() {
+            asm::Register::GeneralPurpose(gp) => match gp {
+                asm::GPRegister::DWord(n) => (asm::GPRegister::DWord(n), asm::GPRegister::DWord(9)),
+                asm::GPRegister::Word(n) => (asm::GPRegister::Word(n), asm::GPRegister::Word(9)),
+            },
+            asm::Register::FloatingPoint(_) => {
                 todo!("Floating Point Registers")
             }
         },
@@ -22,8 +23,8 @@ pub fn to_asm(
         }
     };
 
-    match op {
-        ir::UnaryOp::Arith(arith_op) => {
+    match (t_reg, op) {
+        (asm::Register::GeneralPurpose(t_reg), ir::UnaryOp::Arith(arith_op)) => {
             match arith_op {
                 ir::UnaryArithmeticOp::Increment => {
                     instr.push(asm::Instruction::AddImmediate {

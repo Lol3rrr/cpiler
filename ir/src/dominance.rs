@@ -24,10 +24,13 @@ impl DominanceNode {
     }
 }
 
+/// This struct holds the Information to identify the current Node, which can be used to change the
+/// Level at which new Nodes are inserted at and allow for more than just one "Branch" in the Tree
 pub struct CurrentNode {
     index: usize,
 }
 
+/// A simple Dominance Tree that represents which Variables dominate which other Variables
 #[derive(Debug, PartialEq)]
 pub struct DominanceTree {
     root: Option<usize>,
@@ -36,6 +39,7 @@ pub struct DominanceTree {
 }
 
 impl DominanceTree {
+    /// Creates a new empty Dominance Tree
     pub fn new() -> Self {
         Self {
             root: None,
@@ -44,18 +48,20 @@ impl DominanceTree {
         }
     }
 
+    /// Returns an Iterator that traverses the Tree in Post Order
     pub fn post_order_iter(&self) -> PostOrderDominance<'_> {
         PostOrderDominance::new(self)
     }
 
-    /// Inserts the new Variable at the same level as the last one
+    /// Inserts the new Variable at the same level as the last one and moves the current insertion
+    /// Point to the new Node
     pub fn insert_at_level(&mut self, var: Variable) {
         let parent = match &self.latest {
-            Some(latest) => self.nodes.get(*latest).unwrap().parent.clone(),
+            Some(latest) => self.nodes.get(*latest).unwrap().parent,
             None => panic!("Cant have two roots"),
         };
 
-        let node = DominanceNode::new(var, parent.clone());
+        let node = DominanceNode::new(var, parent);
         self.nodes.push(node);
         let node_index = self.nodes.len() - 1;
 
@@ -67,8 +73,10 @@ impl DominanceTree {
         self.latest = Some(node_index);
     }
 
+    /// Appends a new Node to the current One, which creates a new "Level" in the Tree.
+    /// This also moves the current insertion Point to the newly added Node
     pub fn append(&mut self, var: Variable) {
-        let parent = self.latest.clone();
+        let parent = self.latest;
         let node = DominanceNode::new(var, parent);
         self.nodes.push(node);
         let node_index = self.nodes.len() - 1;
@@ -84,6 +92,9 @@ impl DominanceTree {
         self.latest = Some(node_index);
     }
 
+    /// Appends the given Tree to the current Node, where the Root of the other Tree is added like
+    /// it was added using the [`append`] Method. The Rest of the other Tree is then kept in the
+    /// same order starting from the inserted Root Node
     pub fn append_tree(&mut self, other: Self) {
         if self.root.is_none() {
             *self = other;
@@ -97,11 +108,11 @@ impl DominanceTree {
 
         self.nodes.extend(other.nodes.into_iter().map(|mut n| {
             if let Some(parent) = &mut n.parent {
-                *parent = *parent + offset;
+                *parent += offset;
             }
 
             for child in n.children.iter_mut() {
-                *child = *child + offset;
+                *child += offset;
             }
 
             n
@@ -109,7 +120,7 @@ impl DominanceTree {
 
         let other_root_index = other.root.unwrap();
         let other_root = self.nodes.get_mut(other_root_index + offset).unwrap();
-        other_root.parent = self.latest.clone();
+        other_root.parent = self.latest;
 
         let latest_index = self.latest.unwrap();
         let latest = self.nodes.get_mut(latest_index).unwrap();
@@ -118,9 +129,12 @@ impl DominanceTree {
         self.latest = other.latest.map(|prev| prev + offset);
     }
 
+    /// Adds the other Tree starting at the same Level as the current insertion Point. The Root of
+    /// the other Tree is added like when using the [`ìnsert_at_level`] function and then starting
+    /// from that Point, the other Tree added with the same order as it was in previously
     pub fn insert_tree_at_level(&mut self, other: Self) {
         let parent = match &self.latest {
-            Some(latest) => self.nodes.get(*latest).unwrap().parent.clone(),
+            Some(latest) => self.nodes.get(*latest).unwrap().parent,
             None => panic!("Cant have two roots"),
         };
         if other.root.is_none() {
@@ -131,11 +145,11 @@ impl DominanceTree {
 
         self.nodes.extend(other.nodes.into_iter().map(|mut n| {
             if let Some(parent) = &mut n.parent {
-                *parent = *parent + offset;
+                *parent += offset;
             }
 
             for child in n.children.iter_mut() {
-                *child = *child + offset;
+                *child += offset;
             }
 
             n
@@ -156,16 +170,50 @@ impl DominanceTree {
         self.latest = other.latest.map(|prev| prev + offset);
     }
 
+    /// Returns a Handle to identify the current Node
     pub fn current_node(&self) -> Option<CurrentNode> {
-        let latest = self.latest.clone()?;
+        let latest = self.latest?;
 
         Some(CurrentNode { index: latest })
     }
 
+    /// This will append the other Tree to the given Node, like it was described in [`append_tree`]
+    /// but starting from the given Node
     pub fn append_tree_to_node(&mut self, node: &CurrentNode, other: Self) {
         self.latest = Some(node.index);
 
         self.append_tree(other);
+    }
+
+    /// Moves the current insertion Point to the given Node
+    pub fn move_to_node(&mut self, node: CurrentNode) {
+        self.latest = Some(node.index);
+    }
+
+    /// Searches for the given Variable in the Parents of the current Node
+    pub fn search_parents(&mut self, var: &Variable) -> Option<CurrentNode> {
+        let start = self.latest?;
+
+        let mut current_i = start;
+        loop {
+            let current = self.nodes.get(current_i).unwrap();
+            if &current.var == var {
+                return Some(CurrentNode { index: current_i });
+            }
+
+            match current.parent {
+                Some(p) => {
+                    current_i = p;
+                }
+                None => return None,
+            };
+        }
+    }
+}
+
+impl Default for DominanceTree {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

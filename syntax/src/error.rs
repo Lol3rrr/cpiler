@@ -6,11 +6,21 @@ pub enum SyntaxError {
         expected: Option<Vec<ExpectedToken>>,
         got: Span,
     },
-    UnexpectedEOF,
+    UnexpectedEOF {
+        ctx: EOFContext,
+    },
     ExpectedExpression {
         span: Span,
         reason: ExpressionReason,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EOFContext {
+    Type,
+    Identifier,
+    Statement,
+    Expression,
 }
 
 #[derive(Debug, PartialEq)]

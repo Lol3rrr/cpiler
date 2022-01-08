@@ -8,7 +8,7 @@ use general::{Source, Span, SpanData};
 use itertools::PeekNth;
 use tokenizer::{Assignment, Keyword, Operator, Token, TokenData};
 
-use crate::{ExpectedToken, Identifier, SyntaxError, TypeToken};
+use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 mod parse_state;
 
@@ -168,11 +168,15 @@ impl Expression {
             }),
             TokenData::CharLiteral { content } => {
                 let mut chars = content.chars();
-                let first_char = chars.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let first_char = chars.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Expression,
+                })?;
 
                 let value = match first_char {
                     '\\' => {
-                        let next = chars.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                        let next = chars.next().ok_or(SyntaxError::UnexpectedEOF {
+                            ctx: EOFContext::Expression,
+                        })?;
 
                         match next {
                             '0' => '\0',
@@ -184,7 +188,9 @@ impl Expression {
                 };
 
                 if chars.next().is_some() {
-                    return Err(SyntaxError::UnexpectedEOF);
+                    return Err(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Expression,
+                    });
                 }
 
                 Ok(Self::CharLiteral {
@@ -218,7 +224,9 @@ impl Expression {
             let tmp_exp = Self::parse(tokens)?;
             result.push(tmp_exp);
 
-            let comma_ending_token = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+            let comma_ending_token = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Expression,
+            })?;
             match &comma_ending_token.data {
                 TokenData::Comma => {
                     let _ = tokens.next();
@@ -281,7 +289,9 @@ impl Expression {
                     state.add_expression(entry);
                 }
                 (TokenData::Keyword(Keyword::SizeOf), _) => {
-                    let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Expression,
+                    })?;
                     if peeked.data == TokenData::OpenParen {
                         let _ = tokens.next();
                     }
@@ -322,7 +332,10 @@ impl Expression {
 
                             let params = Self::parse_exp_list(tokens, TokenData::CloseParen)?;
 
-                            let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                            let closing_token =
+                                tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                                    ctx: EOFContext::Expression,
+                                })?;
                             match closing_token.data {
                                 TokenData::CloseParen => {}
                                 other => panic!("Expected ')' but got '{:?}'", other),
@@ -369,8 +382,11 @@ impl Expression {
                                         | TokenData::CloseParen => {
                                             let exp = Self::parse(tokens)?;
 
-                                            let closing_token =
-                                                tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                            let closing_token = tokens.next().ok_or(
+                                                SyntaxError::UnexpectedEOF {
+                                                    ctx: EOFContext::Expression,
+                                                },
+                                            )?;
                                             match closing_token.data {
                                                 TokenData::CloseParen => {}
                                                 _ => {
@@ -388,8 +404,11 @@ impl Expression {
                                         _ => {
                                             let target_ty = TypeToken::parse(tokens)?;
 
-                                            let close_paren_token =
-                                                tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                            let close_paren_token = tokens.next().ok_or(
+                                                SyntaxError::UnexpectedEOF {
+                                                    ctx: EOFContext::Expression,
+                                                },
+                                            )?;
                                             match close_paren_token.data {
                                                 TokenData::CloseParen => {}
                                                 _ => {
@@ -417,7 +436,9 @@ impl Expression {
                                     let exp = Self::parse(tokens)?;
 
                                     let closing_token =
-                                        tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                                        tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                                            ctx: EOFContext::Expression,
+                                        })?;
                                     match closing_token.data {
                                         TokenData::CloseParen => {}
                                         _ => {
@@ -437,7 +458,9 @@ impl Expression {
                 (TokenData::OpenBracket, _) => {
                     let exp = Self::parse(tokens)?;
 
-                    let ending_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let ending_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Expression,
+                    })?;
                     match ending_token.data {
                         TokenData::CloseBracket => {}
                         other => panic!("Expected ']' but got '{:?}'", other),
@@ -458,7 +481,9 @@ impl Expression {
                         items.push(exp);
 
                         let peeked_seperator_token =
-                            tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+                            tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                                ctx: EOFContext::Expression,
+                            })?;
                         match &peeked_seperator_token.data {
                             TokenData::Comma => {
                                 let _ = tokens.next();
@@ -477,7 +502,9 @@ impl Expression {
                         };
                     }
 
-                    let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let closing_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Expression,
+                    })?;
                     match closing_token.data {
                         TokenData::CloseBrace => {}
                         _ => {
@@ -503,7 +530,9 @@ impl Expression {
                     let first = Self::parse(tokens)?;
                     dbg!(&first);
 
-                    let seperator_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let seperator_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Expression,
+                    })?;
                     match seperator_token.data {
                         TokenData::Colon => {}
                         _ => {
@@ -579,7 +608,9 @@ mod tests {
         let input_span: Span = source.clone().into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
-        let expected = Err(SyntaxError::UnexpectedEOF);
+        let expected = Err(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Expression,
+        });
 
         let result = Expression::parse(&mut input_tokens);
 

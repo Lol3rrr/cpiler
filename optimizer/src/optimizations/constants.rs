@@ -75,6 +75,7 @@ impl ConstantProp {
                     Value::Constant(Constant::I32(b_val as i32))
                 }
                 (Constant::I64(b_val), ir::Type::I64) => Value::Constant(Constant::I64(b_val)),
+                (Constant::I64(b_val), ir::Type::I8) => Value::Constant(Constant::I8(b_val as i8)),
                 (con, target) => {
                     dbg!(&con, &target);
 

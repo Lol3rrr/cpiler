@@ -1,13 +1,15 @@
 use crate::{DominanceTree, Variable};
 
+/// This Iterator will iterate over a given DominanceTree in Post-Order
 pub struct PostOrderDominance<'t> {
     tree: &'t DominanceTree,
     next_node: Option<usize>,
 }
 
 impl<'t> PostOrderDominance<'t> {
+    /// Creates a new Iterator over the given Tree
     pub fn new(base: &'t DominanceTree) -> Self {
-        let start_node = match base.root.clone() {
+        let start_node = match base.root {
             Some(root_index) => {
                 let final_index = Self::find_first_child(base, root_index);
 

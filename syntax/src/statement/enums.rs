@@ -2,7 +2,7 @@ use general::SpanData;
 use itertools::PeekNth;
 use tokenizer::{Assignment, Token, TokenData};
 
-use crate::{ExpectedToken, Identifier, SyntaxError};
+use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumVariant {
@@ -17,12 +17,16 @@ impl EnumVariant {
     {
         let ident = Identifier::parse(tokens)?;
 
-        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Statement,
+        })?;
         let value = match &peeked.data {
             TokenData::Assign(Assignment::Assign) => {
                 let _ = tokens.next();
 
-                let value_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                let value_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                    ctx: EOFContext::Statement,
+                })?;
                 match value_token.data {
                     TokenData::Literal { content } => {
                         let i_value: u64 =
@@ -47,7 +51,9 @@ impl EnumVariant {
             _ => None,
         };
 
-        let next = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+        let next = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Statement,
+        })?;
         match next.data {
             TokenData::Comma => {}
             _ => {
@@ -72,7 +78,9 @@ impl EnumVariants {
     where
         I: Iterator<Item = Token>,
     {
-        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+        let next_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Statement,
+        })?;
         match next_tok.data {
             TokenData::OpenBrace => {}
             _ => {
@@ -85,7 +93,9 @@ impl EnumVariants {
 
         let mut members = Vec::new();
         loop {
-            let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+            let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            })?;
             if peeked.data == TokenData::CloseBrace {
                 let _ = tokens.next();
                 break;

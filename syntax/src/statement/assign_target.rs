@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
-use crate::{ExpectedToken, Expression, Identifier, SyntaxError};
+use crate::{EOFContext, ExpectedToken, Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq)]
 pub enum AssignTarget {
@@ -26,7 +26,9 @@ impl AssignTarget {
 
                     let index_exp = Expression::parse(tokens)?;
 
-                    let close_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+                    let close_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                        ctx: EOFContext::Statement,
+                    })?;
                     match close_token.data {
                         TokenData::CloseBracket => {}
                         _ => {

@@ -1,13 +1,15 @@
 use itertools::PeekNth;
 use tokenizer::{ControlFlow, Keyword, Token, TokenData};
 
-use crate::{ExpectedToken, Scope, Statement, SyntaxError};
+use crate::{EOFContext, ExpectedToken, Scope, Statement, SyntaxError};
 
 pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Scope, SyntaxError>
 where
     I: Iterator<Item = Token>,
 {
-    let peeked_tok = tokens.peek().ok_or(SyntaxError::UnexpectedEOF)?;
+    let peeked_tok = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
+        ctx: EOFContext::Statement,
+    })?;
     match &peeked_tok.data {
         TokenData::OpenBrace => {
             let _ = tokens.next();

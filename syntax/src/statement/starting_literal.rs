@@ -2,8 +2,8 @@ use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
 use crate::{
-    statement::AssignTarget, Expression, ExpressionOperator, ExpressionReason, Statement,
-    SyntaxError,
+    statement::AssignTarget, EOFContext, Expression, ExpressionOperator, ExpressionReason,
+    Statement, SyntaxError,
 };
 
 use super::starting_type;
@@ -106,21 +106,25 @@ where
         StatementType::Assignment => {
             let target = AssignTarget::parse(tokens)?;
 
-            let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            })?;
             let assign_type = match next_token.data {
                 TokenData::Assign(assign_type) => assign_type,
                 _ => panic!("Expected '=' but got '{:?}'", next_token),
             };
 
             let base_exp = Expression::parse(tokens).map_err(|e| match e {
-                SyntaxError::UnexpectedEOF => SyntaxError::ExpectedExpression {
+                SyntaxError::UnexpectedEOF { .. } => SyntaxError::ExpectedExpression {
                     span: next_token.span,
                     reason: ExpressionReason::Assignment,
                 },
                 other => other,
             })?;
 
-            let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            let next_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            })?;
             is_termination(next_token)?;
 
             let combine_op = ExpressionOperator::try_from(assign_type);
@@ -139,7 +143,9 @@ where
         StatementType::Expression => {
             let exp = Expression::parse(tokens)?;
 
-            let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF)?;
+            let semi_colon_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
+                ctx: EOFContext::Statement,
+            })?;
             is_termination(semi_colon_token)?;
 
             Ok(Statement::SingleExpression(exp))

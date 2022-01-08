@@ -43,6 +43,12 @@ impl Type {
         matches!(self, Self::Pointer(_) | Self::Array(_, _))
     }
 
+    /// Checks if the given Type is Float-Type
+    pub fn is_float(&self) -> bool {
+        matches!(self, Self::Float | Self::Double | Self::LongDouble)
+    }
+
+    /// Checks if the Type is signed or not
     pub fn signed(&self) -> bool {
         matches!(self, Self::I8 | Self::I16 | Self::I32 | Self::I64)
     }
