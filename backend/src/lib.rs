@@ -1,4 +1,5 @@
 mod backends;
+mod isas;
 mod util;
 
 pub struct Config {

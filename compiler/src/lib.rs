@@ -8,7 +8,7 @@ pub fn run<L>(files: Vec<String>, loader: L) -> Result<(), Error<L::LoadError>>
 where
     L: Loader,
 {
-    let arch = general::arch::Arch::X86_64;
+    let arch = general::arch::Arch::AArch64;
 
     let mut irs_iter = files.into_iter().map(|src_file| {
         let preprocessed =

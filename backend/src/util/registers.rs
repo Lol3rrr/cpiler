@@ -9,6 +9,9 @@ use std::{
 
 use ir::Variable;
 
+mod spill;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum RegisterType {
     GeneralPurpose,
     FloatingPoint,
@@ -17,7 +20,7 @@ pub enum RegisterType {
 impl RegisterType {
     pub fn useable(&self, ty: &ir::Type) -> bool {
         match self {
-            Self::GeneralPurpose => matches!(
+            Self::GeneralPurpose => !matches!(
                 ty,
                 ir::Type::Float | ir::Type::Double | ir::Type::LongDouble
             ),
@@ -31,6 +34,7 @@ impl RegisterType {
 
 pub trait Register {
     fn reg_type(&self) -> RegisterType;
+    fn align_size(&self) -> (usize, usize);
 }
 
 fn determine_spill_var(
@@ -72,7 +76,6 @@ fn determine_spill_var(
         .into_iter()
         .max_by(|(_, a_d), (_, b_d)| a_d.cmp(b_d))
         .unwrap();
-    dbg!(&first);
 
     first.0
 }
@@ -92,6 +95,7 @@ where
             let mut used: HashSet<R> = HashSet::new();
             let mut available: Vec<_> = registers.iter().collect();
 
+            dbg!(live.len());
             for var in live.iter() {
                 let avail_colors: Vec<_> = registers
                     .iter()
@@ -106,9 +110,20 @@ where
                     }
                     None => {
                         too_large_clique = Some((live.clone(), block.clone(), index));
+                        dbg!("Too large");
                         return;
                     }
                 };
+            }
+
+            let mut reg_type_free = HashSet::new();
+            for tmp in registers.iter().filter(|r| !used.contains(r)) {
+                reg_type_free.insert(tmp.reg_type());
+            }
+
+            if reg_type_free.len() != 2 {
+                too_large_clique = Some((live.clone(), block.clone(), index));
+                return;
             }
         });
 
@@ -117,11 +132,9 @@ where
             None => break interference_graph,
         };
 
-        let spill_var = determine_spill_var(largest_vars, largest_block, largest_stmnt_i);
+        let spill_var = determine_spill_var(largest_vars, largest_block.clone(), largest_stmnt_i);
 
-        dbg!(&spill_var);
-
-        todo!("No Idea how to spill the Variable")
+        spill::spill_variable(spill_var, largest_block, largest_stmnt_i);
     };
 
     let dominance_tree = func.dominance_tree();
@@ -132,9 +145,9 @@ where
         let neighbours = interference_graph.neighbours(&current);
 
         let used_colors: HashSet<_> = neighbours
-            .into_iter()
-            .map(|n| coloring.get(n.var()).cloned())
-            .flatten()
+            .iter()
+            .cloned()
+            .filter_map(|n| coloring.get(n.var()).cloned())
             .collect();
 
         let mut avail_colors = registers
@@ -145,8 +158,7 @@ where
         let used_color = match avail_colors.next() {
             Some(c) => c,
             None => {
-                dbg!(&current);
-                dbg!(&dominance_tree);
+                dbg!(&current, &neighbours);
 
                 std::fs::write("./failed_registers.dot", interference_graph.to_dot()).unwrap();
 

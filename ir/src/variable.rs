@@ -77,6 +77,7 @@ impl Variable {
     }
 
     /// This updates the Metadata for the Variable
+    #[must_use]
     pub fn set_meta(mut self, meta: VariableMetadata) -> Self {
         self.meta = meta;
         self
@@ -87,6 +88,7 @@ impl Variable {
     }
 
     /// Updates the Description for this Variable
+    #[must_use]
     pub fn set_description<D>(mut self, desc: D) -> Self
     where
         D: Into<String>,
@@ -101,6 +103,7 @@ impl Variable {
     }
 
     /// Increments the current Generation by one
+    #[must_use]
     pub fn next_gen(&self) -> Self {
         let gen = self.current_version.fetch_add(1, atomic::Ordering::SeqCst);
 

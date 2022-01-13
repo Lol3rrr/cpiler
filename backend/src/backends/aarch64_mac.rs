@@ -91,7 +91,62 @@ impl Backend {
         func: &ir::FunctionDefinition,
         register_map: HashMap<Variable, ArmRegister>,
     ) -> Vec<asm::Block> {
-        let stack_allocation = codegen::stack::allocate_stack(func, &register_map);
+        let stack_allocation = util::stack::allocate_stack(
+            func,
+            &register_map,
+            |space| {
+                vec![asm::Instruction::StpPreIndex {
+                    first: asm::GPRegister::DWord(29),
+                    second: asm::GPRegister::DWord(30),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: -(space as i16),
+                }]
+            },
+            |space| {
+                vec![asm::Instruction::LdpPostIndex {
+                    first: asm::GPRegister::DWord(29),
+                    second: asm::GPRegister::DWord(30),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: space as i16,
+                }]
+            },
+            |register, offset| match register {
+                ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::StoreRegisterUnscaled {
+                    reg: asm::GPRegister::DWord(*n),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: asm::Imm9Signed::new(offset),
+                }],
+                ArmRegister::FloatingPoint(n) => vec![asm::Instruction::StoreFPUnscaled {
+                    reg: asm::FPRegister::DoublePrecision(*n),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: asm::Imm9Signed::new(offset),
+                }],
+            },
+            |register, offset| match register {
+                ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::LoadRegisterUnscaled {
+                    reg: asm::GPRegister::DWord(*n),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: asm::Imm9Signed::new(offset),
+                }],
+                ArmRegister::FloatingPoint(n) => vec![asm::Instruction::LoadFPUnscaled {
+                    reg: asm::FPRegister::DoublePrecision(*n),
+                    base: asm::GpOrSpRegister::SP,
+                    offset: asm::Imm9Signed::new(offset),
+                }],
+            },
+            |ty| match ty {
+                ir::Type::I32 => (4, 4),
+                ir::Type::I64 => (8, 8),
+                ir::Type::Pointer(_) => (8, 8),
+                ir::Type::Float => (4, 4),
+                other => {
+                    dbg!(&other);
+                    todo!()
+                }
+            },
+            16,
+            16,
+        );
 
         let arg_moves = {
             let starting_statements = func.block.get_statements();
@@ -160,7 +215,6 @@ impl Backend {
             let mut final_instr = arg_moves;
             final_instr.extend(std::mem::take(&mut first.instructions));
             first.instructions = final_instr;
-            dbg!(&first);
         }
 
         asm_blocks.insert(
@@ -246,6 +300,13 @@ impl util::registers::Register for ArmRegister {
         match self {
             Self::GeneralPurpose(_) => util::registers::RegisterType::GeneralPurpose,
             Self::FloatingPoint(_) => util::registers::RegisterType::FloatingPoint,
+        }
+    }
+
+    fn align_size(&self) -> (usize, usize) {
+        match self {
+            Self::GeneralPurpose(_) => (8, 8),
+            Self::FloatingPoint(_) => (8, 8),
         }
     }
 }

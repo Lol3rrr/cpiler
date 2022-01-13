@@ -24,6 +24,7 @@ impl Node {
 
     /// Adds a label to the Node itself, which allows for different Styles per Node or overwriting
     /// the Content of the Node itself
+    #[must_use]
     pub fn add_label<N, V>(mut self, name: N, value: V) -> Self
     where
         N: Into<String>,

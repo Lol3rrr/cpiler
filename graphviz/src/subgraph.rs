@@ -27,6 +27,7 @@ impl SubGraph {
 
     /// Marks this Subgraph as a Cluster, which will affect the final layout in the Dot format to
     /// force all the Nodes and Edges in this Subgraph to be grouped together
+    #[must_use]
     pub fn cluster(mut self) -> Self {
         self.cluster = true;
         self
@@ -34,6 +35,7 @@ impl SubGraph {
 
     /// Adds some Args to the top level Graph to set some "Global" configurations for the entire
     /// Graph
+    #[must_use]
     pub fn arg<N, V>(mut self, name: N, value: V) -> Self
     where
         N: Into<String>,

@@ -127,8 +127,6 @@ pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
                 target,
                 value: Value::Constant(con),
             } => {
-                dbg!(&target, &con);
-
                 let t_reg = ctx.registers.get_reg(&target).unwrap();
 
                 match (t_reg, con) {
@@ -151,7 +149,10 @@ pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
                             imm: immediate,
                         });
                     }
-                    other => todo!(),
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
                 };
             }
             Statement::Assignment {
@@ -400,26 +401,4 @@ pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
     }
 
     asm::Block { name, instructions }
-}
-
-pub fn stack_space<ISI, IS>(allocations: ISI) -> usize
-where
-    ISI: IntoIterator<IntoIter = IS, Item = (usize, usize)>,
-    IS: Iterator<Item = (usize, usize)>,
-{
-    let mut base = 16;
-
-    for (align, size) in allocations.into_iter() {
-        if base % align != 0 {
-            base += align - (base % align);
-        }
-
-        base += size;
-    }
-
-    if base % 16 == 0 {
-        base
-    } else {
-        base + (16 - (base % 16))
-    }
 }

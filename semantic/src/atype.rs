@@ -126,6 +126,7 @@ pub struct Array {
 }
 
 impl AType {
+    #[must_use]
     pub fn ty(self) -> Self {
         match self {
             Self::TypeDef { ty, .. } => *ty,

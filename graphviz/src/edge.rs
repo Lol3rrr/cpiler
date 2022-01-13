@@ -24,6 +24,7 @@ impl Edge {
 
     /// Adds the given Label to the Edge, this allows for things like changing the Style of it or
     /// forcing a certain layout
+    #[must_use]
     pub fn add_label<N, V>(mut self, name: N, value: V) -> Self
     where
         N: Into<String>,

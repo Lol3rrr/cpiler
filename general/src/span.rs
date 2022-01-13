@@ -86,6 +86,7 @@ impl Span {
         &self.source_area
     }
 
+    #[must_use]
     pub fn join(self, other: Self) -> Self {
         let n_range = self.source_area.start..other.source_area.end;
 

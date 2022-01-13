@@ -36,8 +36,12 @@ pub fn load(
                     instr.push(load_instr);
                 }
                 ir::Type::I32 => {
+                    let correct_target_reg = match target_reg {
+                        asm::GPRegister::DWord(n) => asm::GPRegister::DWord(n),
+                        asm::GPRegister::Word(n) => asm::GPRegister::DWord(n),
+                    };
                     let load_instr = asm::Instruction::LoadSignedWordUnscaled {
-                        reg: target_reg,
+                        reg: correct_target_reg,
                         base,
                         offset: asm::Imm9Signed::new(offset),
                     };

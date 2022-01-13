@@ -455,9 +455,6 @@ impl BasicBlock {
 
                     live_vars.insert(target.clone());
                 }
-                Statement::LoadVariable { var } => {
-                    live_vars.insert(var.clone());
-                }
                 _ => {}
             };
 
@@ -481,10 +478,6 @@ impl BasicBlock {
                         dbg!(&used);
                     }
                 };
-            }
-
-            if let Statement::UnloadVariable { var } = &stmnt {
-                live_vars.remove(var);
             }
         }
 
