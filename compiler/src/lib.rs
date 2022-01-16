@@ -4,12 +4,14 @@ use preprocessor::Loader;
 mod error;
 pub use error::Error;
 
-pub fn run<L>(files: Vec<String>, loader: L) -> Result<(), Error<L::LoadError>>
+pub struct Config {
+    pub arch: general::arch::Arch,
+}
+
+pub fn run<L>(files: Vec<String>, loader: L, config: Config) -> Result<(), Error<L::LoadError>>
 where
     L: Loader,
 {
-    let arch = general::arch::Arch::AArch64;
-
     let mut irs_iter = files.into_iter().map(|src_file| {
         let preprocessed =
             preprocessor::preprocess(&loader, &src_file).map_err(Error::Preprocessor)?;
@@ -18,7 +20,7 @@ where
 
         let aast = semantic::parse(basic_ast).map_err(Error::Semantic)?;
 
-        let raw_ir = aast.convert_to_ir(arch.clone());
+        let raw_ir = aast.convert_to_ir(config.arch.clone());
 
         Ok(raw_ir)
     });
@@ -52,7 +54,7 @@ where
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 
-    let backend_config = backend::Config::new(arch.clone());
+    let backend_config = backend::Config::new(config.arch.clone());
     backend::codegen(ir, backend_config);
 
     Ok(())

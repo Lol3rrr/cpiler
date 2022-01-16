@@ -63,7 +63,7 @@ pub enum AExpression {
     InlineAssembly {
         template: SpanData<String>,
         input_vars: Vec<(Identifier, SpanData<AType>)>,
-        output_var: (Identifier, SpanData<AType>),
+        output_var: Option<(Identifier, SpanData<AType>)>,
         span: Span,
     },
 }
@@ -189,8 +189,8 @@ impl AExpression {
                 if name.0.data == "asm" {
                     dbg!(&raw_args);
 
-                    if raw_args.len() != 3 {
-                        panic!("Expected exactly 3 Arguments");
+                    if raw_args.is_empty() {
+                        panic!()
                     }
 
                     let raw_template_arg = raw_args.remove(0);
@@ -201,6 +201,21 @@ impl AExpression {
                         _ => panic!("Expected String Literal"),
                     };
                     dbg!(&template);
+
+                    if raw_args.is_empty() {
+                        return Ok(Self::InlineAssembly {
+                            span: name.0.span,
+                            template,
+                            output_var: None,
+                            input_vars: Vec::new(),
+                        });
+                    }
+
+                    todo!();
+
+                    if raw_args.len() != 3 {
+                        panic!("Expected exactly 3 Arguments");
+                    }
 
                     let raw_input_args = raw_args.remove(0);
                     let input_vars = match raw_input_args {
@@ -252,7 +267,7 @@ impl AExpression {
                     return Ok(Self::InlineAssembly {
                         span: name.0.span,
                         template,
-                        output_var,
+                        output_var: Some(output_var),
                         input_vars,
                     });
                 }
@@ -266,13 +281,11 @@ impl AExpression {
 
                     tmp
                 };
-                dbg!(&name, &args);
 
                 let func_dec = match vars.get_func(&name) {
                     Some(tmp) => tmp,
                     None => return Err(SemanticError::UnknownIdentifier { name }),
                 };
-                dbg!(&func_dec);
 
                 if (args.len() != func_dec.arguments.len() && !func_dec.var_args)
                     || (func_dec.var_args && args.len() < func_dec.arguments.len())
@@ -304,7 +317,6 @@ impl AExpression {
                 }
 
                 let args: Vec<_> = arg_results.into_iter().filter_map(|t| t.ok()).collect();
-                dbg!(&name, &args, &func_dec.return_ty);
 
                 Ok(Self::FunctionCall(FunctionCall {
                     name,
@@ -558,9 +570,13 @@ impl AExpression {
                 tmp
             }
             Self::UnaryOperator { base, .. } => base.used_variables(),
-            Self::InlineAssembly { output_var, .. } => {
+            Self::InlineAssembly {
+                output_var,
+                input_vars,
+                ..
+            } => {
                 let mut tmp = BTreeSet::new();
-                tmp.insert(dbg!(output_var.0 .0.data.clone()));
+                todo!();
                 tmp
             }
         }

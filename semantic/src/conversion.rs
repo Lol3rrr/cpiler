@@ -66,8 +66,6 @@ fn convert_function(
     inner_scope: AScope,
     arch: general::arch::Arch,
 ) -> BasicBlock {
-    dbg!(&name, &func_dec, &inner_scope);
-
     // Put the Arguments into the first basic Block and then place a Jump as the last Statement
     // that will jump to the actual function code
 

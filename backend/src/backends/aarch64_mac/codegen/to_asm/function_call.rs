@@ -11,8 +11,6 @@ pub fn to_asm(
     ctx: &Context,
     instructions: &mut Vec<asm::Instruction>,
 ) {
-    dbg!(&name, &arguments, &ret_ty);
-
     // 1. store the arguments to the current function on the Stack
     // 2. load all the arguments into the argument registers/etc.
     // 3. call the function

@@ -45,8 +45,6 @@ impl FunctionCall {
     }
 
     pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Value {
-        dbg!(&self);
-
         let name = self.name.0.data;
         let args = Self::argument_ir(self.arguments, block, ctx);
         let ty = self.result_ty.to_ir();

@@ -1,3 +1,6 @@
+// Instructions: http://shared-ptr.com/sh_insns.html
+// General SH4: https://www.st.com/resource/en/user_manual/cd00147165-sh-4-32-bit-cpu-core-architecture-stmicroelectronics.pdf
+
 use std::collections::HashMap;
 
 use crate::{isas::sh4a, util};
@@ -14,12 +17,8 @@ impl Backend {
         Self {}
     }
 
-    fn avail_registers() -> [sh4a::Register; 15] {
+    fn avail_registers() -> [sh4a::Register; 11] {
         [
-            sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(1)),
-            sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(2)),
-            sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(3)),
-            sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(4)),
             sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(5)),
             sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(6)),
             sh4a::Register::GeneralPurpose(sh4a::GeneralPurposeRegister::new(7)),
@@ -38,27 +37,50 @@ impl Backend {
         &self,
         func: &ir::FunctionDefinition,
         register_map: HashMap<ir::Variable, sh4a::Register>,
-    ) {
+    ) -> Vec<sh4a::Block> {
         let stack_allocation = util::stack::allocate_stack(
             func,
             &register_map,
             |space| {
-                vec![
-                    sh4a::Instruction::PushPR,
-                    sh4a::Instruction::AddImmediate {
+                let mut base = vec![sh4a::Instruction::PushPR];
+
+                let mut space_left = space;
+                while space_left > i8::MAX as usize {
+                    base.push(sh4a::Instruction::AddImmediate {
                         reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                        immediate: -(space as i8),
-                    },
-                ]
+                        immediate: -i8::MAX,
+                    });
+                    space_left -= i8::MAX as usize;
+                }
+
+                let space_left: i8 = space_left.try_into().unwrap();
+                base.push(sh4a::Instruction::AddImmediate {
+                    reg: sh4a::GeneralPurposeRegister::stack_reg(),
+                    immediate: -space_left,
+                });
+
+                base
             },
             |space| {
-                vec![
-                    sh4a::Instruction::AddImmediate {
+                let mut base_alloc = Vec::new();
+                let mut space_left = space;
+
+                while space_left > i8::MAX as usize {
+                    base_alloc.push(sh4a::Instruction::AddImmediate {
                         reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                        immediate: space as i8,
-                    },
-                    sh4a::Instruction::PopPR,
-                ]
+                        immediate: i8::MAX,
+                    });
+                    space_left -= i8::MAX as usize;
+                }
+
+                base_alloc.push(sh4a::Instruction::AddImmediate {
+                    reg: sh4a::GeneralPurposeRegister::stack_reg(),
+                    immediate: space_left.try_into().unwrap(),
+                });
+
+                base_alloc.push(sh4a::Instruction::PopPR);
+
+                base_alloc
             },
             |register, offset| {
                 let write_offset = offset + 4;
@@ -131,7 +153,6 @@ impl Backend {
             4,
             0,
         );
-        dbg!(&stack_allocation);
 
         let ctx = codegen::Context {
             registers: register_map,
@@ -140,14 +161,10 @@ impl Backend {
             pre_ret_instr: stack_allocation.pre_return_instr,
         };
 
-        let asm_blocks: Vec<_> = func
-            .block
+        func.block
             .block_iter()
             .map(|b| codegen::block_to_asm(b, &ctx))
-            .collect();
-        dbg!(&asm_blocks);
-
-        todo!("Codegen")
+            .collect()
     }
 }
 
@@ -160,15 +177,38 @@ impl Target for Backend {
         }
 
         let all_registers = Self::avail_registers();
-        //let mut blocks = Vec::new();
+        let mut blocks = Vec::new();
         for (_, func) in program.functions.iter() {
             let registers = util::registers::allocate_registers(func, &all_registers);
 
             util::destructure::destructure_func(func);
 
-            self.codegen(func, registers);
+            let tmp = self.codegen(func, registers);
+            blocks.extend(tmp);
         }
 
-        todo!()
+        let main_func = program.functions.get("main").unwrap();
+        let main_first_block = &main_func.block;
+        let main_block_name = codegen::block_name(main_first_block);
+
+        let asm_code = sh4a::assembler::assemble(main_block_name, blocks);
+
+        let mut g3a_builder = g3a::FileBuilder::new(
+            "testing".to_string(),
+            g3a::NaiveDateTime::new(
+                g3a::NaiveDate::from_ymd(2022, 1, 15),
+                g3a::NaiveTime::from_hms(0, 20, 0),
+            ),
+        );
+        g3a_builder
+            .code(asm_code)
+            .internal_name("@TEST".to_string())
+            .short_name("test".to_string());
+
+        let g3a_file = g3a_builder.finish();
+
+        let g3a_data = g3a_file.serialize("testing.g3a");
+
+        std::fs::write("./testing.g3a", g3a_data).unwrap();
     }
 }

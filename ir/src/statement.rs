@@ -36,16 +36,14 @@ pub enum Statement {
         /// The Variable that should be saved
         var: Variable,
     },
-    /// This indicates that the Variable should be reloaded, usually from the Stack
-    LoadVariable {
-        /// The Variable that should be loaded
-        var: Variable,
-    },
-    /// This indicates that the Variable should be saved to a Register and frees up the current
-    /// Register to be freed up again
-    UnloadVariable {
-        /// The Variable to unload
-        var: Variable,
+    /// Some inline assembly statements that will be handled by the Backend
+    InlineAsm {
+        /// The ASM Template
+        template: String,
+        /// The Variables passed as inputs to the Template
+        inputs: Vec<Variable>,
+        /// The Variable passed as an output
+        output: Option<Variable>,
     },
     /// Returns the given Variable from the Function
     Return(Option<Variable>),
@@ -96,12 +94,18 @@ impl CompareGraph for Statement {
             (Self::SaveVariable { var: s_var }, Self::SaveVariable { var: o_var }) => {
                 s_var == o_var
             }
-            (Self::LoadVariable { var: s_var }, Self::LoadVariable { var: o_var }) => {
-                s_var == o_var
-            }
-            (Self::UnloadVariable { var: s_var }, Self::UnloadVariable { var: o_var }) => {
-                s_var == o_var
-            }
+            (
+                Self::InlineAsm {
+                    template: s_temp,
+                    inputs: s_in,
+                    output: s_out,
+                },
+                Self::InlineAsm {
+                    template: o_temp,
+                    inputs: o_in,
+                    output: o_out,
+                },
+            ) => s_temp == o_temp && s_in == o_in && s_out == o_out,
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
             (Self::Jump(s_next), Self::Jump(o_next)) => {
                 s_next.compare(o_next, blocks, current_block)
@@ -129,12 +133,6 @@ impl Debug for Statement {
             Self::SaveVariable { var } => {
                 f.debug_struct("SaveVariable").field("var", &var).finish()
             }
-            Self::LoadVariable { var } => {
-                f.debug_struct("LoadVariable").field("var", &var).finish()
-            }
-            Self::UnloadVariable { var } => {
-                f.debug_struct("UnloadVariable").field("var", &var).finish()
-            }
             Self::WriteMemory { target, value } => f
                 .debug_struct("WriteMemory")
                 .field("target", &target)
@@ -142,6 +140,17 @@ impl Debug for Statement {
                 .finish(),
             Self::Call { name, arguments } => {
                 write!(f, "Call {:?} with {:?}", name, arguments)
+            }
+            Self::InlineAsm {
+                template,
+                inputs,
+                output,
+            } => {
+                write!(
+                    f,
+                    "Inline ASM {:?} with {:?} into {:?}",
+                    template, inputs, output
+                )
             }
             Self::Return(val) => write!(f, "Return({:?})", val),
             Self::Jump(target) => {
@@ -205,22 +214,6 @@ impl ToDot for Statement {
 
                 lines.add_edge(graphviz::Edge::new(src, &name));
             }
-            Self::LoadVariable { var } => {
-                let content = format!("LoadVariable {:?}", var);
-                lines.add_node(
-                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
-                );
-
-                lines.add_edge(graphviz::Edge::new(src, &name));
-            }
-            Self::UnloadVariable { var } => {
-                let content = format!("UnloadVariable {:?}", var);
-                lines.add_node(
-                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
-                );
-
-                lines.add_edge(graphviz::Edge::new(src, &name));
-            }
             Self::WriteMemory { target, value } => {
                 let content = format!("WriteMemory {:?} = {:?}", target, value);
                 lines.add_node(
@@ -231,6 +224,18 @@ impl ToDot for Statement {
             }
             Self::Call { .. } => {
                 let content = format!("{:?}", self);
+                lines.add_node(
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
+
+                lines.add_edge(graphviz::Edge::new(src, &name));
+            }
+            Self::InlineAsm {
+                template,
+                inputs,
+                output,
+            } => {
+                let content = format!("InlineASM {} with {:?} into {:?}", template, inputs, output);
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
@@ -303,8 +308,6 @@ impl Statement {
         match self {
             Self::Assignment { value, .. } => value.used_vars(),
             Self::SaveVariable { var } => vec![var.clone()],
-            Self::LoadVariable { .. } => Vec::new(),
-            Self::UnloadVariable { var } => vec![var.clone()],
             Self::WriteMemory { target, value } => {
                 let mut tmp = target.used_vars();
                 tmp.extend(value.used_vars());
@@ -316,6 +319,16 @@ impl Statement {
                     tmp.extend(arg.used_vars());
                 }
                 tmp
+            }
+            Self::InlineAsm { inputs, output, .. } => {
+                let mut result = Vec::new();
+
+                result.extend(inputs.clone());
+                if let Some(out) = output {
+                    result.push(out.clone());
+                }
+
+                result
             }
             Self::Return(None) => Vec::new(),
             Self::Return(Some(var)) => vec![var.clone()],

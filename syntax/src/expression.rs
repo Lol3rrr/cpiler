@@ -328,8 +328,6 @@ impl Expression {
                 (TokenData::OpenParen, _) => {
                     match state.get_cloned_last_token_data() {
                         Some(TokenData::Literal { .. }) => {
-                            dbg!("Got Function Call");
-
                             let params = Self::parse_exp_list(tokens, TokenData::CloseParen)?;
 
                             let closing_token =

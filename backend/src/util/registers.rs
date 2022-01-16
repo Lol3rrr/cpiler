@@ -95,7 +95,6 @@ where
             let mut used: HashSet<R> = HashSet::new();
             let mut available: Vec<_> = registers.iter().collect();
 
-            dbg!(live.len());
             for var in live.iter() {
                 let avail_colors: Vec<_> = registers
                     .iter()

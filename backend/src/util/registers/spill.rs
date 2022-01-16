@@ -106,22 +106,31 @@ where
                     ir::Statement::SaveVariable { var }
                 }
             }
-            ir::Statement::LoadVariable { var } => {
-                if &var == to_replace {
-                    ir::Statement::LoadVariable {
-                        var: replacement.clone(),
-                    }
-                } else {
-                    ir::Statement::LoadVariable { var }
-                }
-            }
-            ir::Statement::UnloadVariable { var } => {
-                if &var == to_replace {
-                    ir::Statement::UnloadVariable {
-                        var: replacement.clone(),
-                    }
-                } else {
-                    ir::Statement::UnloadVariable { var }
+            ir::Statement::InlineAsm {
+                template,
+                inputs,
+                output,
+            } => {
+                let n_output = match output {
+                    Some(var) if &var == to_replace => Some(replacement.clone()),
+                    og => og,
+                };
+
+                let n_inputs: Vec<_> = inputs
+                    .into_iter()
+                    .map(|v| {
+                        if &v == to_replace {
+                            replacement.clone()
+                        } else {
+                            v
+                        }
+                    })
+                    .collect();
+
+                ir::Statement::InlineAsm {
+                    template,
+                    inputs: n_inputs,
+                    output: n_output,
                 }
             }
             ir::Statement::Return(var) => {

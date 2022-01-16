@@ -13,8 +13,6 @@ pub fn determine_type(
 
     match (&res_type, target.0) {
         (AType::Primitve(res_prim), AType::Primitve(target_prim)) => {
-            dbg!(&res_prim, &target_prim);
-
             match (&target_prim, &res_prim) {
                 (APrimitive::Float, APrimitive::Float)
                 | (APrimitive::Double, APrimitive::Float)

@@ -22,7 +22,7 @@ pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
 
     for stmnt in statements {
         match stmnt {
-            Statement::SaveVariable { var } | Statement::UnloadVariable { var } => {
+            Statement::SaveVariable { var } => {
                 let src_reg = ctx.registers.get_reg(&var).unwrap();
                 let var_offset = *ctx.var.get(&var.name).unwrap();
                 let offset = asm::Imm9Signed::new(var_offset as i16);
@@ -62,38 +62,6 @@ pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
                             todo!()
                         }
                     },
-                };
-            }
-            Statement::LoadVariable { var } => {
-                let t_reg = ctx.registers.get_reg(&var).unwrap();
-
-                let var_offset = *ctx.var.get(&var.name).unwrap();
-                let offset = asm::Imm9Signed::new(var_offset as i16);
-
-                match t_reg {
-                    asm::Register::GeneralPurpose(gp) => match &var.ty {
-                        ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) | ir::Type::U32 => {
-                            instructions.push(asm::Instruction::LoadRegisterUnscaled {
-                                reg: gp,
-                                base: asm::GpOrSpRegister::SP,
-                                offset,
-                            });
-                        }
-                        ir::Type::I32 => {
-                            instructions.push(asm::Instruction::LoadSignedWordUnscaled {
-                                reg: gp,
-                                base: asm::GpOrSpRegister::SP,
-                                offset,
-                            });
-                        }
-                        other => {
-                            dbg!(&other);
-                            todo!()
-                        }
-                    },
-                    asm::Register::FloatingPoint(fp) => {
-                        todo!()
-                    }
                 };
             }
             Statement::Assignment {

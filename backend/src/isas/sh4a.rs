@@ -1,4 +1,18 @@
+//! The ISA and general "Spec" for the SH4a Instruction-Set and some conventions used
+//!
+//! # Register
+//! * R0-R3: Used in the Function-Call ABI
+//! * R4: This Register is used for storing Jump/Branch Target Addresses
+//! * R5-14: These are General Purpose Registers and can be used for whatever Purposes needed,
+//! but need to be callee saved
+//! * R15: The Stack-Pointer Register
+//!
+//! # General
+//! * Big-Endian Mode
+
 use crate::util;
+
+pub mod assembler;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
@@ -27,6 +41,10 @@ impl GeneralPurposeRegister {
     pub fn stack_reg() -> Self {
         Self(15)
     }
+
+    pub fn register(&self) -> u8 {
+        self.0
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,6 +63,17 @@ pub enum Instruction {
         /// The immediate Value
         immediate: i8,
         /// The Register to store the Value into
+        dest: GeneralPurposeRegister,
+    },
+    /// Stores the raw u32 Bytes into the given Register
+    ///
+    /// This does not directly translate to any one instruction in the Architecture but rather
+    /// expands to a set of instruction to accomplish the intended goal
+    MovImmR {
+        /// The Raw 32-Bit value that should be stores (the endiannes of the Data should not be
+        /// changed beforehand and will all be taken care of by the Assembler)
+        immediate: u32,
+        /// The Target Register to store the Value into
         dest: GeneralPurposeRegister,
     },
     /// Calculates an Address by adding R0 and the Base-Register together, then loads a 32-Bit
@@ -111,6 +140,74 @@ pub enum Instruction {
         /// The Immediate Value to add
         immediate: i8,
     },
+    /// Subtracts the src2 Register from the destination Register and stores the Result back into
+    /// the Destination Register
+    ///
+    /// Underlying Instruction: sub Rm,Rn
+    Sub {
+        /// The First Part and Destination Register
+        dest: GeneralPurposeRegister,
+        /// The Second Part
+        src2: GeneralPurposeRegister,
+    },
+    /// Checks if left > right for signed Values and sets the T-Bit to 1 if true and 0 if false
+    ///
+    /// Underlying Instruction: cmp/gt Rm,Rn
+    CmpGt {
+        /// The Left side of the Comparison
+        left: GeneralPurposeRegister,
+        /// The Right side of the Comparison
+        right: GeneralPurposeRegister,
+    },
+    /// Checks if src > 0 for signed values and sets the T-Bit to 1 if true and 0 if false
+    ///
+    /// Underlying Instruction: cmp/pl Rn
+    CmpPl {
+        /// The Register to check
+        src: GeneralPurposeRegister,
+    },
+    /// Ors the Target Register and the src2 Register and stores the Result back into the Target
+    /// Register
+    ///
+    /// Underlying Instruction: or Rm,Rn
+    OrRR {
+        target: GeneralPurposeRegister,
+        src2: GeneralPurposeRegister,
+    },
+    /// Shifts the Target Register by the Amount specified in the shift-Register
+    ///
+    /// Underlying Instruction: shld Rm,Rn
+    ShldRR {
+        /// The Amount of bits to shift
+        shift_reg: GeneralPurposeRegister,
+        /// The Register that should be shifted
+        target: GeneralPurposeRegister,
+    },
+    /// Moves the Value of the T-Bit into the given Destination Register
+    MovT {
+        /// The Destination Register
+        dest: GeneralPurposeRegister,
+    },
+    /// Jumps to some Label in the Assembly
+    JumpLabel {
+        /// The Label to jump to
+        label: String,
+    },
+    /// Stores the next Instruction Adddress in the PR Register and then jumps to the Address
+    /// stored in the given Register
+    JumpSubroutine {
+        /// The Register that contains the Value of where we want to Jump
+        target: GeneralPurposeRegister,
+    },
+    /// Jumps to the given Label in the Assembly if the T-Bit is set to 1
+    BranchTrueLabel {
+        /// The Target Label to jump to
+        label: String,
+    },
+    /// Returns from the current Subroutine
+    ///
+    /// Underlying Instruction: rts
+    Return,
 }
 
 /// Special Registers:

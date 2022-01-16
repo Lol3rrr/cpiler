@@ -31,8 +31,7 @@ where
             Type::Float | Type::Double | Type::LongDouble => {
                 todo!()
             }
-            other if ngrn < 8 => {
-                dbg!(&other);
+            _ if ngrn < 8 => {
                 result.push(ArgTarget::GPRegister(ngrn));
                 ngrn += 1;
             }

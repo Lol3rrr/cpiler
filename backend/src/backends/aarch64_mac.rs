@@ -1,5 +1,7 @@
 // https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
 // https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
+// General: https://developer.arm.com/documentation/ddi0487/latest/
+// Call ABI: https://developer.arm.com/documentation/ihi0055/b/
 
 use std::{collections::HashMap, process::Command};
 

@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use general::SpanData;
 use ir::BasicBlock;
 use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
@@ -613,6 +615,40 @@ impl AStatement {
                     }
                     AExpression::UnaryOperator { base, op } => {
                         op.to_ir(base, block, ctx);
+                    }
+                    AExpression::InlineAssembly {
+                        template,
+                        input_vars,
+                        output_var,
+                        ..
+                    } => {
+                        let template = template.data;
+                        dbg!(&template, &input_vars, &output_var);
+
+                        let inputs: Vec<_> = input_vars
+                            .into_iter()
+                            .map(|v| {
+                                let v_name = v.0 .0.data;
+                                dbg!(&v_name);
+
+                                todo!();
+                            })
+                            .collect();
+
+                        let output = match output_var {
+                            Some(v) => {
+                                dbg!(&v);
+
+                                todo!()
+                            }
+                            None => None,
+                        };
+
+                        block.add_statement(ir::Statement::InlineAsm {
+                            template,
+                            inputs,
+                            output,
+                        });
                     }
                     other => {
                         dbg!(&other);

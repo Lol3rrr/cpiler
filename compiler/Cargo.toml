@@ -16,3 +16,6 @@ ir = { path = "../ir" }
 
 # For Fancy error messages
 ariadne = "0.1.3"
+
+# For CLI stuff
+clap = { version = "3.0.7", features = ["derive"] }

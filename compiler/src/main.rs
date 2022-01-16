@@ -1,5 +1,9 @@
-use compiler::run;
+use compiler::{run, Config};
 use preprocessor::loader::files::FileLoader;
+
+use clap::Parser;
+
+mod cli;
 
 fn get_sources<IP>(root: IP) -> Vec<String>
 where
@@ -30,30 +34,32 @@ where
     result.into_iter().filter(|s| s.ends_with(".c")).collect()
 }
 
-pub fn get_cli(mut args: Vec<String>) -> (FileLoader, Vec<String>) {
-    let source_file = args.pop().unwrap();
-    let sources = get_sources(source_file);
-
-    let mut loader = FileLoader::new();
-
-    for arg in args {
-        if let Some(path) = arg.strip_prefix("-L") {
-            loader.add_lib_root(std::path::Path::new(path).to_path_buf());
-        }
-    }
-
-    (loader, sources)
-}
-
 fn main() {
-    let mut args_iter = std::env::args();
-    args_iter.next();
-    let args: Vec<_> = args_iter.collect();
+    let args = cli::Args::parse();
     dbg!(&args);
 
-    let (loader, sources) = get_cli(args);
+    let sources = {
+        let root_src = args.input;
+        get_sources(root_src)
+    };
+    let loader = {
+        let mut tmp = FileLoader::new();
 
-    match run(sources, loader) {
+        for path in args.libs {
+            tmp.add_lib_root(std::path::Path::new(&path).to_path_buf());
+        }
+
+        tmp
+    };
+
+    let config = Config {
+        arch: args
+            .target
+            .map(|t| t.into())
+            .unwrap_or(general::arch::Arch::AArch64),
+    };
+
+    match run(sources, loader, config) {
         Ok(_) => {
             println!("Compiled Program");
         }
