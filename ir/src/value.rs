@@ -1,53 +1,10 @@
-use crate::{Expression, Operand, Type, Variable, VariableMetadata, WeakBlockPtr};
+use crate::{general, Expression, Operand, Type, Variable, VariableMetadata, WeakBlockPtr};
 
 /// This holds the Information for a single Source for a PhiNode
-#[derive(Debug, Clone)]
-pub struct PhiEntry {
-    /// The Block in which this Variable definition can be found
-    pub block: WeakBlockPtr,
-    /// The Variable found
-    pub var: Variable,
-}
-
-impl PartialEq for PhiEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.var == other.var
-    }
-}
+pub type PhiEntry = general::PhiEntry<WeakBlockPtr>;
 
 /// A Value that will be assigned to a Variable
-#[derive(Debug, Clone)]
-pub enum Value {
-    /// The Value is unknown at compile-time, like arguments for a Function
-    Unknown,
-    /// The Value is a constant and known at compile-time
-    Constant(Constant),
-    /// The Value is the same as the Value of the Variable
-    Variable(Variable),
-    /// The Value is one of the Variables depending on which BasicBlock we came to this Point in
-    /// the Program
-    Phi {
-        /// The Different sources for the Value of this Value
-        sources: Vec<PhiEntry>,
-    },
-    /// The Value can be obtained from the given Expression
-    Expression(Expression),
-}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Unknown, Self::Unknown) => true,
-            (Self::Constant(s_c), Self::Constant(o_c)) => s_c == o_c,
-            (Self::Variable(s_var), Self::Variable(o_var)) => s_var == o_var,
-            (Self::Phi { sources: s_sources }, Self::Phi { sources: o_sources }) => {
-                s_sources == o_sources
-            }
-            (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
-            _ => false,
-        }
-    }
-}
+pub type Value = general::Value<WeakBlockPtr>;
 
 impl Value {
     /// Generates the correct Variable-Metadata

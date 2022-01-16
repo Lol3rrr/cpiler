@@ -7,8 +7,6 @@ pub struct Context {
 }
 
 pub fn convert(template: String, ctx: Context) -> Vec<sh4a::Instruction> {
-    dbg!(&template, &ctx);
-
     let line_iter = template
         .lines()
         .map(|l| l.trim().to_lowercase())
@@ -25,17 +23,12 @@ enum Argument {
 
 impl Argument {
     fn parse(raw: &str) -> Self {
-        if raw.starts_with('r') {
-            let raw_reg_number = &raw[1..];
-
+        if let Some(raw_reg_number) = raw.strip_prefix('r') {
             let reg_number: u8 = raw_reg_number.parse().unwrap();
             return Self::GeneralPurposeRegister(reg_number);
         }
 
-        if raw.starts_with("0x") {
-            let raw_hex_str = &raw[2..];
-            dbg!(&raw_hex_str);
-
+        if let Some(raw_hex_str) = raw.strip_prefix("0x") {
             let hex_numb = u32::from_str_radix(raw_hex_str, 16).unwrap();
             return Self::Immediate(hex_numb);
         }
@@ -46,7 +39,7 @@ impl Argument {
 }
 
 fn line_to_instr(line: &str, ctx: &Context) -> Vec<sh4a::Instruction> {
-    let first_sep = line.find(' ').unwrap_or_else(|| line.len());
+    let first_sep = line.find(' ').unwrap_or(line.len());
 
     let op = &line[..first_sep];
     let rest = &line[first_sep..];
@@ -60,7 +53,6 @@ fn line_to_instr(line: &str, ctx: &Context) -> Vec<sh4a::Instruction> {
 
             let right = args.pop().unwrap();
             let left = args.pop().unwrap();
-            dbg!(&left, &right);
 
             match (left, right) {
                 (Argument::GeneralPurposeRegister(raw_target), value) => {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, os::unix::prelude::MetadataExt};
+use std::collections::HashMap;
 
 use crate::isas::sh4a;
 
@@ -67,7 +67,7 @@ fn instruction_size(i: &sh4a::Instruction) -> u32 {
 }
 
 fn instruction_count(block: &sh4a::Block) -> u32 {
-    block.instructions.iter().map(|i| instruction_size(i)).sum()
+    block.instructions.iter().map(instruction_size).sum()
 }
 
 fn generate_block(block: sh4a::Block, offsets: &HashMap<String, u32>) -> (String, Vec<u8>) {
@@ -83,94 +83,16 @@ fn generate_block(block: sh4a::Block, offsets: &HashMap<String, u32>) -> (String
             instrs
         },
     );
-    dbg!(&asm_block);
 
     let result = asm_block
         .into_iter()
-        .flat_map(|i| i.to_bytes().to_be_bytes())
+        .flat_map(|i| i.into_bytes().to_be_bytes())
         .collect();
 
     (block.name, result)
 }
 
 fn initial_block(main_block: String) -> sh4a::Block {
-    let stack_start: u32 = 0x8815FFFFu32.to_be();
-
-    let stack_reg = sh4a::GeneralPurposeRegister::stack_reg();
-    let shift_reg = sh4a::GeneralPurposeRegister::new(6);
-    let tmp_reg = sh4a::GeneralPurposeRegister::new(5);
-    let stack_instr = vec![
-        sh4a::Instruction::MovIR {
-            dest: shift_reg.clone(),
-            immediate: 7,
-        },
-        sh4a::Instruction::MovIR {
-            dest: stack_reg.clone(),
-            immediate: ((stack_start >> 25) & 0x007f).try_into().unwrap(),
-        },
-        sh4a::Instruction::ShldRR {
-            shift_reg: shift_reg.clone(),
-            target: stack_reg.clone(),
-        },
-        sh4a::Instruction::OrRR {
-            target: stack_reg.clone(),
-            src2: shift_reg.clone(),
-        },
-        sh4a::Instruction::MovIR {
-            dest: tmp_reg.clone(),
-            immediate: ((stack_start >> 18) & 0x007f).try_into().unwrap(),
-        },
-        sh4a::Instruction::ShldRR {
-            shift_reg: shift_reg.clone(),
-            target: stack_reg.clone(),
-        },
-        sh4a::Instruction::OrRR {
-            target: stack_reg.clone(),
-            src2: shift_reg.clone(),
-        },
-        sh4a::Instruction::MovIR {
-            dest: tmp_reg.clone(),
-            immediate: ((stack_start >> 11) & 0x007f).try_into().unwrap(),
-        },
-        sh4a::Instruction::ShldRR {
-            shift_reg: shift_reg.clone(),
-            target: stack_reg.clone(),
-        },
-        sh4a::Instruction::OrRR {
-            target: stack_reg.clone(),
-            src2: shift_reg.clone(),
-        },
-        sh4a::Instruction::MovIR {
-            dest: tmp_reg.clone(),
-            immediate: ((stack_start >> 4) & 0x007f).try_into().unwrap(),
-        },
-        sh4a::Instruction::ShldRR {
-            shift_reg: shift_reg.clone(),
-            target: stack_reg.clone(),
-        },
-        sh4a::Instruction::OrRR {
-            target: stack_reg.clone(),
-            src2: shift_reg.clone(),
-        },
-        // The last 4 Bits
-        sh4a::Instruction::MovIR {
-            dest: shift_reg.clone(),
-            immediate: 4,
-        },
-        sh4a::Instruction::MovIR {
-            dest: tmp_reg.clone(),
-            immediate: (stack_start & 0x000f).try_into().unwrap(),
-        },
-        sh4a::Instruction::ShldRR {
-            shift_reg: shift_reg.clone(),
-            target: stack_reg.clone(),
-        },
-        sh4a::Instruction::OrRR {
-            target: stack_reg.clone(),
-            src2: shift_reg.clone(),
-        },
-    ];
-
     let mut result = Vec::new();
     //result.extend(stack_instr);
     result.extend(vec![sh4a::Instruction::JumpLabel { label: main_block }]);
@@ -206,8 +128,6 @@ pub fn assemble(main_block: String, blocks: Vec<sh4a::Block>) -> Vec<u8> {
 
         tmp
     };
-
-    dbg!(&block_offsets);
 
     let final_blocks: Vec<(u32, Vec<u8>)> = std::iter::once(initial_block)
         .chain(blocks.into_iter())

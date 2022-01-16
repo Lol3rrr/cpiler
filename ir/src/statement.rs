@@ -3,55 +3,12 @@ use std::fmt::Debug;
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
-    BasicBlock, Operand, ToDot, Value, Variable,
+    general, BasicBlock, ToDot, Variable, WeakBlockPtr,
 };
 
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
 /// storing its result in a new Variable or jumping to a different Point in the Program
-#[derive(Clone)]
-pub enum Statement {
-    /// An Assignment of the given Value to the provided Variable-Instance
-    Assignment {
-        /// The Variable that the Value should be assigned to
-        target: Variable,
-        /// The Value that should be assigned
-        value: Value,
-    },
-    /// This writes the Value to some location in memory, mostly done through a Pointer
-    WriteMemory {
-        /// The Target on where to write the Value
-        target: Operand,
-        /// The Value
-        value: Value,
-    },
-    /// A single Function-Call
-    Call {
-        /// The Name of the Function to call
-        name: String,
-        /// The Arguments for the Function
-        arguments: Vec<Operand>,
-    },
-    /// This indicates that the Variable should be saved, usually on the Stack
-    SaveVariable {
-        /// The Variable that should be saved
-        var: Variable,
-    },
-    /// Some inline assembly statements that will be handled by the Backend
-    InlineAsm {
-        /// The ASM Template
-        template: String,
-        /// The Variables passed as inputs to the Template
-        inputs: Vec<Variable>,
-        /// The Variable passed as an output
-        output: Option<Variable>,
-    },
-    /// Returns the given Variable from the Function
-    Return(Option<Variable>),
-    /// Jumps to the given Block unconditionally
-    Jump(BasicBlock),
-    /// Jumps to the given Block if the Variable is true
-    JumpTrue(Variable, BasicBlock),
-}
+pub type Statement = general::Statement<BasicBlock, WeakBlockPtr>;
 
 impl CompareGraph for Statement {
     fn compare(

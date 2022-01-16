@@ -42,10 +42,13 @@ impl DefineManager {
         self.inner.remove(name);
     }
 
-    pub fn add_block(&mut self, name: String, content: Vec<tokenizer::Token>) {
+    pub fn add_block<N>(&mut self, name: N, content: Vec<tokenizer::Token>)
+    where
+        N: Into<String>,
+    {
         let defined = RegisteredDefine::Block { content };
 
-        self.inner.insert(name, defined);
+        self.inner.insert(name.into(), defined);
     }
 
     pub fn add_function(

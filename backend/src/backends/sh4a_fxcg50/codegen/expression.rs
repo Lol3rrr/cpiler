@@ -130,7 +130,7 @@ pub fn to_asm(
             result.extend(op_instr);
 
             if right_save {
-                match right_reg.clone() {
+                match right_reg {
                     sh4a::Register::GeneralPurpose(gp) => {
                         result.push(sh4a::Instruction::PopL { reg: gp });
                     }
@@ -141,6 +141,7 @@ pub fn to_asm(
                 };
             }
             if left_save {
+                dbg!(&left_reg);
                 todo!()
             }
 
@@ -193,7 +194,7 @@ pub fn to_asm(
             }
 
             if base_save {
-                match base_reg.clone() {
+                match base_reg {
                     sh4a::Register::GeneralPurpose(gp) => {
                         result.push(sh4a::Instruction::PopL { reg: gp })
                     }

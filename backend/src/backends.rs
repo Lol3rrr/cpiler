@@ -1,4 +1,4 @@
-use general::arch::Arch;
+use general::arch::{Arch, Platform};
 
 use crate::Config;
 
@@ -10,9 +10,10 @@ pub trait Target {
 }
 
 pub fn get_backend(config: &Config) -> Box<dyn Target> {
-    match config.arch {
-        Arch::AArch64 => Box::new(aarch64_mac::Backend::new()),
-        Arch::SH4A_FXCG50 => Box::new(sh4a_fxcg50::Backend::new()),
+    let target = &config.target;
+    match (&target.0, &target.1) {
+        (Arch::AArch64, Platform::MacOs) => Box::new(aarch64_mac::Backend::new()),
+        (Arch::SH4A, Platform::CasioPrizm) => Box::new(sh4a_fxcg50::Backend::new()),
         _ => todo!(),
     }
 }

@@ -161,16 +161,13 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
                 inputs,
                 output,
             } => {
-                dbg!(&template, &inputs, &output);
-
                 let input_regs: Vec<_> = inputs
                     .iter()
                     .map(|var| ctx.registers.get(var).unwrap().clone())
                     .collect();
-                let output_reg = match output.as_ref() {
-                    Some(var) => Some(ctx.registers.get(var).unwrap().clone()),
-                    None => None,
-                };
+                let output_reg = output
+                    .as_ref()
+                    .map(|var| ctx.registers.get(var).unwrap().clone());
 
                 let asm_ctx = inline_asm::Context {
                     inputs: input_regs,

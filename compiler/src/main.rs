@@ -1,4 +1,5 @@
 use compiler::{run, Config};
+use general::arch::{Arch, Platform, Target};
 use preprocessor::loader::files::FileLoader;
 
 use clap::Parser;
@@ -34,6 +35,10 @@ where
     result.into_iter().filter(|s| s.ends_with(".c")).collect()
 }
 
+fn current_target() -> Target {
+    Target(Arch::AArch64, Platform::MacOs)
+}
+
 fn main() {
     let args = cli::Args::parse();
     dbg!(&args);
@@ -53,10 +58,7 @@ fn main() {
     };
 
     let config = Config {
-        arch: args
-            .target
-            .map(|t| t.into())
-            .unwrap_or(general::arch::Arch::AArch64),
+        target: args.target.map(|t| t.into()).unwrap_or_else(current_target),
     };
 
     match run(sources, loader, config) {

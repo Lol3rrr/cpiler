@@ -1,4 +1,5 @@
 use clap::{ArgEnum, Parser};
+use general::arch::{Arch, Platform};
 
 #[derive(Debug, Clone, ArgEnum)]
 pub enum Targets {
@@ -6,11 +7,11 @@ pub enum Targets {
     Fxcg50,
 }
 
-impl From<Targets> for general::arch::Arch {
+impl From<Targets> for general::arch::Target {
     fn from(t: Targets) -> Self {
         match t {
-            Targets::MacAarch64 => Self::AArch64,
-            Targets::Fxcg50 => Self::SH4A_FXCG50,
+            Targets::MacAarch64 => Self(Arch::AArch64, Platform::MacOs),
+            Targets::Fxcg50 => Self(Arch::SH4A, Platform::CasioPrizm),
         }
     }
 }

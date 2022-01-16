@@ -8,7 +8,7 @@ use syntax::Identifier;
 fn basic_only_output() {
     let input = "
 int out;
-asm(\"mov ${out}, 13\", {}, out);
+asm(\"mov ${out}, 13\", out);
         ";
     let source = Source::new("test", input);
     let span: Span = source.clone().into();
@@ -34,16 +34,16 @@ asm(\"mov ${out}, 13\", {}, out);
                         data: "mov ${out}, 13".to_string(),
                     },
                     input_vars: vec![],
-                    output_var: (
+                    output_var: Some((
                         Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 36..39),
+                            span: Span::new_source(source.clone(), 32..35),
                             data: "out".to_string(),
                         }),
                         SpanData {
                             span: Span::new_source(source.clone(), 5..8),
                             data: AType::Primitve(APrimitive::Int),
                         },
-                    ),
+                    )),
                 }),
             ],
         }),
@@ -60,7 +60,7 @@ fn basic_input_output() {
     let input = "
 int out;
 int in = 13;
-asm(\"mov ${out}, ${in}\", {in}, out);
+asm(\"mov ${out}, ${in}\", out, in);
         ";
     let source = Source::new("test", input);
     let span: Span = source.clone().into();
@@ -107,7 +107,7 @@ asm(\"mov ${out}, ${in}\", {in}, out);
                     },
                     input_vars: vec![(
                         Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 49..51),
+                            span: Span::new_source(source.clone(), 53..55),
                             data: "in".to_string(),
                         }),
                         SpanData {
@@ -115,16 +115,16 @@ asm(\"mov ${out}, ${in}\", {in}, out);
                             data: AType::Primitve(APrimitive::Int),
                         },
                     )],
-                    output_var: (
+                    output_var: Some((
                         Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 54..57),
+                            span: Span::new_source(source.clone(), 48..51),
                             data: "out".to_string(),
                         }),
                         SpanData {
                             span: Span::new_source(source.clone(), 5..8),
                             data: AType::Primitve(APrimitive::Int),
                         },
-                    ),
+                    )),
                 }),
             ],
         }),

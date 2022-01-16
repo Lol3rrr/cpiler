@@ -215,8 +215,6 @@ impl Instruction {
                 result.push(Self::Raw(pc_diff_part_1));
                 result.push(Self::Raw(pc_diff_part_2));
 
-                dbg!(&result);
-
                 result
             }
             sh4a::Instruction::BranchTrueLabel { label } => {
@@ -279,7 +277,7 @@ impl Instruction {
         }
     }
 
-    pub fn to_bytes(self) -> u16 {
+    pub fn into_bytes(self) -> u16 {
         match self {
             Self::Nop => 0x0009,
             Self::MovRR { dest, src } => {

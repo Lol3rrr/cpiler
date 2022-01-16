@@ -122,7 +122,6 @@ where
 
             if reg_type_free.len() != 2 {
                 too_large_clique = Some((live.clone(), block.clone(), index));
-                return;
             }
         });
 

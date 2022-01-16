@@ -5,7 +5,7 @@ mod error;
 pub use error::Error;
 
 pub struct Config {
-    pub arch: general::arch::Arch,
+    pub target: general::arch::Target,
 }
 
 pub fn run<L>(files: Vec<String>, loader: L, config: Config) -> Result<(), Error<L::LoadError>>
@@ -20,7 +20,7 @@ where
 
         let aast = semantic::parse(basic_ast).map_err(Error::Semantic)?;
 
-        let raw_ir = aast.convert_to_ir(config.arch.clone());
+        let raw_ir = aast.convert_to_ir(config.target.0.clone());
 
         Ok(raw_ir)
     });
@@ -54,7 +54,7 @@ where
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 
-    let backend_config = backend::Config::new(config.arch.clone());
+    let backend_config = backend::Config::new(config.target.clone());
     backend::codegen(ir, backend_config);
 
     Ok(())

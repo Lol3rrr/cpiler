@@ -93,7 +93,7 @@ where
     LS: Fn(&R, i16) -> Vec<I>,
     TAS: Fn(&ir::Type) -> (usize, usize),
 {
-    let used_registers: HashSet<_> = reg_map.iter().map(|(_, r)| r.clone()).collect();
+    let used_registers: HashSet<_> = reg_map.iter().map(|(_, r)| r).collect();
 
     let raw_vars = vars_used(&func.block, type_align_size);
 

@@ -45,6 +45,8 @@ where
     let root_pir = into_pir(root_tokens);
 
     let mut state = state::State::new();
+    state.defines.add_block("CPILER", Vec::new());
+
     let processed = resolver::resolve(root_pir, loader, &mut state)?;
 
     let result = processed

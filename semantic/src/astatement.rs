@@ -623,7 +623,6 @@ impl AStatement {
                         ..
                     } => {
                         let template = template.data;
-                        dbg!(&template, &input_vars, &output_var);
 
                         let inputs: Vec<_> = input_vars
                             .into_iter()

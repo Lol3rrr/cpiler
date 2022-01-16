@@ -8,7 +8,6 @@ use crate::{isas::sh4a, util};
 use super::Target;
 
 mod codegen;
-mod stack;
 
 pub struct Backend {}
 

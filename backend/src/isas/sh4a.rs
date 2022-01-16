@@ -220,12 +220,6 @@ pub enum Register {
     PR,
 }
 
-impl Register {
-    pub fn stack_ptr() -> Self {
-        Self::GeneralPurpose(GeneralPurposeRegister::stack_reg())
-    }
-}
-
 impl util::registers::Register for Register {
     fn reg_type(&self) -> util::registers::RegisterType {
         match self {

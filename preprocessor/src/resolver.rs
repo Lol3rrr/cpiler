@@ -100,7 +100,7 @@ where
                     }
                     Directive::Conditional(cond) => {
                         let condition: conditionals::Conditional = cond.try_into().unwrap();
-                        let tmp = evaluate_conditional(&mut new_iter, loader, state, condition);
+                        let tmp = evaluate_conditional(&mut new_iter, loader, state, condition)?;
                         result.extend(tmp);
                     }
                     Directive::Pragma { content } => {
@@ -133,7 +133,7 @@ fn evaluate_conditional<I, L>(
     loader: &L,
     state: &mut State,
     cond: conditionals::Conditional,
-) -> Vec<PIR>
+) -> Result<Vec<PIR>, ProcessError<L::LoadError>>
 where
     I: Iterator<Item = PIR>,
     L: Loader,
@@ -142,7 +142,8 @@ where
     if cond.evaluate(&state.defines).unwrap() {
         let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-        resolve(inner_iter, loader, state).unwrap().collect()
+        let pir_iter = resolve(inner_iter, loader, state)?;
+        Ok(pir_iter.collect())
     } else {
         let mut load_inner = false;
         for peeked in iter.by_ref() {
@@ -170,9 +171,10 @@ where
         if load_inner {
             let inner_iter = conditionals::InnerConditionalIterator::new(iter);
 
-            resolve(inner_iter, loader, state).unwrap().collect()
+            let inner_res = resolve(inner_iter, loader, state)?;
+            Ok(inner_res.collect())
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 }

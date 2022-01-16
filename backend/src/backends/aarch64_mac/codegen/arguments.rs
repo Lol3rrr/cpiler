@@ -22,7 +22,8 @@ where
     for arg in arguments {
         match arg {
             Type::Struct { members } => {
-                todo!()
+                dbg!(&members);
+                todo!("Passing Struct Argument")
             }
             Type::Float | Type::Double | Type::LongDouble if nsrn < 8 => {
                 result.push(ArgTarget::FPRegister(nsrn));

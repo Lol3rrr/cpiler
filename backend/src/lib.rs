@@ -1,9 +1,11 @@
+#![allow(clippy::upper_case_acronyms)]
+
 mod backends;
 mod isas;
 mod util;
 
 pub struct Config {
-    arch: general::arch::Arch,
+    target: general::arch::Target,
 }
 
 pub fn codegen(program: ir::Program, conf: Config) {
@@ -13,7 +15,7 @@ pub fn codegen(program: ir::Program, conf: Config) {
 }
 
 impl Config {
-    pub fn new(arch: general::arch::Arch) -> Self {
-        Self { arch }
+    pub fn new(target: general::arch::Target) -> Self {
+        Self { target }
     }
 }

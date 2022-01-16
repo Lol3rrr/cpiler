@@ -187,8 +187,6 @@ impl AExpression {
                 };
 
                 if name.0.data == "asm" {
-                    dbg!(&raw_args);
-
                     if raw_args.is_empty() {
                         panic!()
                     }
@@ -200,7 +198,6 @@ impl AExpression {
                         AExpression::Literal(Literal::StringLiteral(data)) => data,
                         _ => panic!("Expected String Literal"),
                     };
-                    dbg!(&template);
 
                     if raw_args.is_empty() {
                         return Ok(Self::InlineAssembly {
@@ -211,58 +208,52 @@ impl AExpression {
                         });
                     }
 
-                    todo!();
-
-                    if raw_args.len() != 3 {
-                        panic!("Expected exactly 3 Arguments");
-                    }
-
-                    let raw_input_args = raw_args.remove(0);
-                    let input_vars = match raw_input_args {
-                        Expression::ArrayLiteral { parts } => {
-                            let mut tmp: Vec<(Identifier, SpanData<AType>)> = Vec::new();
-                            for part in parts.data {
-                                let ident = match part {
-                                    Expression::Identifier { ident } => ident,
-                                    unexpected => panic!("Expected Identifier: {:?}", unexpected),
-                                };
-
-                                let ty_info = match vars.get_var(&ident) {
-                                    Some(v) => SpanData {
-                                        span: v.declaration.clone(),
-                                        data: v.ty.clone(),
-                                    },
-                                    None => panic!("Unknown Variable: {:?}", &ident),
-                                };
-
-                                tmp.push((ident, ty_info));
-                            }
-
-                            tmp
-                        }
-                        _ => panic!("Expected ArrayLiteral of Variables"),
-                    };
-                    dbg!(&input_vars);
-
                     let raw_output_arg = raw_args.remove(0);
                     let output_var = match raw_output_arg {
-                        Expression::Identifier { ident } => {
-                            dbg!(&ident);
-
-                            match vars.get_var(&ident) {
-                                Some(v) => (
-                                    ident,
-                                    SpanData {
-                                        span: v.declaration.clone(),
-                                        data: v.ty.clone(),
-                                    },
-                                ),
-                                None => panic!("Unknown Variable: {:?}", &ident),
-                            }
-                        }
+                        Expression::Identifier { ident } => match vars.get_var(&ident) {
+                            Some(v) => (
+                                ident,
+                                SpanData {
+                                    span: v.declaration.clone(),
+                                    data: v.ty.clone(),
+                                },
+                            ),
+                            None => panic!("Unknown Variable: {:?}", &ident),
+                        },
                         _ => panic!("Expected Variable Identifier for output"),
                     };
-                    dbg!(&output_var);
+
+                    if raw_args.is_empty() {
+                        return Ok(Self::InlineAssembly {
+                            span: name.0.span,
+                            template,
+                            output_var: Some(output_var),
+                            input_vars: Vec::new(),
+                        });
+                    }
+
+                    let input_vars: Vec<_> = raw_args
+                        .into_iter()
+                        .map(|exp| {
+                            let ident = match exp {
+                                Expression::Identifier { ident } => ident,
+                                other => {
+                                    dbg!(&other);
+                                    panic!("Expected Identifier")
+                                }
+                            };
+
+                            let ty_info = match vars.get_var(&ident) {
+                                Some(v) => SpanData {
+                                    span: v.declaration.clone(),
+                                    data: v.ty.clone(),
+                                },
+                                None => panic!("Unknown Variable: {:?}", ident),
+                            };
+
+                            (ident, ty_info)
+                        })
+                        .collect();
 
                     return Ok(Self::InlineAssembly {
                         span: name.0.span,
