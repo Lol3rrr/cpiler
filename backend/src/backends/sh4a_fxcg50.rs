@@ -1,3 +1,7 @@
+//! # ABI:
+//! ## Function-Call-Arguments:
+//! TODO
+
 // Instructions: http://shared-ptr.com/sh_insns.html
 // General SH4: https://www.st.com/resource/en/user_manual/cd00147165-sh-4-32-bit-cpu-core-architecture-stmicroelectronics.pdf
 
@@ -172,7 +176,6 @@ impl Target for Backend {
         let global_statements = program.global.get_statements();
         for stmnt in global_statements {
             dbg!(&stmnt);
-            todo!()
         }
 
         let all_registers = Self::avail_registers();

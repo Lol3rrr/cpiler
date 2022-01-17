@@ -31,7 +31,7 @@ impl Literal {
                     target: arr_tmp.clone(),
                     value: Value::Expression(Expression::StackAlloc {
                         size: data_len,
-                        alignment: 0,
+                        alignment: 1,
                     }),
                 };
 

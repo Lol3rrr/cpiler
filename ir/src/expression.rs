@@ -71,6 +71,11 @@ pub enum Expression {
         /// The Type to read
         read_ty: Type,
     },
+    /// Reads the Value from the Global Variable
+    ReadGlobalVariable {
+        /// The unique Name of the Global-Variable to read
+        name: String,
+    },
     /// A Call to some function
     FunctionCall {
         /// The Name of the function to call
@@ -103,6 +108,7 @@ impl Expression {
             Self::Cast { base, .. } => base.used_vars(),
             Self::AdressOf { base } => base.used_vars(),
             Self::ReadMemory { address, .. } => address.used_vars(),
+            Self::ReadGlobalVariable { .. } => Vec::new(),
             Self::FunctionCall { arguments, .. } => {
                 let mut tmp = Vec::new();
 

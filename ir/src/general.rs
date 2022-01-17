@@ -1,49 +1,9 @@
-use crate::{Constant, Expression, Operand, Variable};
+use std::fmt::Debug;
 
-#[derive(Clone)]
-pub enum Statement<B, WB> {
-    /// An Assignment of the given Value to the provided Variable-Instance
-    Assignment {
-        /// The Variable that the Value should be assigned to
-        target: Variable,
-        /// The Value that should be assigned
-        value: Value<WB>,
-    },
-    /// This writes the Value to some location in memory, mostly done through a Pointer
-    WriteMemory {
-        /// The Target on where to write the Value
-        target: Operand,
-        /// The Value
-        value: Value<WB>,
-    },
-    /// A single Function-Call
-    Call {
-        /// The Name of the Function to call
-        name: String,
-        /// The Arguments for the Function
-        arguments: Vec<Operand>,
-    },
-    /// This indicates that the Variable should be saved, usually on the Stack
-    SaveVariable {
-        /// The Variable that should be saved
-        var: Variable,
-    },
-    /// Some inline assembly statements that will be handled by the Backend
-    InlineAsm {
-        /// The ASM Template
-        template: String,
-        /// The Variables passed as inputs to the Template
-        inputs: Vec<Variable>,
-        /// The Variable passed as an output
-        output: Option<Variable>,
-    },
-    /// Returns the given Variable from the Function
-    Return(Option<Variable>),
-    /// Jumps to the given Block unconditionally
-    Jump(B),
-    /// Jumps to the given Block if the Variable is true
-    JumpTrue(Variable, B),
-}
+use crate::{Constant, Expression, Variable};
+
+mod statement;
+pub use statement::*;
 
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]
@@ -90,6 +50,18 @@ impl<WB> PartialEq for Value<WB> {
             }
             (Self::Expression(s_exp), Self::Expression(o_exp)) => s_exp == o_exp,
             _ => false,
+        }
+    }
+}
+impl<WB> Value<WB> {
+    /// Returns a list of all the Variables used by this Value
+    pub fn used_vars(&self) -> Vec<Variable> {
+        match self {
+            Self::Unknown => Vec::new(),
+            Self::Constant(_) => Vec::new(),
+            Self::Expression(exp) => exp.used_vars(),
+            Self::Variable(var) => vec![var.clone()],
+            Self::Phi { sources } => sources.iter().map(|entry| entry.var.clone()).collect(),
         }
     }
 }

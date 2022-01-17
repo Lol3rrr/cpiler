@@ -42,6 +42,7 @@ fn oper_to_reg(
 }
 
 pub fn to_asm(
+    target_var: &ir::Variable,
     target: sh4a::Register,
     expression: ir::Expression,
     ctx: &Context,
@@ -206,6 +207,11 @@ pub fn to_asm(
             }
 
             result
+        }
+        ir::Expression::StackAlloc { size, alignment } => {
+            dbg!(&target, &size, &alignment);
+
+            todo!()
         }
         other => {
             dbg!(&other);

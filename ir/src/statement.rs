@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
-    general, BasicBlock, ToDot, Variable, WeakBlockPtr,
+    general, BasicBlock, ToDot, WeakBlockPtr,
 };
 
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
@@ -81,46 +81,7 @@ impl CompareGraph for Statement {
 
 impl Debug for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Assignment { target, value } => f
-                .debug_struct("Assignment")
-                .field("target", &target)
-                .field("value", &value)
-                .finish(),
-            Self::SaveVariable { var } => {
-                f.debug_struct("SaveVariable").field("var", &var).finish()
-            }
-            Self::WriteMemory { target, value } => f
-                .debug_struct("WriteMemory")
-                .field("target", &target)
-                .field("value", &value)
-                .finish(),
-            Self::Call { name, arguments } => {
-                write!(f, "Call {:?} with {:?}", name, arguments)
-            }
-            Self::InlineAsm {
-                template,
-                inputs,
-                output,
-            } => {
-                write!(
-                    f,
-                    "Inline ASM {:?} with {:?} into {:?}",
-                    template, inputs, output
-                )
-            }
-            Self::Return(val) => write!(f, "Return({:?})", val),
-            Self::Jump(target) => {
-                let ptr = target.as_ptr();
-
-                write!(f, "Jump(0x{:x})", ptr as usize)
-            }
-            Self::JumpTrue(var, target) => {
-                let ptr = target.as_ptr();
-
-                write!(f, "JumpTrue({:?}, 0x{:x})", var, ptr as usize)
-            }
-        }
+        self.print(f, |b| format!("0x{:x}", b.as_ptr() as usize))
     }
 }
 
@@ -165,6 +126,14 @@ impl ToDot for Statement {
             }
             Self::SaveVariable { var } => {
                 let content = format!("SaveVariable {:?}", var);
+                lines.add_node(
+                    graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
+                );
+
+                lines.add_edge(graphviz::Edge::new(src, &name));
+            }
+            Self::SaveGlobalVariable { name: var_name } => {
+                let content = format!("SaveGlobalVariable {:?}", var_name);
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );
@@ -253,44 +222,5 @@ impl ToDot for Statement {
             .expect("");
 
         format!("block_{}_s{}", block_ptr, number_in_block)
-    }
-}
-
-impl Statement {
-    /// Returns a list of all the used Variables in this Statement
-    ///
-    /// # Note
-    /// This does not contain the Targets of Assignment Statements
-    pub fn used_vars(&self) -> Vec<Variable> {
-        match self {
-            Self::Assignment { value, .. } => value.used_vars(),
-            Self::SaveVariable { var } => vec![var.clone()],
-            Self::WriteMemory { target, value } => {
-                let mut tmp = target.used_vars();
-                tmp.extend(value.used_vars());
-                tmp
-            }
-            Self::Call { arguments, .. } => {
-                let mut tmp = Vec::new();
-                for arg in arguments {
-                    tmp.extend(arg.used_vars());
-                }
-                tmp
-            }
-            Self::InlineAsm { inputs, output, .. } => {
-                let mut result = Vec::new();
-
-                result.extend(inputs.clone());
-                if let Some(out) = output {
-                    result.push(out.clone());
-                }
-
-                result
-            }
-            Self::Return(None) => Vec::new(),
-            Self::Return(Some(var)) => vec![var.clone()],
-            Self::Jump(_) => Vec::new(),
-            Self::JumpTrue(var, _) => vec![var.clone()],
-        }
     }
 }

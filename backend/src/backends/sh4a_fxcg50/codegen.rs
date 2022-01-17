@@ -30,6 +30,8 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
                 target,
                 value: ir::Value::Variable(src_var),
             } => {
+                dbg!(&target, &src_var);
+
                 let target_reg = ctx.registers.get(&target).unwrap().clone();
                 let src_reg = ctx.registers.get(&src_var).unwrap().clone();
 
@@ -78,9 +80,47 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
             } => {
                 let target_reg = ctx.registers.get(&target).unwrap().clone();
 
-                let expression_instr = expression::to_asm(target_reg, exp, ctx);
+                let expression_instr = expression::to_asm(&target, target_reg, exp, ctx);
 
                 instructions.extend(expression_instr);
+            }
+            ir::Statement::Assignment {
+                target,
+                value: ir::Value::Unknown,
+            } => {
+                dbg!(&target);
+
+                let target_reg = ctx.registers.get(&target).unwrap().clone();
+                let stack_offset = ctx.var_offsets.get(&target.name).unwrap();
+
+                instructions.push(sh4a::Instruction::PushL {
+                    reg: sh4a::GeneralPurposeRegister::new(0),
+                });
+
+                let stack_offset: u32 = (*stack_offset).try_into().unwrap();
+                let store_offset_instr =
+                    constants::store_u32(sh4a::GeneralPurposeRegister::new(0), stack_offset + 4);
+
+                instructions.extend(store_offset_instr);
+
+                match target_reg {
+                    sh4a::Register::GeneralPurpose(target) => {
+                        instructions.push(sh4a::Instruction::MovLR0PRR {
+                            base: sh4a::GeneralPurposeRegister::stack_reg(),
+                            target,
+                        });
+                    }
+                    sh4a::Register::FloatingPoint(_) => {
+                        todo!("Load Float")
+                    }
+                    sh4a::Register::PR => {
+                        todo!("Load PR")
+                    }
+                };
+
+                instructions.push(sh4a::Instruction::PopL {
+                    reg: sh4a::GeneralPurposeRegister::new(0),
+                });
             }
             ir::Statement::SaveVariable { var } => {
                 let var_reg = ctx.registers.get(&var).unwrap().clone();
@@ -92,16 +132,17 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
                     reg: sh4a::GeneralPurposeRegister::new(0),
                 });
 
+                let stack_offset: u32 = (*stack_offset).try_into().unwrap();
                 let store_offset_instr =
-                    constants::store_isize(sh4a::GeneralPurposeRegister::new(0), stack_offset + 4);
+                    constants::store_u32(sh4a::GeneralPurposeRegister::new(0), stack_offset + 4);
 
                 instructions.extend(store_offset_instr);
 
                 match var_reg {
                     sh4a::Register::GeneralPurpose(target) => {
-                        instructions.push(sh4a::Instruction::MovLR0PRR {
+                        instructions.push(sh4a::Instruction::MovLRR0PR {
                             base: sh4a::GeneralPurposeRegister::stack_reg(),
-                            target,
+                            src: target,
                         });
                     }
                     sh4a::Register::FloatingPoint(_) => {

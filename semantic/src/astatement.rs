@@ -1,5 +1,3 @@
-use std::ops::AddAssign;
-
 use general::SpanData;
 use ir::BasicBlock;
 use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
@@ -483,6 +481,8 @@ impl AStatement {
                             ir::Variable::new(target_name, ir::Type::Pointer(Box::new(ir_ty)))
                                 .set_description("Declare Array Variable");
 
+                        assert!(alignment != 0);
+
                         let reserve_exp = ir::Expression::StackAlloc { size, alignment };
 
                         block.add_statement(ir::Statement::Assignment {
@@ -499,6 +499,8 @@ impl AStatement {
                         let ir_ty = ir::Type::Pointer(Box::new(ir::Type::Void));
                         let target_var = ir::Variable::new(target_name, ir_ty)
                             .set_description("Declare Struct Variable");
+
+                        assert!(alignment != 0);
 
                         let reserve_exp = ir::Expression::StackAlloc { size, alignment };
 

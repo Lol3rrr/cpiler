@@ -1,10 +1,10 @@
-use std::sync::Weak;
+use std::{fmt::Debug, sync::Weak};
 
 use crate::{BasicBlock, InnerBlock};
 
 /// A WeakPtr to an InnerBlock/BasicBlock, this is needed to break the Ownership Problem of Graphs
 /// that may contain cycles
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WeakBlockPtr(Weak<InnerBlock>);
 
 impl WeakBlockPtr {
@@ -29,5 +29,11 @@ impl From<Weak<InnerBlock>> for WeakBlockPtr {
 impl PartialEq for WeakBlockPtr {
     fn eq(&self, other: &Self) -> bool {
         self.as_ptr() == other.as_ptr()
+    }
+}
+
+impl Debug for WeakBlockPtr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{:x}", self.as_ptr() as usize)
     }
 }

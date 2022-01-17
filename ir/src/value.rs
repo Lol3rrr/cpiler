@@ -24,17 +24,6 @@ impl Value {
             _ => target_meta.clone(),
         }
     }
-
-    /// Returns a list of all the Variables used by this Value
-    pub fn used_vars(&self) -> Vec<Variable> {
-        match self {
-            Self::Unknown => Vec::new(),
-            Self::Constant(_) => Vec::new(),
-            Self::Expression(exp) => exp.used_vars(),
-            Self::Variable(var) => vec![var.clone()],
-            Self::Phi { sources } => sources.iter().map(|entry| entry.var.clone()).collect(),
-        }
-    }
 }
 
 /// A Constant Value that is already known at compile-time

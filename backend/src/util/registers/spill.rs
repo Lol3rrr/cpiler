@@ -106,6 +106,9 @@ where
                     ir::Statement::SaveVariable { var }
                 }
             }
+            ir::Statement::SaveGlobalVariable { name } => {
+                ir::Statement::SaveGlobalVariable { name }
+            }
             ir::Statement::InlineAsm {
                 template,
                 inputs,

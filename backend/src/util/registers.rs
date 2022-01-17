@@ -68,6 +68,12 @@ fn determine_spill_var(
     offset += statements.len();
 
     while !unknown.is_empty() {
+        let succs = block.successors();
+        dbg!(&succs);
+        if succs.is_empty() {
+            break;
+        }
+
         dbg!(&unknown);
         todo!()
     }
