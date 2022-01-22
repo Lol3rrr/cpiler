@@ -8,6 +8,7 @@ pub struct ConvertContext {
     arch: Arch,
     loop_ctx: Option<(BasicBlock, BasicBlock)>,
     current_tmp: Arc<atomic::AtomicUsize>,
+    global: bool,
 }
 
 impl ConvertContext {
@@ -16,7 +17,12 @@ impl ConvertContext {
             arch,
             loop_ctx: None,
             current_tmp: Arc::new(atomic::AtomicUsize::new(0)),
+            global: false,
         }
+    }
+
+    pub fn set_global(&mut self, n_value: bool) {
+        self.global = n_value;
     }
 
     pub fn next_tmp(&self) -> usize {
@@ -30,6 +36,10 @@ impl ConvertContext {
     pub fn get_loop_end(&self) -> Option<&BasicBlock> {
         let (_, end) = self.loop_ctx.as_ref()?;
         Some(end)
+    }
+
+    pub fn global(&self) -> bool {
+        self.global
     }
 
     pub fn arch(&self) -> &Arch {
@@ -65,6 +75,7 @@ impl ConvertContext {
             arch: self.arch.clone(),
             loop_ctx: Some((start, end)),
             current_tmp: self.current_tmp.clone(),
+            global: self.global,
         }
     }
 }

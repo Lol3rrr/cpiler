@@ -9,9 +9,9 @@ pub struct PostOrderDominance<'t> {
 impl<'t> PostOrderDominance<'t> {
     /// Creates a new Iterator over the given Tree
     pub fn new(base: &'t DominanceTree) -> Self {
-        let start_node = match base.root {
+        let start_node = match base.roots.get(0) {
             Some(root_index) => {
-                let final_index = Self::find_first_child(base, root_index);
+                let final_index = Self::find_first_child(base, *root_index);
 
                 Some(final_index)
             }

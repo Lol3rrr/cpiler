@@ -117,11 +117,7 @@ impl RpnOp {
             (Operator::Increment, None) | (Operator::Increment, Some(TokenData::Operator(_))) => {
                 RpnOp::SingleOp(SingleOperation::PrefixIncrement)
             }
-            (Operator::Increment, Some(prev_tok)) => {
-                dbg!(&prev_tok);
-
-                RpnOp::SingleOp(SingleOperation::SuffixIncrement)
-            }
+            (Operator::Increment, Some(_)) => RpnOp::SingleOp(SingleOperation::SuffixIncrement),
             (Operator::Sub, Some(TokenData::Operator(_))) | (Operator::Sub, None) => {
                 RpnOp::SingleOp(SingleOperation::Negative)
             }
@@ -134,7 +130,12 @@ impl RpnOp {
 
                 RpnOp::SingleOp(SingleOperation::SuffixDecrement)
             }
-            (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
+            (Operator::Multiply, None) => RpnOp::SingleOp(SingleOperation::Dereference),
+            (Operator::Multiply, prev) => {
+                dbg!(&prev);
+
+                RpnOp::Expression(ExpressionOperator::Multiply)
+            }
             (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
             (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),
             (Operator::LogicalNot, _) => RpnOp::SingleOp(SingleOperation::LogicalNot),
@@ -263,6 +264,8 @@ impl ParseState {
                             final_stack.push(result);
                         }
                         RpnOp::Expression(op) => {
+                            dbg!(&op);
+
                             let right = final_stack.pop().ok_or_else(|| {
                                 SyntaxError::ExpectedExpression {
                                     span: span.clone(),

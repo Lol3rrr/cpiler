@@ -21,7 +21,12 @@ impl Display for Shift {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Instruction {
+    Literal(String),
     Nop,
+    MovI64 {
+        dest: GPRegister,
+        value: i64,
+    },
     /// Moves the Value from the given Regsiter into the StackPointer Register
     MovToSP {
         src: GPRegister,
@@ -50,6 +55,10 @@ pub enum Instruction {
     FMovImmediate {
         dest: FPRegister,
         imm: FloatImm8,
+    },
+    FMovF64 {
+        dest: FPRegister,
+        value: f64,
     },
     AddCarry {
         dest: GPRegister,
@@ -91,8 +100,29 @@ pub enum Instruction {
         shift: Shift,
         amount: u8,
     },
+    /// Page: 1246
+    NegateRegisterShifted {
+        dest: GPRegister,
+        src1: GPRegister,
+        shift: Shift,
+        amount: u8,
+    },
+    /// Page: 1259
+    BitwiseOrRegisterShifted {
+        dest: GPRegister,
+        src1: GPRegister,
+        src2: GPRegister,
+        shift: Shift,
+        amount: u8,
+    },
     /// Page: 1917
     FPSub {
+        dest: FPRegister,
+        src1: FPRegister,
+        src2: FPRegister,
+    },
+    /// Page: 1834
+    FPMul {
         dest: FPRegister,
         src1: FPRegister,
         src2: FPRegister,
@@ -169,6 +199,11 @@ pub enum Instruction {
         base: GpOrSpRegister,
         offset: i16,
     },
+    /// Page: 1009
+    LdrGlobal {
+        target: GPRegister,
+        label: String,
+    },
     /// Page: 2064
     SignedIntegerToFloatingPoint {
         src: GPRegister,
@@ -221,6 +256,7 @@ pub enum Instruction {
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Literal(content) => write!(f, "{}", content),
             Self::StoreRegisterUnscaled { reg, base, offset } => {
                 write!(f, "stur {}, [{}, #{}]", reg, base, offset)
             }
@@ -252,12 +288,18 @@ impl Display for Instruction {
             } => {
                 write!(f, "ldp {}, {}, [{}], #{}", first, second, base, offset)
             }
+            Self::LdrGlobal { target, label } => {
+                write!(f, "ldr {}, ={}", target, label)
+            }
             Self::Movz {
                 dest,
                 immediate,
                 shift,
             } => {
                 write!(f, "movz {}, #{}, LSL #{}", dest, immediate, shift)
+            }
+            Self::MovI64 { dest, value } => {
+                write!(f, "mov {}, #{}", dest, value)
             }
             Self::MovRegister { dest, src } => {
                 write!(f, "mov {}, {}", dest, src)
@@ -288,6 +330,9 @@ impl Display for Instruction {
             Self::FPAdd { dest, src1, src2 } => {
                 write!(f, "fadd {}, {}, {}", dest, src1, src2)
             }
+            Self::FPMul { dest, src1, src2 } => {
+                write!(f, "fmul {}, {}, {}", dest, src1, src2)
+            }
             Self::SubImmediate {
                 dest,
                 src,
@@ -305,11 +350,19 @@ impl Display for Instruction {
             } => {
                 write!(f, "sub {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
             }
-            Self::FPSub { dest, src1, src2 } => {
-                write!(f, "fsub {}, {}, {}", dest, src1, src2)
-            }
             Self::MultiplyRegister { dest, src1, src2 } => {
                 write!(f, "mul {}, {}, {}", dest, src1, src2)
+            }
+            Self::NegateRegisterShifted {
+                dest,
+                src1,
+                shift,
+                amount,
+            } => {
+                write!(f, "neg {}, {}, {} #{}", dest, src1, shift, amount)
+            }
+            Self::FPSub { dest, src1, src2 } => {
+                write!(f, "fsub {}, {}, {}", dest, src1, src2)
             }
             Self::SignedIntegerToFloatingPoint { dest, src } => {
                 write!(f, "scvtf {}, {}", dest, src)

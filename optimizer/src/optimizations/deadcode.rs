@@ -4,6 +4,48 @@ use ir::{Constant, Statement, Variable};
 
 use crate::OptimizationPass;
 
+#[derive(Debug)]
+struct UseMap {
+    inner: HashMap<ir::Variable, usize>,
+}
+
+impl UseMap {
+    pub fn new() -> Self {
+        Self {
+            inner: HashMap::new(),
+        }
+    }
+
+    pub fn increment(&mut self, var: ir::Variable) {
+        match self.inner.get_mut(&var) {
+            Some(count) => {
+                *count += 1;
+            }
+            None => {
+                self.inner.insert(var, 1);
+            }
+        };
+    }
+
+    pub fn decrement(&mut self, var: &ir::Variable) {
+        let n_count = match self.inner.get_mut(var) {
+            Some(count) => {
+                *count = (*count).saturating_sub(1);
+                *count
+            }
+            None => 0,
+        };
+
+        if n_count == 0 {
+            self.inner.remove(var);
+        }
+    }
+
+    pub fn contains(&self, var: &ir::Variable) -> bool {
+        self.inner.contains_key(var)
+    }
+}
+
 /// Performs basic DeadCode Elimination
 pub struct DeadCode {}
 
@@ -15,7 +57,7 @@ impl DeadCode {
 
     fn filter_functions<SI>(
         &self,
-        used_vars: &mut HashMap<Variable, usize>,
+        used_vars: &mut UseMap,
         const_vars: &HashMap<Variable, Constant>,
         stmnt_iter: SI,
     ) -> Vec<Statement>
@@ -26,17 +68,11 @@ impl DeadCode {
 
         for stmnt in stmnt_iter {
             match &stmnt {
-                ir::Statement::Assignment { target, .. } if !used_vars.contains_key(target) => {
+                ir::Statement::Assignment { target, .. } if !used_vars.contains(target) => {
                     let used = stmnt.used_vars();
 
                     used.into_iter().for_each(|u| {
-                        if let Some(u_count) = used_vars.get_mut(&u) {
-                            *u_count = *u_count - 1;
-
-                            if *u_count == 0 {
-                                used_vars.remove(&u);
-                            }
-                        }
+                        used_vars.decrement(&u);
                     });
                 }
                 ir::Statement::JumpTrue(var, _) if const_vars.contains_key(var) => {
@@ -78,31 +114,35 @@ impl OptimizationPass for DeadCode {
     }
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
-        let mut used_vars = HashMap::new();
+        let mut used_vars = UseMap::new();
         let mut const_vars = HashMap::new();
 
         for block in ir.block.block_iter() {
             let statements = block.get_statements();
 
             for tmp_stmnt in statements {
-                for tmp in tmp_stmnt.used_vars() {
-                    match used_vars.get_mut(&tmp) {
-                        Some(v) => {
-                            *v = *v + 1;
-                        }
-                        None => {
-                            used_vars.insert(tmp, 1);
-                        }
-                    };
+                let tmp_used = tmp_stmnt.used_vars();
+                for tmp in tmp_used.iter() {
+                    used_vars.increment(tmp.clone());
                 }
 
-                if let ir::Statement::Assignment {
-                    target,
-                    value: ir::Value::Constant(con),
-                } = tmp_stmnt
-                {
-                    const_vars.insert(target.clone(), con.clone());
-                }
+                match tmp_stmnt {
+                    ir::Statement::Assignment {
+                        target,
+                        value: ir::Value::Constant(con),
+                    } => {
+                        const_vars.insert(target.clone(), con.clone());
+                    }
+                    ir::Statement::Assignment {
+                        target,
+                        value: ir::Value::Phi { sources },
+                    } => {
+                        if sources.iter().map(|e| &e.var).any(|v| v == &target) {
+                            used_vars.decrement(&target);
+                        }
+                    }
+                    _ => {}
+                };
             }
         }
 

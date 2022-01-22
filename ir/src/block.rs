@@ -21,6 +21,9 @@ pub use weak::*;
 mod iter;
 pub use iter::BlockIter;
 
+mod linear;
+pub use linear::LinearIter;
+
 /// A Basic-Block contains a linear series of Statements that will be executed one after another.
 ///
 /// A Block can have any number of predecessors and can have any number of following Blocks that
@@ -116,6 +119,9 @@ impl BasicBlock {
     /// Point, including this Block itself
     pub fn block_iter(&self) -> BlockIter {
         BlockIter::new(self.0.clone())
+    }
+    pub fn linear_iter(&self) -> LinearIter {
+        LinearIter::new(self.0.clone())
     }
 
     /// Obtains the Weak-Ptr for this Block
@@ -502,8 +508,6 @@ impl BasicBlock {
             (tmp.next().unwrap(), tmp.next().unwrap())
         };
 
-        dbg!(&self);
-        dbg!(&self.as_ptr());
         let end_block = match left.earliest_common_block(&right) {
             Some(b) => b,
             None => {
@@ -570,7 +574,7 @@ impl BasicBlock {
 
         assert!(succs.len() == 2);
 
-        let current_node = result.current_node().unwrap();
+        let current_node = result.current_node();
 
         let mut succ_iter = succs.into_iter();
         let (_, left_block) = succ_iter.next().unwrap();

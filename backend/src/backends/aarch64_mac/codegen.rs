@@ -6,6 +6,9 @@ pub use arguments::*;
 mod to_asm;
 pub use to_asm::*;
 
+mod expression;
+mod statement;
+
 pub mod util;
 
 use super::{asm, ArmRegister};

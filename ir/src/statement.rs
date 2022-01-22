@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use crate::{
-    comp::CompareGraph,
     dot::{Context, DrawnBlocks},
     general, BasicBlock, ToDot, WeakBlockPtr,
 };
@@ -9,75 +8,6 @@ use crate::{
 /// A Statement in the IR contains a single "Instruction", like evaluating an expression and/or
 /// storing its result in a new Variable or jumping to a different Point in the Program
 pub type Statement = general::Statement<BasicBlock, WeakBlockPtr>;
-
-impl CompareGraph for Statement {
-    fn compare(
-        &self,
-        other: &Self,
-        blocks: &mut std::collections::HashMap<*const crate::InnerBlock, usize>,
-        current_block: usize,
-    ) -> bool {
-        match (self, other) {
-            (
-                Self::Assignment {
-                    target: s_target,
-                    value: s_value,
-                },
-                Self::Assignment {
-                    target: o_target,
-                    value: o_value,
-                },
-            ) => s_target == o_target && s_value == o_value,
-            (
-                Self::WriteMemory {
-                    target: s_target,
-                    value: s_value,
-                },
-                Self::WriteMemory {
-                    target: o_target,
-                    value: o_value,
-                },
-            ) => s_target == o_target && s_value == o_value,
-            (
-                Self::Call {
-                    name: s_name,
-                    arguments: s_arguments,
-                },
-                Self::Call {
-                    name: o_name,
-                    arguments: o_arguments,
-                },
-            ) => s_name == o_name && s_arguments == o_arguments,
-            (Self::SaveVariable { var: s_var }, Self::SaveVariable { var: o_var }) => {
-                s_var == o_var
-            }
-            (
-                Self::InlineAsm {
-                    template: s_temp,
-                    inputs: s_in,
-                    output: s_out,
-                },
-                Self::InlineAsm {
-                    template: o_temp,
-                    inputs: o_in,
-                    output: o_out,
-                },
-            ) => s_temp == o_temp && s_in == o_in && s_out == o_out,
-            (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
-            (Self::Jump(s_next), Self::Jump(o_next)) => {
-                s_next.compare(o_next, blocks, current_block)
-            }
-            (Self::JumpTrue(s_var, s_next), Self::JumpTrue(o_var, o_next)) => {
-                if s_var != o_var {
-                    return false;
-                }
-
-                s_next.compare(o_next, blocks, current_block)
-            }
-            _ => false,
-        }
-    }
-}
 
 impl Debug for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -132,8 +62,8 @@ impl ToDot for Statement {
 
                 lines.add_edge(graphviz::Edge::new(src, &name));
             }
-            Self::SaveGlobalVariable { name: var_name } => {
-                let content = format!("SaveGlobalVariable {:?}", var_name);
+            Self::SaveGlobalVariable { var } => {
+                let content = format!("SaveGlobalVariable {:?}", var);
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );

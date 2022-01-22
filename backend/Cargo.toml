@@ -9,3 +9,8 @@ edition = "2021"
 ir = { path = "../ir" }
 general = { path = "../general" }
 g3a = { path = "../g3a" }
+
+[dev-dependencies]
+tokenizer = { path = "../tokenizer" }
+syntax = { path = "../syntax" }
+semantic = { path = "../semantic" }

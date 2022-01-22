@@ -23,6 +23,7 @@ pub enum UnaryLogicOp {
 pub enum UnaryOperator {
     Logic(UnaryLogicOp),
     Arithmetic(UnaryArithmeticOp),
+    Derference,
 }
 
 impl From<SingleOperation> for UnaryOperator {
@@ -36,6 +37,7 @@ impl From<SingleOperation> for UnaryOperator {
             }
             SingleOperation::Negative => Self::Arithmetic(UnaryArithmeticOp::Negate),
             SingleOperation::LogicalNot => Self::Logic(UnaryLogicOp::Not),
+            SingleOperation::Dereference => Self::Derference,
             unknown => todo!("Parse SingleOP: {:?}", unknown),
         }
     }
@@ -124,6 +126,15 @@ impl UnaryOperator {
                 Value::Expression(ir::Expression::UnaryOp {
                     base: base_operand,
                     op: ir::UnaryOp::Logic(ir::UnaryLogicOp::Not),
+                })
+            }
+            Self::Derference => {
+                let read_ty = base.result_type();
+                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
+
+                ir::Value::Expression(ir::Expression::ReadMemory {
+                    address: base_operand,
+                    read_ty: read_ty.to_ir(),
                 })
             }
         }

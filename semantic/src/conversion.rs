@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 
-use ir::{BasicBlock, FunctionDefinition, Program, Statement, Type, Value, Variable};
+use ir::{BasicBlock, FunctionDefinition, Program, Variable};
 
-use crate::{AScope, FunctionDeclaration, AAST};
+use crate::{AScope, AAST};
 
 mod expression;
 
 mod context;
 pub use context::*;
 
-pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
-    let global_block = BasicBlock::initial(vec![]);
+mod function;
 
-    ast.global_scope
-        .0
-        .clone()
-        .to_ir(&global_block, &ConvertContext::base(arch.clone()));
+pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
+    let (global_block, global_vars) = convert_global(
+        ast.global_scope.0.clone(),
+        ConvertContext::base(arch.clone()),
+    );
 
     let mut functions = HashMap::new();
     for (name, (func_dec, func_scope)) in ast.global_scope.0.function_definitions {
-        let return_ty = Type::Void;
+        let return_ty = func_dec.return_ty.clone().to_ir();
 
         let args = {
             let mut tmp = Vec::new();
@@ -34,8 +34,9 @@ pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
             tmp
         };
 
-        let func_block = convert_function(
+        let func_block = function::convert(
             &global_block,
+            global_vars.clone(),
             name.clone(),
             func_dec,
             func_scope,
@@ -59,44 +60,30 @@ pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
     }
 }
 
-fn convert_function(
-    global: &BasicBlock,
-    name: String,
-    func_dec: FunctionDeclaration,
-    inner_scope: AScope,
-    arch: general::arch::Arch,
-) -> BasicBlock {
-    // Put the Arguments into the first basic Block and then place a Jump as the last Statement
-    // that will jump to the actual function code
+fn convert_global(raw_global: AScope, mut ctx: ConvertContext) -> (BasicBlock, Vec<Variable>) {
+    ctx.set_global(true);
 
-    let arg_statements = {
-        let mut tmp = Vec::new();
+    let result_block = BasicBlock::initial(vec![]);
 
-        for tmp_arg in func_dec.arguments.iter() {
-            let var_data = &tmp_arg.data;
-            let var_ty = tmp_arg.data.ty.clone().to_ir();
-            let var = Variable::new(&var_data.name, var_ty);
+    let ret_block = raw_global.to_ir(&result_block, &ctx);
+    if result_block.as_ptr() != ret_block.as_ptr() {
+        panic!("The Block generated should be one continuos block")
+    }
 
-            tmp.push(Statement::Assignment {
-                target: var,
-                value: Value::Unknown,
-            });
-        }
+    let global_statements = result_block.get_statements();
+    let global_vars: HashMap<String, ir::Variable> = global_statements
+        .into_iter()
+        .filter_map(|stmnt| match stmnt {
+            ir::Statement::Assignment { target, .. } => Some(target.clone()),
+            _ => None,
+        })
+        .map(|var| (var.name.clone(), var))
+        .collect();
 
-        tmp
-    };
+    result_block.add_statement(ir::Statement::Return(None));
 
-    let global_weak = global.weak_ptr();
-    let head_block = BasicBlock::new(vec![global_weak], arg_statements);
-
-    let context = ConvertContext::base(arch);
-
-    let head_weak = head_block.weak_ptr();
-    let func_block = BasicBlock::new(vec![head_weak], vec![]);
-    inner_scope.to_ir(&func_block, &context);
-
-    // Update Head-Blocks last Jump to the next
-    head_block.add_statement(Statement::Jump(func_block));
-
-    head_block
+    (
+        result_block,
+        global_vars.into_iter().map(|(_, v)| v).collect(),
+    )
 }

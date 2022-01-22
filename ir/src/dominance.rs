@@ -3,7 +3,7 @@ use crate::Variable;
 mod postorder;
 pub use postorder::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct DominanceNode {
     var: Variable,
     parent: Option<usize>,
@@ -27,13 +27,13 @@ impl DominanceNode {
 /// This struct holds the Information to identify the current Node, which can be used to change the
 /// Level at which new Nodes are inserted at and allow for more than just one "Branch" in the Tree
 pub struct CurrentNode {
-    index: usize,
+    index: Option<usize>,
 }
 
 /// A simple Dominance Tree that represents which Variables dominate which other Variables
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DominanceTree {
-    root: Option<usize>,
+    roots: Vec<usize>,
     nodes: Vec<DominanceNode>,
     latest: Option<usize>,
 }
@@ -42,7 +42,7 @@ impl DominanceTree {
     /// Creates a new empty Dominance Tree
     pub fn new() -> Self {
         Self {
-            root: None,
+            roots: Vec::new(),
             nodes: Vec::new(),
             latest: None,
         }
@@ -60,7 +60,6 @@ impl DominanceTree {
             Some(latest) => self.nodes.get(*latest).unwrap().parent,
             None => panic!("Cant have two roots"),
         };
-
         let node = DominanceNode::new(var, parent);
         self.nodes.push(node);
         let node_index = self.nodes.len() - 1;
@@ -81,8 +80,8 @@ impl DominanceTree {
         self.nodes.push(node);
         let node_index = self.nodes.len() - 1;
 
-        if self.root.is_none() {
-            self.root = Some(node_index);
+        if self.roots.is_empty() {
+            self.roots.push(node_index);
         }
         if let Some(parent_index) = parent {
             let parent_node = self.nodes.get_mut(parent_index).unwrap();
@@ -96,11 +95,11 @@ impl DominanceTree {
     /// it was added using the [`append`] Method. The Rest of the other Tree is then kept in the
     /// same order starting from the inserted Root Node
     pub fn append_tree(&mut self, other: Self) {
-        if self.root.is_none() {
+        if self.roots.is_empty() {
             *self = other;
             return;
         }
-        if other.root.is_none() {
+        if other.roots.is_empty() {
             return;
         }
 
@@ -118,13 +117,22 @@ impl DominanceTree {
             n
         }));
 
-        let other_root_index = other.root.unwrap();
-        let other_root = self.nodes.get_mut(other_root_index + offset).unwrap();
-        other_root.parent = self.latest;
+        for other_root_index in other.roots.iter() {
+            let other_root = self.nodes.get_mut(other_root_index + offset).unwrap();
+            other_root.parent = self.latest;
+        }
 
-        let latest_index = self.latest.unwrap();
-        let latest = self.nodes.get_mut(latest_index).unwrap();
-        latest.add_child(other.root.unwrap() + offset);
+        for other_root_index in other.roots.iter() {
+            match self.latest {
+                Some(latest_index) => {
+                    let latest = self.nodes.get_mut(latest_index).unwrap();
+                    latest.add_child(other_root_index + offset);
+                }
+                None => {
+                    self.roots.push(other_root_index + offset);
+                }
+            };
+        }
 
         self.latest = other.latest.map(|prev| prev + offset);
     }
@@ -137,7 +145,7 @@ impl DominanceTree {
             Some(latest) => self.nodes.get(*latest).unwrap().parent,
             None => panic!("Cant have two roots"),
         };
-        if other.root.is_none() {
+        if other.roots.is_empty() {
             return;
         }
 
@@ -155,14 +163,18 @@ impl DominanceTree {
             n
         }));
 
-        let other_root_index = other.root.unwrap();
-        let other_root = self.nodes.get_mut(other_root_index + offset).unwrap();
-        other_root.parent = parent;
+        for other_root_index in other.roots.iter() {
+            let other_root = self.nodes.get_mut(other_root_index + offset).unwrap();
+            other_root.parent = parent;
+        }
 
         match parent {
             Some(p_index) => {
                 let n_p = self.nodes.get_mut(p_index).unwrap();
-                n_p.add_child(other.root.unwrap() + offset);
+
+                for other_root in other.roots.iter() {
+                    n_p.add_child(other_root + offset);
+                }
             }
             None => panic!(),
         };
@@ -171,23 +183,28 @@ impl DominanceTree {
     }
 
     /// Returns a Handle to identify the current Node
-    pub fn current_node(&self) -> Option<CurrentNode> {
-        let latest = self.latest?;
+    pub fn current_node(&self) -> CurrentNode {
+        let latest = match self.latest {
+            Some(l) => l,
+            None => return CurrentNode { index: None },
+        };
 
-        Some(CurrentNode { index: latest })
+        CurrentNode {
+            index: Some(latest),
+        }
     }
 
     /// This will append the other Tree to the given Node, like it was described in [`append_tree`]
     /// but starting from the given Node
     pub fn append_tree_to_node(&mut self, node: &CurrentNode, other: Self) {
-        self.latest = Some(node.index);
+        self.latest = node.index;
 
         self.append_tree(other);
     }
 
     /// Moves the current insertion Point to the given Node
     pub fn move_to_node(&mut self, node: CurrentNode) {
-        self.latest = Some(node.index);
+        self.latest = node.index;
     }
 
     /// Searches for the given Variable in the Parents of the current Node
@@ -198,7 +215,9 @@ impl DominanceTree {
         loop {
             let current = self.nodes.get(current_i).unwrap();
             if &current.var == var {
-                return Some(CurrentNode { index: current_i });
+                return Some(CurrentNode {
+                    index: Some(current_i),
+                });
             }
 
             match current.parent {
@@ -242,7 +261,7 @@ mod tests {
         root_node.add_child(1);
 
         let expected = DominanceTree {
-            root: Some(0),
+            roots: vec![0],
             latest: Some(1),
             nodes: vec![root_node, DominanceNode::new(second_var.clone(), Some(0))],
         };
@@ -276,7 +295,7 @@ mod tests {
         let expected_z = DominanceNode::new(z.clone(), Some(1));
 
         let expected_tree = DominanceTree {
-            root: Some(0),
+            roots: vec![0],
             latest: Some(3),
             nodes: vec![expected_root, expected_x, expected_y, expected_z],
         };
@@ -299,7 +318,7 @@ mod tests {
 
         let mut result_tree = DominanceTree::new();
         result_tree.append(root.clone());
-        let result_root_node = result_tree.current_node().unwrap();
+        let result_root_node = result_tree.current_node();
         result_tree.append(root2.clone());
         result_tree.append_tree_to_node(&result_root_node, other_tree);
         dbg!(&result_tree);
@@ -315,7 +334,7 @@ mod tests {
         let expected_z = DominanceNode::new(z.clone(), Some(2));
 
         let expected_tree = DominanceTree {
-            root: Some(0),
+            roots: vec![0],
             latest: Some(4),
             nodes: vec![
                 expected_root,
@@ -345,7 +364,7 @@ mod tests {
         root_node.add_child(2);
 
         let expected = DominanceTree {
-            root: Some(0),
+            roots: vec![0],
             latest: Some(2),
             nodes: vec![
                 root_node,
@@ -387,7 +406,7 @@ mod tests {
         let expected_z = DominanceNode::new(z.clone(), Some(2));
 
         let expected_tree = DominanceTree {
-            root: Some(0),
+            roots: vec![0],
             latest: Some(4),
             nodes: vec![
                 expected_root,
@@ -399,5 +418,52 @@ mod tests {
         };
 
         assert_eq!(expected_tree, result_tree);
+    }
+
+    #[test]
+    fn append_at_root() {
+        let x = Variable::new("x", Type::I8);
+        let y = Variable::new("x", Type::I8);
+
+        let mut result_tree = DominanceTree::new();
+        let root_node = result_tree.current_node();
+
+        let other_tree = {
+            let mut tmp = DominanceTree::new();
+            tmp.append(x.clone());
+            tmp.append(y.clone());
+            tmp
+        };
+        result_tree.append_tree_to_node(&root_node, other_tree.clone());
+        result_tree.append_tree_to_node(&root_node, other_tree.clone());
+
+        let expected = DominanceTree {
+            roots: vec![0, 2],
+            latest: Some(3),
+            nodes: vec![
+                DominanceNode {
+                    var: x.clone(),
+                    parent: None,
+                    children: vec![1],
+                },
+                DominanceNode {
+                    var: y.clone(),
+                    parent: Some(0),
+                    children: vec![],
+                },
+                DominanceNode {
+                    var: x.clone(),
+                    parent: None,
+                    children: vec![3],
+                },
+                DominanceNode {
+                    var: y.clone(),
+                    parent: Some(2),
+                    children: vec![],
+                },
+            ],
+        };
+
+        assert_eq!(expected, result_tree);
     }
 }

@@ -7,10 +7,14 @@ pub struct Imm9Signed(i16);
 impl Imm9Signed {
     pub fn new(val: i16) -> Self {
         if val > 255 || val < -256 {
-            panic!()
+            panic!("Attempted to construct Signed 9-Bit immediate: {}", val)
         }
 
         Self(val)
+    }
+
+    pub fn fits(value: i16) -> bool {
+        value <= 255 && value >= -256
     }
 }
 impl Display for Imm9Signed {

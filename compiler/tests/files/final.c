@@ -6,9 +6,9 @@
 void printf(char* content, ...);
 void strcpy(char *dest, const char *src);
 int scanf(const char* format, ...);
-int* stdin;
-int* stdout;
-int* stderr;
+int* stdin = (int*) 0;
+int* stdout = (int*) 0;
+int* stderr = (int*) 0;
 char* fgets(char *str, int n, int* stream);
 void* malloc(unsigned int size);
 void free(void* ptr);
@@ -36,11 +36,11 @@ typedef struct {
 	course courses[4];
 } student;
 
-student *students;
-int studentCount;
+student *students = (student*) 0;
+int studentCount = 0;
 
 course courses[8];
-int courseCount;
+int courseCount = 0;
 
 int main() {
 	studentCount = 0;

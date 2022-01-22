@@ -14,6 +14,9 @@ pub fn constant_to_asm(con: &ir::Constant, dest: asm::Register) -> Vec<asm::Inst
                 todo!()
             }
         }
+        (asm::Register::FloatingPoint(dest), ir::Constant::F64(val)) => {
+            vec![asm::Instruction::FMovF64 { dest, value: *val }]
+        }
         other => {
             dbg!(&other);
 

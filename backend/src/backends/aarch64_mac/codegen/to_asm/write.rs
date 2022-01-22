@@ -38,16 +38,24 @@ fn write_var(
         ir::Value::Constant(con) => match con {
             ir::Constant::I32(val) => {
                 let val_register = asm::GPRegister::Word(9); // Register 9 should be a scratch register that can be used as seen fit
-                if (0..4096).contains(&val) {
-                    instr.push(asm::Instruction::Movz {
-                        dest: val_register.clone(),
-                        immediate: val as u16,
-                        shift: 0,
-                    });
-                } else {
-                    dbg!(&val);
-                    todo!()
-                }
+                instr.push(asm::Instruction::MovI64 {
+                    dest: val_register.clone(),
+                    value: val as i64,
+                });
+
+                instr.push(asm::Instruction::StoreRegisterUnscaled {
+                    reg: val_register,
+                    base: asm::GpOrSpRegister::GP(base_reg),
+                    offset: asm::Imm9Signed::new(0),
+                });
+            }
+            ir::Constant::U8(val) => {
+                let val_register = asm::GPRegister::Word(9);
+                instr.push(asm::Instruction::Movz {
+                    dest: val_register.clone(),
+                    immediate: val as u16,
+                    shift: 0,
+                });
 
                 instr.push(asm::Instruction::StoreRegisterUnscaled {
                     reg: val_register,
@@ -60,6 +68,23 @@ fn write_var(
                 todo!()
             }
         },
+        ir::Value::Variable(var) => {
+            let value_reg = ctx.registers.get_reg(&var).unwrap();
+
+            match (value_reg, var.ty) {
+                (asm::Register::GeneralPurpose(value), ir::Type::I32) => {
+                    instr.push(asm::Instruction::StoreRegisterUnscaled {
+                        reg: value,
+                        base: asm::GpOrSpRegister::GP(base_reg),
+                        offset: asm::Imm9Signed::new(0),
+                    });
+                }
+                other_ty => {
+                    dbg!(&other_ty);
+                    todo!()
+                }
+            };
+        }
         other => {
             dbg!(&other);
             todo!()

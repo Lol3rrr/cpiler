@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{Operand, Variable};
+use crate::{comp::CompareGraph, Operand, Variable};
 
 use super::Value;
 
@@ -34,8 +34,8 @@ pub enum Statement<B, WB> {
     },
     /// Indicates that the Global Variable should be saved, globally
     SaveGlobalVariable {
-        /// The Name of the Variable that should be saved globally
-        name: String,
+        /// The Variable to save globally
+        var: Variable,
     },
     /// Some inline assembly statements that will be handled by the Backend
     InlineAsm {
@@ -52,6 +52,79 @@ pub enum Statement<B, WB> {
     Jump(B),
     /// Jumps to the given Block if the Variable is true
     JumpTrue(Variable, B),
+}
+
+impl<B, WB> CompareGraph for Statement<B, WB>
+where
+    B: CompareGraph,
+    WB: PartialEq,
+{
+    fn compare(
+        &self,
+        other: &Self,
+        blocks: &mut std::collections::HashMap<*const crate::InnerBlock, usize>,
+        current_block: usize,
+    ) -> bool {
+        match (self, other) {
+            (
+                Self::Assignment {
+                    target: s_target,
+                    value: s_value,
+                },
+                Self::Assignment {
+                    target: o_target,
+                    value: o_value,
+                },
+            ) => s_target == o_target && s_value == o_value,
+            (
+                Self::WriteMemory {
+                    target: s_target,
+                    value: s_value,
+                },
+                Self::WriteMemory {
+                    target: o_target,
+                    value: o_value,
+                },
+            ) => s_target == o_target && s_value == o_value,
+            (
+                Self::Call {
+                    name: s_name,
+                    arguments: s_arguments,
+                },
+                Self::Call {
+                    name: o_name,
+                    arguments: o_arguments,
+                },
+            ) => s_name == o_name && s_arguments == o_arguments,
+            (Self::SaveVariable { var: s_var }, Self::SaveVariable { var: o_var }) => {
+                s_var == o_var
+            }
+            (
+                Self::InlineAsm {
+                    template: s_temp,
+                    inputs: s_in,
+                    output: s_out,
+                },
+                Self::InlineAsm {
+                    template: o_temp,
+                    inputs: o_in,
+                    output: o_out,
+                },
+            ) => s_temp == o_temp && s_in == o_in && s_out == o_out,
+            (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
+            (Self::Jump(s_next), Self::Jump(o_next)) => {
+                s_next.compare(o_next, blocks, current_block)
+            }
+            (Self::JumpTrue(s_var, s_next), Self::JumpTrue(o_var, o_next)) => {
+                if s_var != o_var {
+                    return false;
+                }
+
+                s_next.compare(o_next, blocks, current_block)
+            }
+            _ => false,
+        }
+    }
 }
 
 impl<B, WB> Statement<B, WB>
@@ -73,9 +146,9 @@ where
                 .field("value", value)
                 .finish(),
             Self::SaveVariable { var } => f.debug_struct("SaveVariable").field("var", var).finish(),
-            Self::SaveGlobalVariable { name } => f
+            Self::SaveGlobalVariable { var } => f
                 .debug_struct("SaveGlobalVariable")
-                .field("name", name)
+                .field("var", var)
                 .finish(),
             Self::WriteMemory { target, value } => f
                 .debug_struct("WriteMemory")
@@ -117,7 +190,7 @@ impl<B, WB> Statement<B, WB> {
         match self {
             Self::Assignment { value, .. } => value.used_vars(),
             Self::SaveVariable { var } => vec![var.clone()],
-            Self::SaveGlobalVariable { .. } => Vec::new(),
+            Self::SaveGlobalVariable { var } => vec![var.clone()],
             Self::WriteMemory { target, value } => {
                 let mut tmp = target.used_vars();
                 tmp.extend(value.used_vars());

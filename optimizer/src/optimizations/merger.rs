@@ -18,6 +18,10 @@ impl Merger {
     }
 
     fn merge(&self, block: &BasicBlock, mappings: &mut HashMap<*const InnerBlock, WeakBlockPtr>) {
+        if block.successors().len() > 1 {
+            return;
+        }
+
         let mut block_statements = block.get_statements();
 
         let last = match block_statements.pop() {

@@ -2,8 +2,12 @@
 // https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
 // General: https://developer.arm.com/documentation/ddi0487/latest/
 // Call ABI: https://developer.arm.com/documentation/ihi0055/b/
+// https://stackoverflow.com/questions/65351533/apple-clang12-llvm-unknown-aarch64-fixup-kind
 
-use std::{collections::HashMap, process::Command};
+use std::{
+    collections::{HashMap, HashSet},
+    process::Command,
+};
 
 use ir::Variable;
 
@@ -205,6 +209,7 @@ impl Backend {
             stack_allocs: stack_allocation.allocations,
         };
 
+        dbg!(&func.name);
         let mut asm_blocks: Vec<_> = func
             .block
             .block_iter()
@@ -243,6 +248,36 @@ impl Backend {
         asm_blocks
     }
 
+    fn global_init(
+        &self,
+        global: ir::BasicBlock,
+    ) -> (String, Vec<asm::Block>, Vec<(String, ir::Type)>) {
+        let global_vars: HashMap<String, ir::Type> = global
+            .get_statements()
+            .into_iter()
+            .filter_map(|s| match s {
+                ir::Statement::Assignment { target, .. } => Some(target.clone()),
+                _ => None,
+            })
+            .map(|v| (v.name, v.ty))
+            .collect();
+
+        let name = "g_init".to_string();
+        let tmp_func = ir::FunctionDefinition {
+            name: name.clone(),
+            block: global,
+            arguments: Vec::new(),
+            return_ty: ir::Type::Void,
+        };
+
+        let registers = util::registers::allocate_registers(&tmp_func, &Self::registers());
+        util::destructure::destructure_func(&tmp_func);
+
+        let func_blocks = self.codegen(&tmp_func, registers);
+
+        (name, func_blocks, global_vars.into_iter().collect())
+    }
+
     fn assemble(&self, input_file: &str, target_file: &str) {
         let output = Command::new("as")
             .args(["-o", target_file, input_file])
@@ -264,7 +299,7 @@ impl Backend {
                 "-L/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/lib",
                 "-lSystem",
                 "-e",
-                "main",
+                "_start",
                 "-arch",
                 "arm64",
             ])
@@ -275,6 +310,41 @@ impl Backend {
             let err_str = String::from_utf8(output.stderr).unwrap();
             panic!("{}", err_str);
         }
+    }
+
+    fn asm_start_func(&self, init_name: &str) -> Vec<asm::Block> {
+        let res_var = ir::Variable::new("main_res", ir::Type::I32);
+        let raw_block = ir::BasicBlock::new(
+            vec![],
+            vec![
+                ir::Statement::Call {
+                    name: init_name.to_string(),
+                    arguments: Vec::new(),
+                },
+                ir::Statement::Assignment {
+                    target: res_var.clone(),
+                    value: ir::Value::Expression(ir::Expression::FunctionCall {
+                        name: "main".to_string(),
+                        arguments: Vec::new(),
+                        return_ty: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::Return(Some(res_var)),
+            ],
+        );
+
+        let raw_func = ir::FunctionDefinition {
+            name: "_start".to_string(),
+            arguments: Vec::new(),
+            return_ty: ir::Type::Void,
+            block: raw_block,
+        };
+
+        let registers = util::registers::allocate_registers(&raw_func, &Self::registers());
+
+        util::destructure::destructure_func(&raw_func);
+
+        self.codegen(&raw_func, registers)
     }
 }
 
@@ -315,11 +385,7 @@ impl util::registers::Register for ArmRegister {
 
 impl Target for Backend {
     fn generate(&self, program: ir::Program) {
-        let global_statements = program.global.get_statements();
-        for stmnt in global_statements {
-            dbg!(&stmnt);
-            todo!("Generate Global stuff")
-        }
+        let (g_init_name, global_blocks, global_vars) = self.global_init(program.global.clone());
 
         let all_registers = Self::registers();
         let mut blocks = Vec::new();
@@ -333,11 +399,52 @@ impl Target for Backend {
         }
 
         let mut asm_text = "
-.global main
+.global _start
 .align 2
 "
         .to_string();
-        for block in blocks.iter() {
+
+        let (g_var_blocks, g_var_decls): (Vec<_>, Vec<_>) = global_vars
+            .into_iter()
+            .map(|(g_var, g_type)| {
+                let instr = match g_type {
+                    ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                        vec![asm::Instruction::Literal(".quad 0".to_string())]
+                    }
+                    ir::Type::I32 | ir::Type::U32 => {
+                        vec![
+                            //asm::Instruction::Literal(".data".to_string()),
+                            asm::Instruction::Literal(format!(".long 0")),
+                        ]
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
+
+                (
+                    asm::Block {
+                        name: g_var.clone(),
+                        instructions: instr,
+                    },
+                    g_var,
+                )
+            })
+            .unzip();
+
+        let start_block = self.asm_start_func(&g_init_name);
+
+        for block in start_block.into_iter().chain(global_blocks).chain(blocks) {
+            let block_text = block.to_text();
+            asm_text.push_str(&block_text);
+        }
+
+        asm_text.push_str(".data\n");
+        for decl in g_var_decls {
+            //asm_text.push_str(&format!(".global {}\n", &decl));
+        }
+        for block in g_var_blocks {
             let block_text = block.to_text();
             asm_text.push_str(&block_text);
         }

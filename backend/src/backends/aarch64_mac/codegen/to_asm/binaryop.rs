@@ -3,6 +3,23 @@ use crate::backends::aarch64_mac::{
     codegen::{util, Context},
 };
 
+fn operand(
+    oper: ir::Operand,
+    ctx: &Context,
+    used: Option<asm::Register>,
+) -> (asm::Register, Vec<asm::Instruction>) {
+    match oper {
+        ir::Operand::Variable(var) => {
+            let reg = ctx.registers.get_reg(&var).unwrap();
+            (reg, Vec::new())
+        }
+        ir::Operand::Constant(con) => {
+            dbg!(&con);
+            todo!()
+        }
+    }
+}
+
 pub fn to_asm(
     op: ir::BinaryOp,
     t_reg: asm::Register,
@@ -66,6 +83,43 @@ pub fn to_asm(
                         amount: 0,
                     });
                 }
+                (ir::Operand::Variable(l_var), ir::Operand::Variable(r_var)) => {
+                    let l_var_reg = ctx.registers.get_reg(&l_var).unwrap();
+                    let r_var_reg = ctx.registers.get_reg(&r_var).unwrap();
+
+                    match (l_var_reg, r_var_reg) {
+                        (
+                            asm::Register::GeneralPurpose(l_gp),
+                            asm::Register::GeneralPurpose(r_gp),
+                        ) => {
+                            let l_gp = match &l_gp {
+                                asm::GPRegister::DWord(_) => l_gp,
+                                asm::GPRegister::Word(n) => asm::GPRegister::DWord(*n),
+                            };
+                            let r_gp = match &r_gp {
+                                asm::GPRegister::DWord(_) => r_gp,
+                                asm::GPRegister::Word(n) => asm::GPRegister::DWord(*n),
+                            };
+
+                            let (first, second) = if !swap_sites {
+                                (l_gp, r_gp)
+                            } else {
+                                (r_gp, l_gp)
+                            };
+
+                            instructions.push(asm::Instruction::CmpShifted {
+                                first,
+                                second,
+                                shift: asm::Shift::LSL,
+                                amount: 0,
+                            });
+                        }
+                        other => {
+                            dbg!(&other);
+                            todo!()
+                        }
+                    };
+                }
                 other => {
                     dbg!(&other);
                     todo!()
@@ -125,7 +179,41 @@ pub fn to_asm(
                     let first_var_reg: asm::Register = ctx.registers.get_reg(&first_var).unwrap();
                     let second_var_reg: asm::Register = ctx.registers.get_reg(&second_var).unwrap();
 
-                    (first_var_reg, second_var_reg)
+                    match (&first_var_reg, &second_var_reg) {
+                        (
+                            asm::Register::GeneralPurpose(l_gp),
+                            asm::Register::GeneralPurpose(r_gp),
+                        ) => match (&l_gp, &r_gp) {
+                            (asm::GPRegister::DWord(_), asm::GPRegister::DWord(_)) => {
+                                (first_var_reg, second_var_reg)
+                            }
+                            (asm::GPRegister::DWord(_), asm::GPRegister::Word(n)) => (
+                                first_var_reg,
+                                asm::Register::GeneralPurpose(asm::GPRegister::DWord(*n)),
+                            ),
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                        (
+                            asm::Register::FloatingPoint(l_fp),
+                            asm::Register::FloatingPoint(r_fp),
+                        ) => match (&l_fp, &r_fp) {
+                            (
+                                asm::FPRegister::SinglePrecision(_),
+                                asm::FPRegister::SinglePrecision(_),
+                            ) => (first_var_reg, second_var_reg),
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                        other => {
+                            dbg!(&other);
+                            todo!()
+                        }
+                    }
                 }
                 other => {
                     dbg!(&other);
@@ -211,6 +299,17 @@ pub fn to_asm(
                                 src2: second_reg,
                             });
                         }
+                        (
+                            asm::Register::FloatingPoint(t_reg),
+                            asm::Register::FloatingPoint(first_reg),
+                            asm::Register::FloatingPoint(second_reg),
+                        ) => {
+                            instructions.push(asm::Instruction::FPMul {
+                                dest: t_reg,
+                                src1: first_reg,
+                                src2: second_reg,
+                            });
+                        }
                         other => {
                             dbg!(&other);
                             todo!()
@@ -220,6 +319,42 @@ pub fn to_asm(
                 other => {
                     dbg!(&other);
                     todo!()
+                }
+            };
+        }
+        ir::BinaryOp::LogicCombinator(combinator) => {
+            let (left_reg, left_setup) = operand(left, ctx, None);
+            instructions.extend(left_setup);
+
+            let (right_reg, right_setup) = operand(right, ctx, Some(left_reg.clone()));
+            instructions.extend(right_setup);
+
+            dbg!(&left_reg, &right_reg);
+
+            let (t_reg, f_reg, s_reg) = match (t_reg, left_reg, right_reg) {
+                (
+                    asm::Register::GeneralPurpose(t),
+                    asm::Register::GeneralPurpose(f),
+                    asm::Register::GeneralPurpose(s),
+                ) => (t, f, s),
+                other => {
+                    dbg!(&other);
+                    todo!()
+                }
+            };
+
+            match combinator {
+                ir::BinaryLogicCombinator::Or => {
+                    instructions.push(asm::Instruction::BitwiseOrRegisterShifted {
+                        dest: t_reg,
+                        src1: f_reg,
+                        src2: s_reg,
+                        shift: asm::Shift::LSL,
+                        amount: 0,
+                    });
+                }
+                ir::BinaryLogicCombinator::And => {
+                    todo!("And-Combinator")
                 }
             };
         }

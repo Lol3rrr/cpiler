@@ -32,6 +32,8 @@ pub struct Variable {
     pub ty: Type,
     /// Extra Metadata for this Variable
     meta: VariableMetadata,
+    /// Whether or not the Variable is actually a Global-Variable
+    global: bool,
     /// Contains a small Description with the Purpose of this Variable, this will not be used in
     /// comparisons and is mostly used for debuging to help identify which variable is responsible
     /// for what
@@ -56,6 +58,7 @@ impl Variable {
             generation: 0,
             ty,
             meta,
+            global: false,
             description: None,
             current_version: Arc::new(atomic::AtomicUsize::new(1)),
         }
@@ -87,6 +90,17 @@ impl Variable {
         &self.meta
     }
 
+    /// This updates the Global-"State" for the Variable
+    #[must_use]
+    pub fn set_global(mut self, global: bool) -> Self {
+        self.global = global;
+        self
+    }
+    /// Whether or not the Variable is a Global
+    pub fn global(&self) -> bool {
+        self.global
+    }
+
     /// Updates the Description for this Variable
     #[must_use]
     pub fn set_description<D>(mut self, desc: D) -> Self
@@ -112,9 +126,15 @@ impl Variable {
             generation: gen,
             ty: self.ty.clone(),
             meta: self.meta.clone(),
+            global: self.global,
             description: None,
             current_version: self.current_version.clone(),
         }
+    }
+
+    /// Checks if a Variable is a Temp Variable
+    pub fn is_tmp(&self) -> bool {
+        self.name.starts_with("__t_")
     }
 }
 

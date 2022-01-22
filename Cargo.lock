@@ -47,6 +47,9 @@ dependencies = [
  "g3a",
  "general",
  "ir",
+ "semantic",
+ "syntax",
+ "tokenizer",
 ]
 
 [[package]]

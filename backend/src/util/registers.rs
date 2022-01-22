@@ -9,6 +9,8 @@ use std::{
 
 use ir::Variable;
 
+mod context;
+mod determine_spill;
 mod spill;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -37,55 +39,7 @@ pub trait Register {
     fn align_size(&self) -> (usize, usize);
 }
 
-fn determine_spill_var(
-    vars: HashSet<Variable>,
-    start_block: ir::BasicBlock,
-    start_index: usize,
-) -> ir::Variable {
-    let mut unknown = vars;
-
-    let mut offset = 0;
-    let mut statements: Vec<_> = start_block
-        .get_statements()
-        .into_iter()
-        .skip(start_index)
-        .collect();
-    let mut block = start_block;
-    let mut offsets = Vec::new();
-    for (index, stmnt) in statements.iter().enumerate() {
-        let distance = index + offset;
-
-        let used = stmnt.used_vars();
-
-        let used_unknowns: Vec<_> = used.into_iter().filter(|v| unknown.contains(v)).collect();
-
-        for u_v in used_unknowns {
-            unknown.remove(&u_v);
-            offsets.push((u_v, distance));
-        }
-    }
-
-    offset += statements.len();
-
-    while !unknown.is_empty() {
-        let succs = block.successors();
-        dbg!(&succs);
-        if succs.is_empty() {
-            break;
-        }
-
-        dbg!(&unknown);
-        todo!()
-    }
-
-    let first = offsets
-        .into_iter()
-        .max_by(|(_, a_d), (_, b_d)| a_d.cmp(b_d))
-        .unwrap();
-
-    first.0
-}
-
+/// This will perform the Register Allocation and spilling
 pub fn allocate_registers<R>(func: &ir::FunctionDefinition, registers: &[R]) -> HashMap<Variable, R>
 where
     R: Clone + Debug + Hash + PartialEq + Eq + Register,
@@ -98,36 +52,32 @@ where
                 return;
             }
 
-            let mut used: HashSet<R> = HashSet::new();
-            let mut available: Vec<_> = registers.iter().collect();
+            let mut available_registers: HashMap<RegisterType, isize> = HashMap::new();
+            for reg in registers {
+                let reg_type = reg.reg_type();
+
+                let reg_avail = available_registers.entry(reg_type).or_insert(0);
+                *reg_avail += 1;
+            }
 
             for var in live.iter() {
-                let avail_colors: Vec<_> = registers
+                let useable_reg = registers
                     .iter()
                     .filter(|r| r.reg_type().useable(&var.ty))
-                    .filter(|r| !used.contains(r))
-                    .collect();
+                    .map(|r| r.reg_type())
+                    .next()
+                    .unwrap();
 
-                match avail_colors.first() {
-                    Some(f) => {
-                        used.insert((*f).clone());
-                        available.remove(0);
-                    }
-                    None => {
-                        too_large_clique = Some((live.clone(), block.clone(), index));
-                        dbg!("Too large");
-                        return;
-                    }
-                };
+                let regs_avail = available_registers.get_mut(&useable_reg).unwrap();
+                *regs_avail -= 1;
             }
 
-            let mut reg_type_free = HashSet::new();
-            for tmp in registers.iter().filter(|r| !used.contains(r)) {
-                reg_type_free.insert(tmp.reg_type());
-            }
-
-            if reg_type_free.len() != 2 {
-                too_large_clique = Some((live.clone(), block.clone(), index));
+            for (reg, available) in available_registers {
+                if available < 0 {
+                    dbg!(&reg);
+                    too_large_clique = Some((live.clone(), block.clone(), index));
+                    return;
+                }
             }
         });
 
@@ -136,9 +86,9 @@ where
             None => break interference_graph,
         };
 
-        let spill_var = determine_spill_var(largest_vars, largest_block.clone(), largest_stmnt_i);
+        let spill_ctx = context::SpillContext::determine(largest_block.clone());
 
-        spill::spill_variable(spill_var, largest_block, largest_stmnt_i);
+        spill::spill_variable(largest_vars, largest_block, largest_stmnt_i, spill_ctx);
     };
 
     let dominance_tree = func.dominance_tree();
@@ -174,4 +124,46 @@ where
     }
 
     coloring
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+    enum TestRegister {
+        General(u8),
+        Float(u8),
+    }
+
+    impl Register for TestRegister {
+        fn reg_type(&self) -> RegisterType {
+            match self {
+                Self::General(_) => RegisterType::GeneralPurpose,
+                Self::Float(_) => RegisterType::FloatingPoint,
+            }
+        }
+
+        fn align_size(&self) -> (usize, usize) {
+            (4, 4)
+        }
+    }
+
+    #[test]
+    fn fits() {
+        let input_register = vec![TestRegister::General(0)];
+        let input_statements = vec![ir::Statement::Assignment {
+            target: ir::Variable::new("test", ir::Type::U8),
+            value: ir::Value::Unknown,
+        }];
+
+        let input_function = ir::FunctionDefinition {
+            name: "test".to_string(),
+            block: ir::BasicBlock::new(vec![], input_statements.clone()),
+            arguments: vec![],
+            return_ty: ir::Type::Void,
+        };
+
+        let result = allocate_registers(&input_function, &input_register);
+    }
 }

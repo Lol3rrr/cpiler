@@ -37,9 +37,12 @@ where
         let statements = block.get_statements();
 
         for stmnt in statements {
-            if let ir::Statement::Assignment { target, .. } = stmnt {
-                result.insert(target.name, size_align(&target.ty));
-            }
+            match stmnt {
+                ir::Statement::Assignment { target, .. } if !target.is_tmp() => {
+                    result.insert(target.name, size_align(&target.ty));
+                }
+                _ => {}
+            };
         }
     }
 

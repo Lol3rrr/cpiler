@@ -1,4 +1,7 @@
-use crate::backends::aarch64_mac::{asm, codegen::Context};
+use crate::backends::aarch64_mac::{
+    asm::{self, Imm9Signed},
+    codegen::Context,
+};
 
 pub fn load(
     target_reg: asm::Register,
@@ -40,10 +43,19 @@ pub fn load(
                         asm::GPRegister::DWord(n) => asm::GPRegister::DWord(n),
                         asm::GPRegister::Word(n) => asm::GPRegister::DWord(n),
                     };
-                    let load_instr = asm::Instruction::LoadSignedWordUnscaled {
-                        reg: correct_target_reg,
-                        base,
-                        offset: asm::Imm9Signed::new(offset),
+
+                    let load_instr = match offset {
+                        offset if asm::Imm9Signed::fits(offset) => {
+                            asm::Instruction::LoadSignedWordUnscaled {
+                                reg: correct_target_reg,
+                                base,
+                                offset: asm::Imm9Signed::new(offset),
+                            }
+                        }
+                        offset => {
+                            dbg!(offset);
+                            todo!()
+                        }
                     };
 
                     instr.push(load_instr);
@@ -102,7 +114,13 @@ pub fn load_var(
     };
 
     let base = asm::GpOrSpRegister::SP;
-    let offset = *ctx.var.get(&var.name).unwrap() as i16;
+    let offset = match ctx.var.get(&var.name) {
+        Some(o) => (*o).try_into().unwrap(),
+        None => {
+            dbg!(&var);
+            panic!()
+        }
+    };
 
     load(
         asm::Register::GeneralPurpose(target_reg),

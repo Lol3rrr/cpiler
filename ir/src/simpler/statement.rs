@@ -29,7 +29,7 @@ impl Statement {
                 }
             }
             crate::Statement::SaveVariable { var } => Self::SaveVariable { var },
-            crate::Statement::SaveGlobalVariable { name } => Self::SaveGlobalVariable { name },
+            crate::Statement::SaveGlobalVariable { var } => Self::SaveGlobalVariable { var },
             crate::Statement::InlineAsm {
                 template,
                 inputs,

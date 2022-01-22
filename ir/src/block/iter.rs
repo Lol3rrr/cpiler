@@ -22,17 +22,17 @@ impl Iterator for BlockIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let raw_current = self.left.pop()?;
-        let current: BasicBlock = raw_current.into();
+        let mut current: BasicBlock = raw_current.into();
+
+        while self.visited.contains(&current.as_ptr()) {
+            let raw_next = self.left.pop()?;
+            current = raw_next.into();
+        }
 
         let current_ptr = current.as_ptr();
         self.visited.insert(current_ptr);
 
-        let following_iter = current
-            .successors()
-            .into_iter()
-            .filter(|s| !self.visited.contains(&s.0))
-            .map(|(_, b)| b.0);
-
+        let following_iter = current.successors().into_iter().map(|(_, b)| b.0);
         self.left.extend(following_iter);
 
         Some(current)

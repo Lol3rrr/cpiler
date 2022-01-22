@@ -5,8 +5,8 @@ use ir::{BasicBlock, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
-    atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType, ArrayAccessTarget,
-    SemanticError, TypeDefinitions, VariableContainer,
+    assign_type, atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType,
+    ArrayAccessTarget, SemanticError, TypeDefinitions, VariableContainer,
 };
 
 mod operator;
@@ -464,9 +464,16 @@ impl AExpression {
                     left.result_type()
                 }
             },
-            Self::UnaryOperator { op, .. } => match op {
+            Self::UnaryOperator { op, base } => match op {
                 UnaryOperator::Arithmetic(_) => AType::Primitve(APrimitive::Int),
                 UnaryOperator::Logic(_) => AType::Primitve(APrimitive::Int),
+                UnaryOperator::Derference => match base.result_type() {
+                    AType::Pointer(inner) => *inner,
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                },
             },
             Self::InlineAssembly { .. } => AType::Primitve(APrimitive::Void),
         }
@@ -645,6 +652,18 @@ impl AExpression {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
             AExpression::Variable { name, .. } => {
                 let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
+                if var.global() {
+                    let next_var = var.next_gen();
+                    block.add_statement(ir::Statement::Assignment {
+                        target: next_var.clone(),
+                        value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
+                            name: var.name.clone(),
+                        }),
+                    });
+
+                    return Value::Variable(next_var);
+                }
+
                 Value::Variable(var)
             }
             AExpression::BinaryOperator { op, left, right } => {
@@ -676,11 +695,20 @@ impl AExpression {
             AExpression::UnaryOperator { base, op } => op.to_ir(base, block, ctx),
             AExpression::FunctionCall(call) => call.to_ir(block, ctx),
             AExpression::AddressOf { base, .. } => {
-                let base_value = base.to_ir(block, ctx);
+                let base_value = base.clone().ir_address(block, ctx);
 
-                let base_oper = Self::val_to_operand(base_value, block, ctx);
+                match &base_value {
+                    ir::Value::Variable(_) => {
+                        let base_oper = Self::val_to_operand(base_value, block, ctx);
 
-                Value::Expression(ir::Expression::AdressOf { base: base_oper })
+                        Value::Expression(ir::Expression::AdressOf { base: base_oper })
+                    }
+                    ir::Value::Expression(exp) => base_value,
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                }
             }
             AExpression::ArrayAccess { base, ty, index } => {
                 let base_address_value = base.ir_address(block, ctx);
@@ -782,6 +810,18 @@ impl AExpression {
                     }
                 };
                 let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
+
+                if var.global() {
+                    let next_var = var.next_gen();
+                    block.add_statement(ir::Statement::Assignment {
+                        target: next_var.clone(),
+                        value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
+                            name: var.name.clone(),
+                        }),
+                    });
+
+                    return Value::Variable(next_var);
+                }
 
                 ir::Value::Variable(var)
             }

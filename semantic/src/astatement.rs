@@ -479,7 +479,8 @@ impl AStatement {
                         let ir_ty = arr.ty.to_ir();
                         let target_var =
                             ir::Variable::new(target_name, ir::Type::Pointer(Box::new(ir_ty)))
-                                .set_description("Declare Array Variable");
+                                .set_description("Declare Array Variable")
+                                .set_global(ctx.global());
 
                         assert!(alignment != 0);
 
@@ -498,7 +499,8 @@ impl AStatement {
 
                         let ir_ty = ir::Type::Pointer(Box::new(ir::Type::Void));
                         let target_var = ir::Variable::new(target_name, ir_ty)
-                            .set_description("Declare Struct Variable");
+                            .set_description("Declare Struct Variable")
+                            .set_global(ctx.global());
 
                         assert!(alignment != 0);
 
@@ -513,7 +515,8 @@ impl AStatement {
                         let ir_type = ty.to_ir();
 
                         let var = ir::Variable::new(target_name, ir_type)
-                            .set_description("Declare Primitive Variable");
+                            .set_description("Declare Primitive Variable")
+                            .set_global(ctx.global());
                         block.add_statement(ir::Statement::Assignment {
                             target: var,
                             value: ir::Value::Unknown,
@@ -523,7 +526,8 @@ impl AStatement {
                         let ir_type = ty.to_ir();
 
                         let var = ir::Variable::new(target_name, ir_type)
-                            .set_description("Declare Pointer Variable");
+                            .set_description("Declare Pointer Variable")
+                            .set_global(ctx.global());
                         block.add_statement(ir::Statement::Assignment {
                             target: var,
                             value: ir::Value::Unknown,
@@ -546,7 +550,9 @@ impl AStatement {
                             None => {
                                 let target_ty = ty_info.data.to_ir();
 
-                                ir::Variable::new(name.clone(), target_ty)
+                                let n_var = ir::Variable::new(name.clone(), target_ty);
+                                let tmp = n_var.is_tmp();
+                                n_var.set_global(!tmp && ctx.global())
                             }
                         };
 
@@ -557,7 +563,14 @@ impl AStatement {
                             target: target_var.clone(),
                             value: value_exp,
                         });
-                        block.add_statement(ir::Statement::SaveVariable { var: target_var });
+
+                        if target_var.global() {
+                            block.add_statement(ir::Statement::SaveGlobalVariable {
+                                var: target_var,
+                            });
+                        } else {
+                            block.add_statement(ir::Statement::SaveVariable { var: target_var });
+                        }
                     }
                     AAssignTarget::Deref { exp, .. } => {
                         let address_value = exp.to_ir(block, ctx);
@@ -579,10 +592,14 @@ impl AStatement {
                                 let target_meta = value_exp.assign_meta(&next_var);
                                 let target_var = next_var.set_meta(target_meta);
 
-                                block.add_statement(ir::Statement::Assignment {
-                                    target: target_var,
-                                    value: ir::Value::Unknown,
-                                });
+                                if !target_var.global() {
+                                    block.add_statement(ir::Statement::Assignment {
+                                        target: target_var,
+                                        value: ir::Value::Unknown,
+                                    });
+                                } else {
+                                    todo!()
+                                }
                             }
                         }
                     }
