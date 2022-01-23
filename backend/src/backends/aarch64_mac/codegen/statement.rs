@@ -109,7 +109,7 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                 Some(r) => r,
                 None => {
                     dbg!(&src_var);
-                    panic!("")
+                    panic!("No Register found for Src")
                 }
             };
 

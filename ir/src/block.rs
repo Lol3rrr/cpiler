@@ -415,7 +415,7 @@ impl BasicBlock {
         base
     }
 
-    pub(crate) fn earliest_common_block(&self, other: &Self) -> Option<Self> {
+    pub fn earliest_common_block(&self, other: &Self) -> Option<Self> {
         let own_iter = self.block_iter();
         let other_iter = other.block_iter();
 

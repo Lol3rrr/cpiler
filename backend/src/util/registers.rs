@@ -116,7 +116,7 @@ where
 
                 std::fs::write("./failed_registers.dot", interference_graph.to_dot()).unwrap();
 
-                todo!()
+                todo!("Not enough Registers available")
             }
         };
 

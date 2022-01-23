@@ -2,10 +2,12 @@ use std::collections::HashSet;
 
 pub mod conditional_spill;
 pub mod linear_spill;
+pub mod loop_spill;
 
 pub enum SpillResult {
     Linear(linear_spill::SpillResult),
     Conditional(conditional_spill::SpillResult),
+    Loop(loop_spill::SpillResult),
 }
 
 impl SpillResult {
@@ -14,6 +16,9 @@ impl SpillResult {
             Self::Linear(res) => res.var.next_gen(),
             Self::Conditional(cond) => match cond {
                 conditional_spill::SpillResult::OuterVariable { var } => var.next_gen(),
+            },
+            Self::Loop(cond) => match cond {
+                loop_spill::SpillResult::Outer { var } => var.next_gen(),
             },
         }
     }
@@ -60,9 +65,18 @@ impl SpillContext {
                 let (_, tmp) = succs.into_iter().next().unwrap();
                 block = tmp;
             } else if succs.len() == 2 {
-                dbg!(block.as_ptr());
+                // If there are two sucessors, that means the current Block is the header of a Loop
+                // or Conditional, in either case we want to skip to the end of that Control-Flow
+                // part and continue with the first common Block afterwards
 
-                todo!()
+                let mut tmp: Vec<_> = succs.into_iter().map(|(_, b)| b).collect();
+                let left = tmp.pop().unwrap();
+                let right = tmp.pop().unwrap();
+
+                let common = left.earliest_common_block(&right).unwrap();
+
+                block = common;
+                continue;
             }
 
             let preds = block.get_predecessors();
@@ -95,7 +109,23 @@ impl SpillContext {
                     }
 
                     if pred_ptr == current_ptr {
-                        todo!("We are in a loop, I think")
+                        let mut h_succs: Vec<_> =
+                            header.successors().into_iter().map(|(_, b)| b).collect();
+
+                        let raw_first = h_succs.remove(0);
+                        let raw_second = h_succs.remove(0);
+
+                        let (inner, outer) = if visited.contains(&raw_first.as_ptr()) {
+                            (raw_first, raw_second)
+                        } else {
+                            (raw_second, raw_first)
+                        };
+
+                        return Self::Loop {
+                            header,
+                            first_inner: inner,
+                            first_after: outer,
+                        };
                     }
 
                     visited.insert(pred_ptr);
@@ -178,6 +208,16 @@ impl SpillContext {
                 first_inner,
                 first_after,
             } => {
+                dbg!(header.as_ptr(), first_inner.as_ptr(), first_after.as_ptr());
+                let res = loop_spill::spill_var(
+                    largest_vars,
+                    spill_block,
+                    start_index,
+                    header.clone(),
+                    first_inner.clone(),
+                    first_after.clone(),
+                );
+
                 todo!("Spill in Loop")
             }
         }
