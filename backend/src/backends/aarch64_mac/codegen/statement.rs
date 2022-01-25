@@ -64,7 +64,6 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                         addr_reg, addr_reg, var.name
                     )));
 
-                    dbg!(&gp);
                     match var.ty {
                         ir::Type::Pointer(_)
                         | ir::Type::U64

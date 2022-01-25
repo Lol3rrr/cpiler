@@ -16,6 +16,7 @@ impl SpillResult {
             Self::Linear(res) => res.var.next_gen(),
             Self::Conditional(cond) => match cond {
                 conditional_spill::SpillResult::OuterVariable { var } => var.next_gen(),
+                conditional_spill::SpillResult::InnerVariable { var } => var.next_gen(),
             },
             Self::Loop(cond) => match cond {
                 loop_spill::SpillResult::Outer { var } => var.next_gen(),
@@ -40,6 +41,8 @@ pub enum SpillContext {
         header: ir::BasicBlock,
         end: ir::BasicBlock,
         current_start: ir::BasicBlock,
+        /// The last block in the current Conditional Section
+        current_end: ir::BasicBlock,
         other_start: Option<ir::BasicBlock>,
     },
     Loop {
@@ -97,16 +100,11 @@ impl SpillContext {
                 let mut header = block.clone();
 
                 let mut visited = HashSet::new();
-                let mut to_visit: Vec<_> = block
-                    .get_predecessors()
-                    .into_iter()
-                    .filter_map(|pred| pred.upgrade())
-                    .collect();
-                while let Some(pred) = to_visit.pop() {
+                let pred_iter = block.predecessor_iter().skip(1);
+
+                for pred in pred_iter {
                     let pred_ptr = pred.as_ptr();
-                    if visited.contains(&pred_ptr) {
-                        continue;
-                    }
+                    visited.insert(pred_ptr);
 
                     if pred_ptr == current_ptr {
                         let mut h_succs: Vec<_> =
@@ -128,18 +126,10 @@ impl SpillContext {
                         };
                     }
 
-                    visited.insert(pred_ptr);
-
                     if pred.successors().len() == 2 {
                         header = pred;
                         continue;
                     }
-
-                    to_visit.extend(
-                        pred.get_predecessors()
-                            .into_iter()
-                            .filter_map(|p| p.upgrade()),
-                    );
                 }
 
                 let mut succs: Vec<_> = header.successors().into_iter().map(|(_, b)| b).collect();
@@ -165,10 +155,30 @@ impl SpillContext {
                     (second, other)
                 };
 
+                let mut end_preds: Vec<_> = block
+                    .get_predecessors()
+                    .into_iter()
+                    .map(|p| p.upgrade().unwrap())
+                    .collect();
+
+                let first_preds: HashSet<_> = end_preds
+                    .get(0)
+                    .unwrap()
+                    .predecessor_iter()
+                    .map(|b| b.as_ptr())
+                    .collect();
+
+                let current_end = if first_preds.contains(&current_start.as_ptr()) {
+                    end_preds.remove(0)
+                } else {
+                    end_preds.remove(1)
+                };
+
                 return Self::Conditional {
                     header,
                     end: block,
                     current_start,
+                    current_end,
                     other_start,
                 };
             }
@@ -191,6 +201,7 @@ impl SpillContext {
                 end,
                 other_start,
                 current_start,
+                current_end,
             } => {
                 let res = conditional_spill::spill_var(
                     &largest_vars,

@@ -7,6 +7,12 @@ pub enum SpillResult {
         /// The Variable to spill
         var: ir::Variable,
     },
+    /// The Variable to spill is used or created in the Conditional itself, so we need to take
+    /// extra care when loading it again afterwards
+    InnerVariable {
+        /// The Variable to spill
+        var: ir::Variable,
+    },
 }
 
 fn inner_used(start: ir::BasicBlock, end: &ir::BasicBlock) -> HashSet<ir::Variable> {

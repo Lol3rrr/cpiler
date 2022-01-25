@@ -40,6 +40,7 @@ pub fn spill_variable(
             header,
             end,
             current_start,
+            current_end,
             other_start,
         } => {
             let cond_spill_res = match spill_var {
@@ -58,6 +59,9 @@ pub fn spill_variable(
                         replacement.clone(),
                     );
                     (1, var, replacement)
+                }
+                conditional_spill::SpillResult::InnerVariable { var } => {
+                    todo!("Spill Inner Conditional Variable")
                 }
             };
 

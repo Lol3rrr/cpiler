@@ -22,8 +22,6 @@ fn write_var(
     ctx: &Context,
     instr: &mut Vec<asm::Instruction>,
 ) {
-    dbg!(&addr, &value);
-
     let raw_reg = ctx.registers.get_reg(&addr).unwrap();
     let base_reg = match raw_reg {
         asm::Register::GeneralPurpose(asm::GPRegister::DWord(n)) => asm::GPRegister::DWord(n),
@@ -32,7 +30,6 @@ fn write_var(
             todo!()
         }
     };
-    dbg!(&base_reg);
 
     match value {
         ir::Value::Constant(con) => match con {

@@ -24,6 +24,9 @@ pub use iter::BlockIter;
 mod linear;
 pub use linear::LinearIter;
 
+mod pred_iter;
+pub use pred_iter::PredecessorIterator;
+
 /// A Basic-Block contains a linear series of Statements that will be executed one after another.
 ///
 /// A Block can have any number of predecessors and can have any number of following Blocks that
@@ -138,6 +141,10 @@ impl BasicBlock {
     pub fn get_predecessors(&self) -> Vec<WeakBlockPtr> {
         let tmp = self.0.predecessor.read().unwrap();
         tmp.clone()
+    }
+    /// Returns an iterator over all the Predecessors starting from the current Block
+    pub fn predecessor_iter(&self) -> PredecessorIterator {
+        PredecessorIterator::new(self.clone())
     }
 
     /// Adds a new Predecessor to this Block
