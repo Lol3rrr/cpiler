@@ -1,5 +1,5 @@
 use general::SpanData;
-use ir::BasicBlock;
+use ir::{BasicBlock, BlockBuilder};
 use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
@@ -454,7 +454,9 @@ impl AStatement {
     pub fn to_ir(self, block: &mut BasicBlock, ctx: &ConvertContext) {
         match self {
             Self::SubScope { inner } => {
-                let sub_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                let sub_block = BlockBuilder::new(vec![block.weak_ptr()], vec![])
+                    .description("Sub-Scope")
+                    .build();
                 block.add_statement(ir::Statement::Jump(sub_block.clone()));
 
                 let end_sub_block = inner.to_ir(&sub_block, ctx);
@@ -711,10 +713,14 @@ impl AStatement {
                 block.add_statement(cond_statement);
 
                 // The final resulting Block we reach after the If-Statement is complete
-                let end_block = BasicBlock::new(vec![], vec![]);
+                let end_block = BlockBuilder::new(vec![], vec![])
+                    .description("Conditional After Block")
+                    .build();
 
                 // The Block for the inner Scope of the If-Statement if true
-                let true_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                let true_block = BlockBuilder::new(vec![block.weak_ptr()], vec![])
+                    .description("Conditional True Block")
+                    .build();
                 let end_true_body = body.to_ir(&true_block, ctx);
                 end_true_body.add_statement(ir::Statement::Jump(end_block.clone()));
                 end_block.add_predecessor(end_true_body.weak_ptr());
@@ -722,7 +728,9 @@ impl AStatement {
                 block.add_statement(ir::Statement::JumpTrue(cond_var, true_block));
 
                 if let Some(else_) = else_ {
-                    let false_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
+                    let false_block = BlockBuilder::new(vec![block.weak_ptr()], vec![])
+                        .description("Conditional False Block")
+                        .build();
                     let end_false_block = else_.to_ir(&false_block, ctx);
                     end_false_block.add_statement(ir::Statement::Jump(end_block.clone()));
                     block.add_statement(ir::Statement::Jump(end_false_block.clone()));

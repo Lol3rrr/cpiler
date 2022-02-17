@@ -1,0 +1,15 @@
+[package]
+name = "register_allocation"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+general = { path = "../general" }
+ir = { path = "../ir" }
+
+[dev-dependencies]
+tokenizer = { path = "../tokenizer" }
+syntax = { path = "../syntax" }
+semantic = { path = "../semantic" }

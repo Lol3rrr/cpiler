@@ -10,4 +10,8 @@ pub struct InnerBlock {
     pub(crate) predecessor: RwLock<Vec<WeakBlockPtr>>,
     /// The actual Statements in this Block
     pub(crate) parts: RwLock<Vec<Statement>>,
+
+    /// An optional Description of the Block or its purpose to help in debugging and other
+    /// tasks
+    pub(crate) description: Option<String>,
 }

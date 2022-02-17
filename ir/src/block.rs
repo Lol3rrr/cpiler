@@ -27,6 +27,9 @@ pub use linear::LinearIter;
 mod pred_iter;
 pub use pred_iter::PredecessorIterator;
 
+mod builder;
+pub use builder::BlockBuilder;
+
 /// A Basic-Block contains a linear series of Statements that will be executed one after another.
 ///
 /// A Block can have any number of predecessors and can have any number of following Blocks that
@@ -86,8 +89,6 @@ impl CompareGraph for BasicBlock {
         }
 
         for (own_s, other_s) in s_vec.iter().zip(o_vec.iter()) {
-            dbg!(&own_s, &other_s);
-
             if !own_s.compare(other_s, blocks, current_block + 1) {
                 return false;
             }
@@ -115,6 +116,7 @@ impl BasicBlock {
         Self(Arc::new(InnerBlock {
             predecessor: RwLock::new(predecessors),
             parts: RwLock::new(parts),
+            description: None,
         }))
     }
 
