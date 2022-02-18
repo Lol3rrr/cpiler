@@ -128,19 +128,40 @@ pub fn replace(
             }
 
             // 2.
-            let common_statements = end.get_statements();
-            let phi_statement = common_statements.iter().enumerate().find(|(_, s)| match s {
-                ir::Statement::Assignment {
-                    target,
-                    value: ir::Value::Phi { .. },
-                } => target.name == n_var.name,
-                _ => false,
-            });
+            let mut common_statements = end.get_statements();
+            let phi_statement = common_statements
+                .iter()
+                .enumerate()
+                .find_map(|(i, s)| match s {
+                    ir::Statement::Assignment {
+                        target,
+                        value: ir::Value::Phi { sources },
+                    } if target.name == previous.name => Some((i, (target, sources))),
+                    _ => None,
+                });
 
             match phi_statement {
                 // 2a
-                Some((index, stmnt)) => {
-                    todo!("Update Phi Statement")
+                Some((index, (target, sources))) => {
+                    let target = target.clone();
+                    let sources = sources.clone();
+                    let phi_statement = common_statements.get_mut(index).unwrap();
+
+                    *phi_statement = ir::Statement::Assignment {
+                        target: target.clone(),
+                        value: ir::Value::Phi {
+                            sources: sources
+                                .into_iter()
+                                .map(|mut s| {
+                                    if s.var.name == previous.name {
+                                        s.var = n_var.clone();
+                                    }
+                                    s.clone()
+                                })
+                                .collect(),
+                        },
+                    };
+                    end.set_statements(common_statements);
                 }
                 // 2b
                 None => {

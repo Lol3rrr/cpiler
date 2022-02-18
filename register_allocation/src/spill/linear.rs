@@ -25,7 +25,6 @@ fn insert_load(start_block: ir::BasicBlock, var: ir::Variable) {
                 },
             );
             block.set_statements(statements);
-            dbg!(&block);
 
             return;
         }
@@ -54,11 +53,60 @@ fn insert_load(start_block: ir::BasicBlock, var: ir::Variable) {
                 },
             );
         }
-        None => {
-            todo!()
-        }
+        None => {}
     };
     last_block.set_statements(statements);
+}
+
+fn insert_save(
+    start_block: &ir::BasicBlock,
+    spill: &linear_spill::SpillResult,
+) -> Option<ir::Statement> {
+    if spill.save_index == 0 {
+        let initial_statements = start_block.get_statements();
+        let spilled_stmnt = initial_statements.get(spill.save_index).unwrap();
+
+        match spilled_stmnt {
+            ir::Statement::Assignment {
+                value: ir::Value::Phi { sources },
+                ..
+            } => {
+                for src in sources {
+                    let src_block = src.block.upgrade().unwrap();
+
+                    let mut src_statements =
+                        src_block.get_statements().into_iter().enumerate().rev();
+                    let (index, _) = src_statements
+                        .find(|(_, stmnt)| match stmnt {
+                            ir::Statement::Jump(j_target) => {
+                                j_target.as_ptr() == start_block.as_ptr()
+                            }
+                            ir::Statement::JumpTrue(_, j_target) => {
+                                j_target.as_ptr() == start_block.as_ptr()
+                            }
+                            _ => false,
+                        })
+                        .unwrap();
+
+                    let mut stmnts = src_block.get_statements();
+                    stmnts.insert(
+                        index,
+                        ir::Statement::SaveVariable {
+                            var: spill.var.clone(),
+                        },
+                    );
+                    src_block.set_statements(stmnts);
+                }
+
+                return None;
+            }
+            _ => {}
+        };
+    }
+
+    Some(ir::Statement::SaveVariable {
+        var: spill.var.clone(),
+    })
 }
 
 pub fn spill(
@@ -68,11 +116,10 @@ pub fn spill(
 ) {
     let initial_statements = start_block.get_statements();
     let mut initial_iter = initial_statements.into_iter();
-
     let mut resulting: Vec<_> = initial_iter.by_ref().take(spill.save_index).collect();
-    resulting.push(ir::Statement::SaveVariable {
-        var: spill.var.clone(),
-    });
+    if let Some(save_stmnt) = insert_save(&start_block, &spill) {
+        resulting.push(save_stmnt);
+    }
     resulting.extend(
         initial_iter.map(|s| replace::statement(s, &spill.var, &replacement, &spill.load_block)),
     );
@@ -87,30 +134,5 @@ pub fn spill(
         );
     }
 
-    dbg!(
-        &spill.var,
-        &spill.save_index,
-        &spill.load_block,
-        &spill.load_index
-    );
-
-    /*
-    let load_index = if spill.load_block.as_ptr() == start_block.as_ptr() {
-        spill.load_index + 1
-    } else {
-        spill.load_index
-    };
-    let mut load_stmnts = spill.load_block.get_statements();
-    load_stmnts.insert(
-        load_index,
-        ir::Statement::Assignment {
-            target: replacement,
-            value: ir::Value::Unknown,
-        },
-    );
-    spill.load_block.set_statements(load_stmnts);
-    */
-
-    //todo!();
     insert_load(spill.load_block, replacement);
 }

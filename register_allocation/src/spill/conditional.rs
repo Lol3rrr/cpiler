@@ -44,7 +44,8 @@ pub fn spill_inner(
     replacement: ir::Variable,
 ) {
     let mut save_statements = save_block.get_statements();
-    save_statements.insert(save_index, spill::save_statement(variable));
+    let save_var_statement = spill::save_statement(variable);
+    save_statements.insert(save_index, save_var_statement);
     save_block.set_statements(save_statements);
 
     let mut load_statements = load_block.get_statements();

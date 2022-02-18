@@ -26,7 +26,7 @@ pub fn spill_variable(
     let replacement = spill_var.replacement();
 
     match spill_ctx {
-        SpillContext::Linear { start, end } => {
+        SpillContext::Linear { start, end: _end } => {
             let spill_res = match spill_var {
                 SpillResult::Linear(res) => res,
                 other => {
@@ -69,7 +69,9 @@ pub fn spill_variable(
                         start_block.as_ptr(),
                         load_block.as_ptr(),
                         start_index,
-                        load_index
+                        load_index,
+                        &var,
+                        &replacement,
                     );
                     conditional::spill_inner(
                         start_block.clone(),
@@ -80,7 +82,7 @@ pub fn spill_variable(
                         replacement.clone(),
                     );
 
-                    (start_block, start_index, var, replacement, load_block)
+                    (load_block.clone(), load_index, var, replacement, load_block)
                 }
             };
 

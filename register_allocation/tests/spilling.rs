@@ -399,13 +399,20 @@ int main() {
 
         let z0 = ir::Variable::new("z_9670610037870495622", ir::Type::I32);
         let w0 = ir::Variable::new("w_9876566019052790868", ir::Type::I32);
+        let x0 = ir::Variable::new("x_12136962903682547977", ir::Type::I32);
         let t0 = ir::Variable::tmp(0, ir::Type::I64);
         let t1 = ir::Variable::tmp(1, ir::Type::I64);
-        let z1 = z0.next_gen();
         let t2 = ir::Variable::tmp(2, ir::Type::I64);
-        let w1 = w0.next_gen();
+        let z1 = z0.next_gen();
         let t3 = ir::Variable::tmp(3, ir::Type::I64);
+        let w1 = w0.next_gen();
+        let t4 = ir::Variable::tmp(4, ir::Type::I64);
         let w2 = w1.next_gen();
+        let z2 = z1.next_gen();
+        let w3 = w2.next_gen();
+        let t5 = ir::Variable::tmp(5, ir::Type::I32);
+        let x1 = x0.next_gen();
+        let t6 = ir::Variable::tmp(6, ir::Type::I32);
 
         let expected_ir_block1 = ir::BasicBlock::new(vec![ir.global.weak_ptr()], vec![]);
 
@@ -429,35 +436,50 @@ int main() {
                 },
                 ir::Statement::SaveVariable { var: w0.clone() },
                 ir::Statement::Assignment {
+                    target: x0.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Constant(ir::Constant::I64(0)),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: x0.clone() },
+                ir::Statement::Assignment {
                     target: t0.clone(),
-                    value: ir::Value::Constant(ir::Constant::I64(0)),
+                    value: ir::Value::Constant(ir::Constant::I64(1)),
                 },
             ],
         );
         expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block2.clone()));
 
         // True Block
-        let expected_ir_block3 = ir::BasicBlock::new(
+        let expected_ir_block_true = ir::BasicBlock::new(
             vec![expected_ir_block2.weak_ptr()],
             vec![
                 ir::Statement::Assignment {
                     target: t1.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Variable(z0.clone()),
+                        target: ir::Type::I64,
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: t2.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                        left: ir::Operand::Constant(ir::Constant::I64(2)),
+                        left: ir::Operand::Variable(t1),
                         right: ir::Operand::Constant(ir::Constant::I64(6)),
                     }),
                 },
                 ir::Statement::Assignment {
                     target: z1.clone(),
                     value: ir::Value::Expression(ir::Expression::Cast {
-                        base: ir::Operand::Variable(t1),
+                        base: ir::Operand::Variable(t2),
                         target: ir::Type::I32,
                     }),
                 },
                 ir::Statement::SaveVariable { var: z1.clone() },
                 ir::Statement::Assignment {
-                    target: t2.clone(),
+                    target: t3.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Constant(ir::Constant::I64(3)),
@@ -467,21 +489,23 @@ int main() {
                 ir::Statement::Assignment {
                     target: w1.clone(),
                     value: ir::Value::Expression(ir::Expression::Cast {
-                        base: ir::Operand::Variable(t2),
+                        base: ir::Operand::Variable(t3),
                         target: ir::Type::I32,
                     }),
                 },
                 ir::Statement::SaveVariable { var: w1.clone() },
+                ir::Statement::SaveVariable { var: x0.clone() },
             ],
         );
-        expected_ir_block2.add_statement(ir::Statement::JumpTrue(t0, expected_ir_block3.clone()));
+        expected_ir_block2
+            .add_statement(ir::Statement::JumpTrue(t0, expected_ir_block_true.clone()));
 
         // False Block
         let expected_ir_block4 = ir::BasicBlock::new(
             vec![expected_ir_block2.weak_ptr()],
             vec![
                 ir::Statement::Assignment {
-                    target: t3.clone(),
+                    target: t4.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Constant(ir::Constant::I64(2)),
@@ -491,21 +515,77 @@ int main() {
                 ir::Statement::Assignment {
                     target: w2.clone(),
                     value: ir::Value::Expression(ir::Expression::Cast {
-                        base: ir::Operand::Variable(t3),
+                        base: ir::Operand::Variable(t4),
                         target: ir::Type::I32,
                     }),
                 },
                 ir::Statement::SaveVariable { var: w2.clone() },
+                ir::Statement::SaveVariable { var: x0.clone() },
             ],
         );
         expected_ir_block2.add_statement(ir::Statement::Jump(expected_ir_block4.clone()));
 
         // After Block
         let expected_ir_block5 = ir::BasicBlock::new(
-            vec![expected_ir_block3.weak_ptr(), expected_ir_block4.weak_ptr()],
-            vec![],
+            vec![
+                expected_ir_block_true.weak_ptr(),
+                expected_ir_block4.weak_ptr(),
+            ],
+            vec![
+                ir::Statement::Assignment {
+                    target: z2.clone(),
+                    value: ir::Value::Phi {
+                        sources: vec![
+                            ir::PhiEntry {
+                                var: z1.clone(),
+                                block: expected_ir_block_true.weak_ptr(),
+                            },
+                            ir::PhiEntry {
+                                var: z0.clone(),
+                                block: expected_ir_block4.weak_ptr(),
+                            },
+                        ],
+                    },
+                },
+                ir::Statement::Assignment {
+                    target: w3.clone(),
+                    value: ir::Value::Phi {
+                        sources: vec![
+                            ir::PhiEntry {
+                                var: w1.clone(),
+                                block: expected_ir_block_true.weak_ptr(),
+                            },
+                            ir::PhiEntry {
+                                var: w2.clone(),
+                                block: expected_ir_block4.weak_ptr(),
+                            },
+                        ],
+                    },
+                },
+                ir::Statement::Assignment {
+                    target: t5.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(z2.clone()),
+                        right: ir::Operand::Variable(w3.clone()),
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: x1.clone(),
+                    value: ir::Value::Unknown,
+                },
+                ir::Statement::Assignment {
+                    target: t6.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(t5),
+                        right: ir::Operand::Variable(x1.clone()),
+                    }),
+                },
+                ir::Statement::Return(Some(t6)),
+            ],
         );
-        expected_ir_block3.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
+        expected_ir_block_true.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
         expected_ir_block4.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
 
         let expected_ir_func = ir::FunctionDefinition {
@@ -564,7 +644,241 @@ int main() {
 
         dbg!(&main_func);
 
-        // TODO
+        let z0 = ir::Variable::new("z_9670610037870495622", ir::Type::I32);
+        let w0 = ir::Variable::new("w_9876566019052790868", ir::Type::I32);
+        let tmp0 = ir::Variable::tmp(0, ir::Type::I64);
+        let i1_0 = ir::Variable::new("i1_3138623224651233625", ir::Type::I32);
+        let i2_0 = ir::Variable::new("i2_11341589265771357896", ir::Type::I32);
+        let tmp1 = ir::Variable::tmp(1, ir::Type::I64);
+        let tmp2 = ir::Variable::tmp(2, ir::Type::I64);
+        let z1 = z0.next_gen();
+        let w1 = w0.next_gen();
+        let tmp3 = ir::Variable::tmp(3, ir::Type::I32);
+        let tmp4 = ir::Variable::tmp(4, ir::Type::I32);
+        let t1 = ir::Variable::new("t1_2388632724981900555", ir::Type::I32);
+        let w2 = w1.next_gen();
+        let w3 = w2.next_gen();
+        let w4 = w3.next_gen();
+        let tmp5 = ir::Variable::tmp(5, ir::Type::I64);
+        let z2 = z1.next_gen();
+        let z3 = z2.next_gen();
+        let tmp6 = ir::Variable::tmp(6, ir::Type::I32);
+
+        let expected_ir_block_start = ir::BasicBlock::new(vec![ir.global.weak_ptr()], vec![]);
+
+        let expected_ir_block1 = ir::BasicBlock::new(
+            vec![expected_ir_block_start.weak_ptr()],
+            vec![
+                ir::Statement::Assignment {
+                    target: z0.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Constant(ir::Constant::I64(0)),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: z0.clone() },
+                ir::Statement::Assignment {
+                    target: w0.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Constant(ir::Constant::I64(0)),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: w0.clone() },
+                ir::Statement::Assignment {
+                    target: tmp0.clone(),
+                    value: ir::Value::Constant(ir::Constant::I64(1)),
+                },
+                ir::Statement::SaveVariable { var: z0.clone() },
+                // JumpTrue tmp0
+                // Jump
+            ],
+        );
+        expected_ir_block_start.add_statement(ir::Statement::Jump(expected_ir_block1.clone()));
+
+        let expected_ir_block_true = ir::BasicBlock::new(
+            vec![expected_ir_block1.weak_ptr()],
+            vec![
+                ir::Statement::Assignment {
+                    target: i1_0.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Constant(ir::Constant::I64(13)),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: i1_0.clone() },
+                ir::Statement::Assignment {
+                    target: i2_0.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Constant(ir::Constant::I64(23)),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: i2_0.clone() },
+                ir::Statement::Assignment {
+                    target: tmp1.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Variable(i1_0.clone()),
+                        target: ir::Type::I64,
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: tmp2.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(tmp1),
+                        right: ir::Operand::Constant(ir::Constant::I64(6)),
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: z1.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Variable(tmp2),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: z1.clone() },
+                ir::Statement::Assignment {
+                    target: w1.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(i2_0.clone()),
+                        right: ir::Operand::Variable(i1_0.clone()),
+                    }),
+                },
+                ir::Statement::SaveVariable { var: w1.clone() },
+                ir::Statement::Assignment {
+                    target: tmp3.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(z1.clone()),
+                        right: ir::Operand::Variable(w1.clone()),
+                    }),
+                },
+                ir::Statement::SaveVariable { var: w1.clone() },
+                ir::Statement::Assignment {
+                    target: tmp4.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(tmp3),
+                        right: ir::Operand::Variable(i1_0.clone()),
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: t1.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(tmp4),
+                        right: ir::Operand::Variable(i2_0.clone()),
+                    }),
+                },
+                ir::Statement::SaveVariable { var: t1.clone() },
+                ir::Statement::Assignment {
+                    target: w4.clone(),
+                    value: ir::Value::Unknown,
+                },
+                // Jump to After-Block
+            ],
+        );
+        expected_ir_block1.add_statement(ir::Statement::JumpTrue(
+            tmp0,
+            expected_ir_block_true.clone(),
+        ));
+
+        let expected_ir_block_false = ir::BasicBlock::new(
+            vec![expected_ir_block1.weak_ptr()],
+            vec![
+                ir::Statement::Assignment {
+                    target: tmp5.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Constant(ir::Constant::I64(2)),
+                        right: ir::Operand::Constant(ir::Constant::I64(5)),
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: w2.clone(),
+                    value: ir::Value::Expression(ir::Expression::Cast {
+                        base: ir::Operand::Variable(tmp5),
+                        target: ir::Type::I32,
+                    }),
+                },
+                ir::Statement::SaveVariable { var: w2.clone() },
+                // Jump to After-Block
+            ],
+        );
+        expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block_false.clone()));
+
+        let expected_ir_block_after = ir::BasicBlock::new(
+            vec![
+                expected_ir_block_true.weak_ptr(),
+                expected_ir_block_false.weak_ptr(),
+            ],
+            vec![],
+        );
+        expected_ir_block_after.set_statements(vec![
+            // TODO
+            // This Part is not handled correctly as this load and Phi Node is not correct because
+            // the z3 should instead be in the false block and then the Phi Node would be working
+            // as normal
+            ir::Statement::Assignment {
+                target: z3.clone(),
+                value: ir::Value::Unknown,
+            },
+            ir::Statement::Assignment {
+                target: z2.clone(),
+                value: ir::Value::Phi {
+                    sources: vec![
+                        ir::PhiEntry {
+                            var: z1.clone(),
+                            block: expected_ir_block_true.weak_ptr(),
+                        },
+                        ir::PhiEntry {
+                            var: z3.clone(),
+                            block: expected_ir_block_after.weak_ptr(),
+                        },
+                    ],
+                },
+            },
+            // TODO
+            // This is also not correct because w4 actually does not exist in the False Block and
+            // therefore also cant be loaded from it
+            ir::Statement::Assignment {
+                target: w3.clone(),
+                value: ir::Value::Phi {
+                    sources: vec![
+                        ir::PhiEntry {
+                            var: w4.clone(),
+                            block: expected_ir_block_true.weak_ptr(),
+                        },
+                        ir::PhiEntry {
+                            var: w4.clone(),
+                            block: expected_ir_block_false.weak_ptr(),
+                        },
+                    ],
+                },
+            },
+            ir::Statement::Assignment {
+                target: tmp6.clone(),
+                value: ir::Value::Expression(ir::Expression::BinaryOp {
+                    op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                    left: ir::Operand::Variable(z2.clone()),
+                    right: ir::Operand::Variable(w3.clone()),
+                }),
+            },
+            ir::Statement::Return(Some(tmp6)),
+        ]);
+        expected_ir_block_true.add_statement(ir::Statement::Jump(expected_ir_block_after.clone()));
+        expected_ir_block_false.add_statement(ir::Statement::Jump(expected_ir_block_after.clone()));
+
+        let expected_ir_func = ir::FunctionDefinition {
+            name: "main".to_string(),
+            arguments: Vec::new(),
+            return_ty: ir::Type::I32,
+            block: expected_ir_block_start,
+        };
+
+        assert_eq!(expected_ir_func, main_func);
     }
 }
 

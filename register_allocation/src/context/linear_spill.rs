@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use ir::Variable;
 
@@ -19,11 +19,11 @@ fn get_offsets<SI>(
     statements: SI,
     start_offset: usize,
     unknown: &mut HashSet<ir::Variable>,
-) -> (usize, HashMap<ir::Variable, VarDistance>)
+) -> (usize, BTreeMap<ir::Variable, VarDistance>)
 where
     SI: Iterator<Item = ir::Statement>,
 {
-    let mut offsets = HashMap::new();
+    let mut offsets = BTreeMap::new();
     let mut count = 0;
     let iter = statements
         .enumerate()
@@ -114,6 +114,31 @@ fn calc_var_offsets(
         }
 
         todo!("Offset for linear Section with 2 Successors");
+    }
+
+    let b_statements = block.get_statements();
+    let mut unknown_offset = b_statements.len();
+    if let Some(last_stmnt) = b_statements.last() {
+        match last_stmnt {
+            ir::Statement::Jump(_) => {
+                unknown_offset -= 1;
+            }
+            _ => {}
+        };
+    }
+
+    for unknown in unknowns {
+        dbg!(&unknown);
+        offsets.insert(
+            unknown,
+            (
+                VarDistance {
+                    total: distance + unknown_offset,
+                    in_block: unknown_offset,
+                },
+                block.clone(),
+            ),
+        );
     }
 
     offsets

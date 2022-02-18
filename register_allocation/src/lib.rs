@@ -109,9 +109,9 @@ where
 
             spill_count += 1;
 
-            if spill_count > 5 {
+            if spill_count > 2 {
                 dbg!(&largest_block);
-                panic!("Spilled more than five times in a single Function");
+                panic!("Spilled more than 2 times in a single Function");
             }
         };
 
