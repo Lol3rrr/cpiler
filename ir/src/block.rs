@@ -459,20 +459,6 @@ impl BasicBlock {
         let statements = self.get_statements();
 
         for (index, stmnt) in statements.into_iter().enumerate() {
-            match &stmnt {
-                Statement::Assignment { target, .. } => {
-                    let target_node = NodeId::new(target.clone());
-                    graph.add_node(target_node.clone());
-
-                    for live in live_vars.iter() {
-                        graph.add_edge(target_node.clone(), NodeId::new(live.clone()));
-                    }
-
-                    live_vars.insert(target.clone());
-                }
-                _ => {}
-            };
-
             update(live_vars, self, index);
 
             let tmp_used = stmnt.used_vars();
@@ -494,6 +480,20 @@ impl BasicBlock {
                     }
                 };
             }
+
+            match &stmnt {
+                Statement::Assignment { target, .. } => {
+                    let target_node = NodeId::new(target.clone());
+                    graph.add_node(target_node.clone());
+
+                    for live in live_vars.iter() {
+                        graph.add_edge(target_node.clone(), NodeId::new(live.clone()));
+                    }
+
+                    live_vars.insert(target.clone());
+                }
+                _ => {}
+            };
         }
 
         let succs: HashMap<_, _> = self

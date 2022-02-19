@@ -21,7 +21,6 @@ impl register_allocation::Register for TestRegister {
 }
 
 mod linear {
-
     use register_allocation::RegisterMapping;
 
     use super::*;
@@ -68,14 +67,14 @@ int main() {
     }
 
     #[test]
-    fn spill() {
+    fn spill_simple() {
         let test_program = "
 int main() {
     int x = 0;
     int y = 3;
     int z = x + y;
     int w = x + y;
-    return x + z;
+    return x + z + w + y;
 }
         ";
         let test_source = general::Source::new("test", test_program);
@@ -108,7 +107,10 @@ int main() {
         let z0 = ir::Variable::new("z_11118331272375206556", ir::Type::I32);
         let w0 = ir::Variable::new("w_13930978485168054992", ir::Type::I32);
         let z1 = z0.next_gen();
-        let t0 = ir::Variable::tmp(0, ir::Type::I32);
+        let tmp0 = ir::Variable::tmp(0, ir::Type::I32);
+        let tmp1 = ir::Variable::tmp(1, ir::Type::I32);
+        let y1 = y0.next_gen();
+        let tmp2 = ir::Variable::tmp(2, ir::Type::I32);
 
         let expected_ir_block2 = ir::BasicBlock::new(
             vec![expected_ir_block1.weak_ptr()],
@@ -138,7 +140,7 @@ int main() {
                     }),
                 },
                 ir::Statement::SaveVariable { var: z0.clone() },
-                ir::Statement::SaveVariable { var: z0.clone() },
+                ir::Statement::SaveVariable { var: y0.clone() },
                 ir::Statement::Assignment {
                     target: w0.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
@@ -149,18 +151,34 @@ int main() {
                 },
                 ir::Statement::SaveVariable { var: w0.clone() },
                 ir::Statement::Assignment {
-                    target: z1.clone(),
-                    value: ir::Value::Unknown,
-                },
-                ir::Statement::Assignment {
-                    target: t0.clone(),
+                    target: tmp0.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Variable(x0.clone()),
-                        right: ir::Operand::Variable(z1.clone()),
+                        right: ir::Operand::Variable(z0.clone()),
                     }),
                 },
-                ir::Statement::Return(Some(t0.clone())),
+                ir::Statement::Assignment {
+                    target: tmp1.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(tmp0),
+                        right: ir::Operand::Variable(w0.clone()),
+                    }),
+                },
+                ir::Statement::Assignment {
+                    target: y1.clone(),
+                    value: ir::Value::Unknown,
+                },
+                ir::Statement::Assignment {
+                    target: tmp2.clone(),
+                    value: ir::Value::Expression(ir::Expression::BinaryOp {
+                        op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
+                        left: ir::Operand::Variable(tmp1),
+                        right: ir::Operand::Variable(y1.clone()),
+                    }),
+                },
+                ir::Statement::Return(Some(tmp2)),
             ],
         );
         expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block2));

@@ -9,6 +9,7 @@ use std::{
 mod context;
 mod determine_spill;
 mod spill;
+mod spilling;
 
 /// The Types of Registers that can be allocated
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -56,6 +57,12 @@ where
 {
     /// Actually performs the Register allocation
     pub fn allocate(func: &ir::FunctionDefinition, registers: &[R]) -> Self {
+        // TODO
+        // Instead of registers.len() we should calculate the correct Number of available
+        // registers
+        spilling::spill(func.block.clone(), registers.len());
+
+        /*
         let mut spill_count = 0;
         let interference_graph = loop {
             let mut interference_graph = ir::DefaultInterferenceGraph::new();
@@ -114,6 +121,10 @@ where
                 panic!("Spilled more than 2 times in a single Function");
             }
         };
+        */
+
+        let mut interference_graph = ir::DefaultInterferenceGraph::new();
+        func.interference_graph(&mut interference_graph, |_, _, _| {});
 
         let dominance_tree = func.dominance_tree();
 
@@ -127,6 +138,8 @@ where
                 .cloned()
                 .filter_map(|n| coloring.get(n.var()).cloned())
                 .collect();
+
+            dbg!(used_colors.len());
 
             let mut avail_colors = registers
                 .iter()
