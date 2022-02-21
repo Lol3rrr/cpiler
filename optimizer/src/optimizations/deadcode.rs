@@ -75,7 +75,7 @@ impl DeadCode {
                         used_vars.decrement(&u);
                     });
                 }
-                ir::Statement::JumpTrue(var, _) if const_vars.contains_key(var) => {
+                ir::Statement::JumpTrue(var, _, _) if const_vars.contains_key(var) => {
                     let const_val = const_vars.get(var).unwrap();
 
                     let cond_res = !matches!(

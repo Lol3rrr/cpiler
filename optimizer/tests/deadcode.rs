@@ -41,7 +41,10 @@ void test() {
             },
         ],
     );
-    expected_func_start.add_statement(Statement::Jump(expected_func_first.clone()));
+    expected_func_start.add_statement(Statement::Jump(
+        expected_func_first.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let expected_missing_block = BasicBlock::new(
         vec![expected_func_first.weak_ptr()],
@@ -69,7 +72,10 @@ void test() {
             },
         ],
     );
-    expected_func_first.add_statement(Statement::Jump(expected_func_second));
+    expected_func_first.add_statement(Statement::Jump(
+        expected_func_second,
+        ir::JumpMetadata::Linear,
+    ));
 
     let expected = FunctionDefinition {
         name: "test".to_string(),
