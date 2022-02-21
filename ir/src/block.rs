@@ -201,9 +201,6 @@ impl BasicBlock {
         })
     }
 
-    // TODO
-    // This currently causes a StackOverflow in certain Cases so this should probably be turned
-    // into an iterative approach however im not quite sure on how to do that
     /// Finds the Definition for the given Variable Name in this block any of its Predecessors
     /// using a recursive look-up.
     /// Returns the Variable where it was defined, if there is only one definition or creates a new

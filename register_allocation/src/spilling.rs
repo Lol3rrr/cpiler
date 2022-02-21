@@ -1,6 +1,6 @@
 //! This is based on this Paper https://link.springer.com/content/pdf/10.1007%252F978-3-642-00722-4_13.pdf
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::{load_statement, save_statement};
 
@@ -91,6 +91,91 @@ fn replace_operand(oper: &mut ir::Operand, previous: &ir::Variable, n_var: &ir::
     };
 }
 
+#[derive(Debug)]
+enum PrevDefinition {
+    Single(ir::Variable),
+    Mutliple(Vec<(ir::Variable, ir::BasicBlock)>),
+}
+fn find_previous_definition<SI>(
+    preds: &[ir::WeakBlockPtr],
+    statements: SI,
+    var_name: &str,
+) -> PrevDefinition
+where
+    SI: Iterator<Item = ir::Statement>,
+{
+    dbg!(&preds, &var_name);
+
+    let mut last_def = None;
+    for stmnt in statements {
+        if let ir::Statement::Assignment { target, .. } = stmnt {
+            if target.name == var_name {
+                last_def = Some(target.clone());
+            }
+        }
+    }
+    if let Some(var) = last_def {
+        return PrevDefinition::Single(var);
+    }
+
+    todo!()
+}
+
+fn replace_used_variables(
+    stmnt: &mut ir::Statement,
+    previous: &ir::Variable,
+    n_var: &ir::Variable,
+) {
+    match stmnt {
+        ir::Statement::SaveVariable { var } if var == previous => {
+            *var = n_var.clone();
+        }
+        ir::Statement::SaveVariable { .. } => {}
+        ir::Statement::Assignment { value, .. } => {
+            match value {
+                ir::Value::Expression(exp) => {
+                    match exp {
+                        ir::Expression::BinaryOp { left, right, .. } => {
+                            replace_operand(left, previous, n_var);
+                            replace_operand(right, previous, n_var);
+                        }
+                        other => {
+                            dbg!(other);
+                            todo!()
+                        }
+                    };
+                }
+                ir::Value::Variable(var) if var == previous => {
+                    *var = n_var.clone();
+                }
+                ir::Value::Variable(_) => {}
+                ir::Value::Phi { sources } => {
+                    for src in sources.iter_mut() {
+                        if &src.var == previous {
+                            src.var = n_var.clone();
+                        }
+                    }
+                }
+                ir::Value::Constant(_) => {}
+                ir::Value::Unknown => {}
+            };
+        }
+        ir::Statement::Return(Some(var)) if var == previous => {
+            *var = n_var.clone();
+        }
+        ir::Statement::Return(_) => {}
+        ir::Statement::Jump(_, _) => {}
+        ir::Statement::JumpTrue(var, _, _) if var == previous => {
+            *var = n_var.clone();
+        }
+        ir::Statement::JumpTrue(_, _, _) => {}
+        other => {
+            dbg!(&other);
+            todo!()
+        }
+    };
+}
+
 fn reconstruct_ssa_statements<'s, SI>(statements: SI, previous: &ir::Variable, n_var: &ir::Variable)
 where
     SI: Iterator<Item = &'s mut ir::Statement>,
@@ -119,12 +204,15 @@ where
                         *var = n_var.clone();
                     }
                     ir::Value::Variable(_) => {}
+                    ir::Value::Phi { sources } => {
+                        for src in sources.iter_mut() {
+                            if &src.var == previous {
+                                src.var = n_var.clone();
+                            }
+                        }
+                    }
                     ir::Value::Constant(_) => {}
                     ir::Value::Unknown => {}
-                    other => {
-                        dbg!(&other);
-                        todo!()
-                    }
                 };
             }
             ir::Statement::Return(Some(var)) if var == previous => {
@@ -145,23 +233,42 @@ where
 }
 
 fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Reload>)>) {
-    let reloads = reloads
+    let reloads: Vec<_> = reloads
         .into_iter()
-        .flat_map(|(b, vars)| vars.into_iter().map(move |v| (b.clone(), v)));
+        .flat_map(|(b, vars)| vars.into_iter().map(move |v| (b.clone(), v)))
+        .collect();
+    let reloaded_vars: HashSet<_> = reloads
+        .iter()
+        .map(|(_, r)| r.previous.name.clone())
+        .collect();
 
-    for (r_block, r_reload) in reloads {
-        dbg!(r_block.as_ptr(), &r_reload);
+    for tmp_b in block.block_iter() {
+        let preds = tmp_b.get_predecessors();
+        let search_statements = tmp_b.get_statements();
+        let mut statements = tmp_b.get_statements();
 
-        let mut statements = r_block.get_statements();
-        reconstruct_ssa_statements(
-            statements.iter_mut().skip(r_reload.position + 1),
-            &r_reload.previous,
-            &r_reload.var,
-        );
-        r_block.set_statements(statements);
-
-        let succs = r_block.successors();
-        assert!(succs.is_empty());
+        for (index, stmnt) in statements.iter_mut().enumerate() {
+            let s_vars = stmnt.used_vars();
+            let s_re_vars = s_vars
+                .into_iter()
+                .filter(|v| reloaded_vars.contains(&v.name));
+            for re_var in s_re_vars {
+                let prev_def = find_previous_definition(
+                    &preds,
+                    search_statements.iter().take(index + 1).cloned(),
+                    &re_var.name,
+                );
+                match prev_def {
+                    PrevDefinition::Single(n_var) => {
+                        replace_used_variables(stmnt, &re_var, &n_var);
+                    }
+                    PrevDefinition::Mutliple(vars) => {
+                        todo!()
+                    }
+                };
+            }
+        }
+        tmp_b.set_statements(statements);
     }
 }
 
@@ -284,8 +391,6 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
         );
         reloads.push((current.clone(), tmp_reloads));
 
-        dbg!(current.as_ptr(), &entry_vars, &exit_vars);
-
         result.insert(
             current.as_ptr(),
             BlockSpillingData {
@@ -386,6 +491,7 @@ fn min_algorithm(
         }))
         .collect();
     action_iter.sort_by_key(|(i, _, _)| *i);
+
     for (offset, (index, var, action)) in action_iter.iter().enumerate() {
         match action {
             MinAction::Spill => {
