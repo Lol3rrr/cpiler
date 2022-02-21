@@ -103,69 +103,28 @@ long test() {
     expected.add_node(NodeId::new(var_z1.clone()));
     expected.add_node(NodeId::new(var_tmp1.clone()));
 
-    expected.add_edge(var_x.clone(), var_w2.clone());
     expected.add_edge(var_x.clone(), var_w0.clone());
+    expected.add_edge(var_x.clone(), var_w1.clone());
+    expected.add_edge(var_x.clone(), var_w2.clone());
+    expected.add_edge(var_x.clone(), var_w3.clone());
     expected.add_edge(var_x.clone(), var_y.clone());
     expected.add_edge(var_x.clone(), var_tmp0.clone());
-    expected.add_edge(var_x.clone(), var_tmp1.clone());
     expected.add_edge(var_x.clone(), var_z0.clone());
     expected.add_edge(var_x.clone(), var_z1.clone());
-    expected.add_edge(var_x.clone(), var_w3.clone());
-    expected.add_edge(var_x.clone(), var_w1.clone());
 
-    expected.add_edge(var_y.clone(), var_x.clone());
-    expected.add_edge(var_y.clone(), var_w2.clone());
     expected.add_edge(var_y.clone(), var_w0.clone());
     expected.add_edge(var_y.clone(), var_z0.clone());
-    expected.add_edge(var_y.clone(), var_w1.clone());
-    expected.add_edge(var_y.clone(), var_tmp0.clone());
     expected.add_edge(var_y.clone(), var_z1.clone());
+    expected.add_edge(var_y.clone(), var_w0.clone());
+    expected.add_edge(var_y.clone(), var_tmp0.clone());
 
     expected.add_edge(var_w0.clone(), var_w3.clone());
     expected.add_edge(var_w0.clone(), var_w1.clone());
     expected.add_edge(var_w0.clone(), var_tmp0.clone());
     expected.add_edge(var_w0.clone(), var_w2.clone());
-    expected.add_edge(var_w0.clone(), var_x.clone());
     expected.add_edge(var_w0.clone(), var_z0.clone());
     expected.add_edge(var_w0.clone(), var_z1.clone());
-    expected.add_edge(var_w0.clone(), var_y.clone());
     expected.add_edge(var_w0.clone(), var_tmp1.clone());
-
-    expected.add_edge(var_tmp0.clone(), var_x.clone());
-    expected.add_edge(var_tmp0.clone(), var_y.clone());
-    expected.add_edge(var_tmp0.clone(), var_w0.clone());
-
-    expected.add_edge(var_z0.clone(), var_w1.clone());
-    expected.add_edge(var_z0.clone(), var_x.clone());
-    expected.add_edge(var_z0.clone(), var_y.clone());
-    expected.add_edge(var_z0.clone(), var_w0.clone());
-
-    expected.add_edge(var_w1.clone(), var_x.clone());
-    expected.add_edge(var_w1.clone(), var_w3.clone());
-    expected.add_edge(var_w1.clone(), var_z0.clone());
-    expected.add_edge(var_w1.clone(), var_y.clone());
-    expected.add_edge(var_w1.clone(), var_w0.clone());
-
-    expected.add_edge(var_z1.clone(), var_w2.clone());
-    expected.add_edge(var_z1.clone(), var_y.clone());
-    expected.add_edge(var_z1.clone(), var_w0.clone());
-    expected.add_edge(var_z1.clone(), var_x.clone());
-
-    expected.add_edge(var_w2.clone(), var_y.clone());
-    expected.add_edge(var_w2.clone(), var_w0.clone());
-    expected.add_edge(var_w2.clone(), var_x.clone());
-    expected.add_edge(var_w2.clone(), var_w3.clone());
-    expected.add_edge(var_w2.clone(), var_z1.clone());
-
-    expected.add_edge(var_w3.clone(), var_w0.clone());
-    expected.add_edge(var_w3.clone(), var_tmp1.clone());
-    expected.add_edge(var_w3.clone(), var_w1.clone());
-    expected.add_edge(var_w3.clone(), var_w2.clone());
-    expected.add_edge(var_w3.clone(), var_x.clone());
-
-    expected.add_edge(var_tmp1.clone(), var_x.clone());
-    expected.add_edge(var_tmp1.clone(), var_w0.clone());
-    expected.add_edge(var_tmp1.clone(), var_w3.clone());
 
     std::fs::write("./if_e_graph.dot", expected.to_dot()).unwrap();
 
