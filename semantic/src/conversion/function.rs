@@ -56,7 +56,7 @@ pub fn convert(
     inner_scope.to_ir(&func_block, &context);
 
     // Update Head-Blocks last Jump to the next
-    head_block.add_statement(ir::Statement::Jump(func_block));
+    head_block.add_statement(ir::Statement::Jump(func_block, ir::JumpMetadata::Linear));
 
     head_block
 }

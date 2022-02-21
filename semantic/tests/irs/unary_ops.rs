@@ -55,7 +55,7 @@ void test() {
             },
         ],
     );
-    func_start.add_statement(Statement::Jump(func_content));
+    func_start.add_statement(Statement::Jump(func_content, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global_block,
@@ -135,7 +135,7 @@ void test() {
             Statement::SaveVariable { var: var_x.clone() },
         ],
     );
-    func_start.add_statement(Statement::Jump(func_content));
+    func_start.add_statement(Statement::Jump(func_content, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global_block,

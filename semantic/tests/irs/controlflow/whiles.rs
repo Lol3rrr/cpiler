@@ -31,7 +31,10 @@ void test() {
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
     let func_first_block = BasicBlock::new(vec![func_initial_block.weak_ptr()], vec![]);
-    func_initial_block.add_statement(Statement::Jump(func_first_block.clone()));
+    func_initial_block.add_statement(Statement::Jump(
+        func_first_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_cond_block = BasicBlock::new(
         vec![func_first_block.weak_ptr()],
@@ -40,7 +43,10 @@ void test() {
             value: Value::Constant(Constant::I64(2)),
         }],
     );
-    func_first_block.add_statement(Statement::Jump(loop_cond_block.clone()));
+    func_first_block.add_statement(Statement::Jump(
+        loop_cond_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_inner_block = BasicBlock::new(
         vec![loop_cond_block.weak_ptr()],
@@ -55,12 +61,13 @@ void test() {
             Statement::SaveVariable {
                 var: x0_var.clone(),
             },
-            Statement::Jump(loop_cond_block.clone()),
+            Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
         t0_var.clone(),
         loop_inner_block.clone(),
+        ir::JumpMetadata::Linear,
     ));
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
 
@@ -68,7 +75,10 @@ void test() {
         vec![loop_cond_block.weak_ptr()],
         vec![Statement::Return(None)],
     );
-    loop_cond_block.add_statement(Statement::Jump(func_end_block.clone()));
+    loop_cond_block.add_statement(Statement::Jump(
+        func_end_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let expected = Program {
         global: global.clone(),
@@ -152,7 +162,10 @@ void test() {
             },
         ],
     );
-    func_initial_block.add_statement(Statement::Jump(func_first_block.clone()));
+    func_initial_block.add_statement(Statement::Jump(
+        func_first_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_inner_block = BasicBlock::new(vec![], vec![]);
     let loop_cond_block = BasicBlock::new(
@@ -191,10 +204,17 @@ void test() {
                 target: t1_var.clone(),
                 value: Value::Variable(t0_var.clone()),
             },
-            Statement::JumpTrue(t1_var.clone(), loop_inner_block.clone()),
+            Statement::JumpTrue(
+                t1_var.clone(),
+                loop_inner_block.clone(),
+                ir::JumpMetadata::Linear,
+            ),
         ],
     );
-    func_first_block.add_statement(Statement::Jump(loop_cond_block.clone()));
+    func_first_block.add_statement(Statement::Jump(
+        loop_cond_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     loop_inner_block.add_predecessor(loop_inner_block.weak_ptr());
     loop_inner_block.set_statements(vec![
@@ -223,7 +243,7 @@ void test() {
         Statement::SaveVariable {
             var: x3_var.clone(),
         },
-        Statement::Jump(loop_cond_block.clone()),
+        Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
     ]);
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
 
@@ -231,7 +251,10 @@ void test() {
         vec![loop_cond_block.weak_ptr()],
         vec![Statement::Return(None)],
     );
-    loop_cond_block.add_statement(Statement::Jump(func_end_block.clone()));
+    loop_cond_block.add_statement(Statement::Jump(
+        func_end_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let expected = Program {
         global: global.clone(),
@@ -294,7 +317,10 @@ void test() {
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
     let func_first_block = BasicBlock::new(vec![func_initial_block.weak_ptr()], vec![]);
-    func_initial_block.add_statement(Statement::Jump(func_first_block.clone()));
+    func_initial_block.add_statement(Statement::Jump(
+        func_first_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_cond_block = BasicBlock::new(
         vec![func_first_block.weak_ptr()],
@@ -303,7 +329,10 @@ void test() {
             value: Value::Constant(Constant::I64(2)),
         }],
     );
-    func_first_block.add_statement(Statement::Jump(loop_cond_block.clone()));
+    func_first_block.add_statement(Statement::Jump(
+        loop_cond_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let func_end_block = BasicBlock::new(vec![], vec![Statement::Return(None)]);
 
@@ -320,16 +349,20 @@ void test() {
             Statement::SaveVariable {
                 var: x0_var.clone(),
             },
-            Statement::Jump(func_end_block.clone()),
-            Statement::Jump(loop_cond_block.clone()),
+            Statement::Jump(func_end_block.clone(), ir::JumpMetadata::Linear),
+            Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
         t0_var.clone(),
         loop_inner_block.clone(),
+        ir::JumpMetadata::Linear,
     ));
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
-    loop_cond_block.add_statement(Statement::Jump(func_end_block.clone()));
+    loop_cond_block.add_statement(Statement::Jump(
+        func_end_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     func_end_block.add_predecessor(loop_cond_block.weak_ptr());
     func_end_block.add_predecessor(loop_inner_block.weak_ptr());
@@ -397,7 +430,10 @@ void test() {
     let func_initial_block = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
     let func_first_block = BasicBlock::new(vec![func_initial_block.weak_ptr()], vec![]);
-    func_initial_block.add_statement(Statement::Jump(func_first_block.clone()));
+    func_initial_block.add_statement(Statement::Jump(
+        func_first_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_cond_block = BasicBlock::new(
         vec![func_first_block.weak_ptr()],
@@ -406,7 +442,10 @@ void test() {
             value: Value::Constant(Constant::I64(2)),
         }],
     );
-    func_first_block.add_statement(Statement::Jump(loop_cond_block.clone()));
+    func_first_block.add_statement(Statement::Jump(
+        loop_cond_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let func_end_block = BasicBlock::new(vec![], vec![Statement::Return(None)]);
 
@@ -423,16 +462,20 @@ void test() {
             Statement::SaveVariable {
                 var: x0_var.clone(),
             },
-            Statement::Jump(loop_cond_block.clone()),
-            Statement::Jump(loop_cond_block.clone()),
+            Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
+            Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
         t0_var.clone(),
         loop_inner_block.clone(),
+        ir::JumpMetadata::Linear,
     ));
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
-    loop_cond_block.add_statement(Statement::Jump(func_end_block.clone()));
+    loop_cond_block.add_statement(Statement::Jump(
+        func_end_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     func_end_block.add_predecessor(loop_cond_block.weak_ptr());
 

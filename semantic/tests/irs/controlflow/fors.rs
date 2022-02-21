@@ -35,7 +35,10 @@ void test() {
     let func_start = BasicBlock::new(vec![global.weak_ptr()], vec![]);
 
     let func_second = BasicBlock::new(vec![func_start.weak_ptr()], vec![]);
-    func_start.add_statement(Statement::Jump(func_second.clone()));
+    func_start.add_statement(Statement::Jump(
+        func_second.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let setup_block = BasicBlock::new(
         vec![func_second.weak_ptr()],
@@ -52,7 +55,10 @@ void test() {
             },
         ],
     );
-    func_second.add_statement(Statement::Jump(setup_block.clone()));
+    func_second.add_statement(Statement::Jump(
+        setup_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let loop_inner_block = BasicBlock::new(vec![], vec![]);
 
@@ -82,10 +88,17 @@ void test() {
                     right: Operand::Constant(Constant::I64(10)),
                 }),
             },
-            Statement::JumpTrue(var_t0.clone(), loop_inner_block.clone()),
+            Statement::JumpTrue(
+                var_t0.clone(),
+                loop_inner_block.clone(),
+                ir::JumpMetadata::Linear,
+            ),
         ],
     );
-    setup_block.add_statement(Statement::Jump(loop_cond_block.clone()));
+    setup_block.add_statement(Statement::Jump(
+        loop_cond_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     loop_inner_block.set_statements(vec![
         Statement::Assignment {
@@ -107,15 +120,18 @@ void test() {
         Statement::SaveVariable {
             var: var_i2.clone(),
         },
-        Statement::Jump(loop_cond_block.clone()),
+        Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
     ]);
     loop_inner_block.add_predecessor(loop_cond_block.weak_ptr());
 
     let loop_end_block = BasicBlock::new(vec![loop_cond_block.weak_ptr()], vec![]);
-    loop_cond_block.add_statement(Statement::Jump(loop_end_block.clone()));
+    loop_cond_block.add_statement(Statement::Jump(
+        loop_end_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let func_end_block = BasicBlock::new(vec![loop_end_block.weak_ptr()], vec![]);
-    loop_end_block.add_statement(Statement::Jump(func_end_block));
+    loop_end_block.add_statement(Statement::Jump(func_end_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global.clone(),

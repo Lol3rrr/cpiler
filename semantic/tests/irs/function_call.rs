@@ -47,7 +47,7 @@ void test() {
             Statement::Return(None),
         ],
     );
-    func_block.add_statement(Statement::Jump(func_inner_block));
+    func_block.add_statement(Statement::Jump(func_inner_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global_block,
@@ -135,7 +135,7 @@ void test() {
             Statement::Return(None),
         ],
     );
-    func_initial_block.add_statement(Statement::Jump(func_inner_block));
+    func_initial_block.add_statement(Statement::Jump(func_inner_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global,
@@ -218,7 +218,7 @@ void test() {
             Statement::Return(None),
         ],
     );
-    func_initial_block.add_statement(Statement::Jump(func_inner_block));
+    func_initial_block.add_statement(Statement::Jump(func_inner_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global,
@@ -271,7 +271,7 @@ void test() {
             Statement::Return(None),
         ],
     );
-    func_block.add_statement(Statement::Jump(func_inner_block));
+    func_block.add_statement(Statement::Jump(func_inner_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global_block,

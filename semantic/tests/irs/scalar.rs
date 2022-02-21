@@ -69,7 +69,7 @@ void test() {
             Statement::Return(None),
         ],
     );
-    initial_block.add_statement(Statement::Jump(inner_block));
+    initial_block.add_statement(Statement::Jump(inner_block, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,
@@ -145,7 +145,7 @@ void test(int arg) {
             Statement::Return(None),
         ],
     );
-    func_initial_block.add_statement(Statement::Jump(func_body_block));
+    func_initial_block.add_statement(Statement::Jump(func_body_block, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,

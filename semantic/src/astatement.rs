@@ -457,11 +457,17 @@ impl AStatement {
                 let sub_block = BlockBuilder::new(vec![block.weak_ptr()], vec![])
                     .description("Sub-Scope")
                     .build();
-                block.add_statement(ir::Statement::Jump(sub_block.clone()));
+                block.add_statement(ir::Statement::Jump(
+                    sub_block.clone(),
+                    ir::JumpMetadata::Linear,
+                ));
 
                 let end_sub_block = inner.to_ir(&sub_block, ctx);
                 let following_block = BasicBlock::new(vec![end_sub_block.weak_ptr()], vec![]);
-                end_sub_block.add_statement(ir::Statement::Jump(following_block.clone()));
+                end_sub_block.add_statement(ir::Statement::Jump(
+                    following_block.clone(),
+                    ir::JumpMetadata::Linear,
+                ));
 
                 *block = following_block;
             }
@@ -722,22 +728,38 @@ impl AStatement {
                     .description("Conditional True Block")
                     .build();
                 let end_true_body = body.to_ir(&true_block, ctx);
-                end_true_body.add_statement(ir::Statement::Jump(end_block.clone()));
+                end_true_body.add_statement(ir::Statement::Jump(
+                    end_block.clone(),
+                    ir::JumpMetadata::Linear,
+                ));
                 end_block.add_predecessor(end_true_body.weak_ptr());
 
-                block.add_statement(ir::Statement::JumpTrue(cond_var, true_block));
+                block.add_statement(ir::Statement::JumpTrue(
+                    cond_var,
+                    true_block,
+                    ir::JumpMetadata::Linear,
+                ));
 
                 if let Some(else_) = else_ {
                     let false_block = BlockBuilder::new(vec![block.weak_ptr()], vec![])
                         .description("Conditional False Block")
                         .build();
                     let end_false_block = else_.to_ir(&false_block, ctx);
-                    end_false_block.add_statement(ir::Statement::Jump(end_block.clone()));
-                    block.add_statement(ir::Statement::Jump(end_false_block.clone()));
+                    end_false_block.add_statement(ir::Statement::Jump(
+                        end_block.clone(),
+                        ir::JumpMetadata::Linear,
+                    ));
+                    block.add_statement(ir::Statement::Jump(
+                        end_false_block.clone(),
+                        ir::JumpMetadata::Linear,
+                    ));
                     end_block.add_predecessor(end_false_block.weak_ptr());
                 } else {
                     // Jump to the end Block directly
-                    block.add_statement(ir::Statement::Jump(end_block.clone()));
+                    block.add_statement(ir::Statement::Jump(
+                        end_block.clone(),
+                        ir::JumpMetadata::Linear,
+                    ));
                     end_block.add_predecessor(block.weak_ptr());
                 }
 
@@ -775,9 +797,15 @@ impl AStatement {
                     };
                     start_block.add_statement(cond_statement);
 
-                    start_block
-                        .add_statement(ir::Statement::JumpTrue(cond_var, inner_block.clone()));
-                    start_block.add_statement(ir::Statement::Jump(end_block.clone()));
+                    start_block.add_statement(ir::Statement::JumpTrue(
+                        cond_var,
+                        inner_block.clone(),
+                        ir::JumpMetadata::Linear,
+                    ));
+                    start_block.add_statement(ir::Statement::Jump(
+                        end_block.clone(),
+                        ir::JumpMetadata::LoopBreak,
+                    ));
                 }
                 start_block.remove_predecessor(inner_block.weak_ptr());
 
@@ -788,14 +816,17 @@ impl AStatement {
                     start_block.add_predecessor(inner_block.weak_ptr());
 
                     let inner_end_block = body.to_ir(&inner_block, &loop_ctx);
-                    inner_end_block.add_statement(ir::Statement::Jump(start_block.clone()));
+                    inner_end_block.add_statement(ir::Statement::Jump(
+                        start_block.clone(),
+                        ir::JumpMetadata::Loop,
+                    ));
                     start_block.remove_predecessor(inner_block.weak_ptr());
                     start_block.add_predecessor(inner_end_block.weak_ptr());
                 }
 
                 start_block.refresh_phis();
 
-                block.add_statement(ir::Statement::Jump(start_block));
+                block.add_statement(ir::Statement::Jump(start_block, ir::JumpMetadata::Linear));
                 *block = end_block;
             }
             AStatement::ForLoop {
@@ -815,7 +846,10 @@ impl AStatement {
                 };
 
                 loop_end_block.add_predecessor(block.weak_ptr());
-                block.add_statement(ir::Statement::Jump(loop_end_block.clone()));
+                block.add_statement(ir::Statement::Jump(
+                    loop_end_block.clone(),
+                    ir::JumpMetadata::LoopBreak,
+                ));
             }
             AStatement::Continue => {
                 let loop_start_block = match ctx.get_loop_start() {
@@ -824,7 +858,10 @@ impl AStatement {
                 };
 
                 loop_start_block.add_predecessor(block.weak_ptr());
-                block.add_statement(ir::Statement::Jump(loop_start_block.clone()));
+                block.add_statement(ir::Statement::Jump(
+                    loop_start_block.clone(),
+                    ir::JumpMetadata::Loop,
+                ));
             }
         };
     }

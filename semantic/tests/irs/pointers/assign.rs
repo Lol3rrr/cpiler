@@ -39,7 +39,7 @@ void test() {
         ],
     );
 
-    func_initial.add_statement(Statement::Jump(func_inner));
+    func_initial.add_statement(Statement::Jump(func_inner, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,
@@ -109,7 +109,7 @@ void test() {
         ],
     );
 
-    func_initial.add_statement(Statement::Jump(func_inner));
+    func_initial.add_statement(Statement::Jump(func_inner, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,
@@ -205,7 +205,7 @@ void test() {
         ],
     );
 
-    func_initial.add_statement(Statement::Jump(func_inner));
+    func_initial.add_statement(Statement::Jump(func_inner, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,

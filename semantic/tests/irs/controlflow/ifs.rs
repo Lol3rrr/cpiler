@@ -51,7 +51,10 @@ void test() {
             },
         ],
     );
-    function_arg_block.add_statement(Statement::Jump(function_first_block.clone()));
+    function_arg_block.add_statement(Statement::Jump(
+        function_first_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let inner_if_block = BasicBlock::new(
         vec![function_first_block.weak_ptr()],
@@ -68,7 +71,11 @@ void test() {
             },
         ],
     );
-    function_first_block.add_statement(Statement::JumpTrue(t0_var.clone(), inner_if_block.clone()));
+    function_first_block.add_statement(Statement::JumpTrue(
+        t0_var.clone(),
+        inner_if_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let end_block = BasicBlock::new(
         vec![inner_if_block.weak_ptr(), function_first_block.weak_ptr()],
@@ -96,8 +103,9 @@ void test() {
             Statement::Return(None),
         ],
     );
-    function_first_block.add_statement(Statement::Jump(end_block.clone()));
-    inner_if_block.add_statement(Statement::Jump(end_block.clone()));
+    function_first_block
+        .add_statement(Statement::Jump(end_block.clone(), ir::JumpMetadata::Linear));
+    inner_if_block.add_statement(Statement::Jump(end_block.clone(), ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,
@@ -175,7 +183,10 @@ void test() {
             },
         ],
     );
-    function_start_block.add_statement(Statement::Jump(function_first.clone()));
+    function_start_block.add_statement(Statement::Jump(
+        function_first.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let true_block = BasicBlock::new(
         vec![function_first.weak_ptr()],
@@ -192,7 +203,11 @@ void test() {
             },
         ],
     );
-    function_first.add_statement(Statement::JumpTrue(t0_var.clone(), true_block.clone()));
+    function_first.add_statement(Statement::JumpTrue(
+        t0_var.clone(),
+        true_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let false_block = BasicBlock::new(
         vec![function_first.weak_ptr()],
@@ -209,7 +224,10 @@ void test() {
             },
         ],
     );
-    function_first.add_statement(Statement::Jump(false_block.clone()));
+    function_first.add_statement(Statement::Jump(
+        false_block.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let function_second = BasicBlock::new(
         vec![true_block.weak_ptr(), false_block.weak_ptr()],
@@ -238,8 +256,14 @@ void test() {
         ],
     );
 
-    true_block.add_statement(Statement::Jump(function_second.clone()));
-    false_block.add_statement(Statement::Jump(function_second.clone()));
+    true_block.add_statement(Statement::Jump(
+        function_second.clone(),
+        ir::JumpMetadata::Linear,
+    ));
+    false_block.add_statement(Statement::Jump(
+        function_second.clone(),
+        ir::JumpMetadata::Linear,
+    ));
 
     let expected = Program {
         global: global_block,
