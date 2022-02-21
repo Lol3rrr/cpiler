@@ -40,14 +40,14 @@ impl Statement {
                 output,
             },
             crate::Statement::Call { name, arguments } => Self::Call { name, arguments },
-            crate::Statement::Jump(target) => {
+            crate::Statement::Jump(target, meta) => {
                 let n_target = block_map.get(&target.as_ptr()).unwrap().clone();
-                Self::Jump(n_target)
+                Self::Jump(n_target, meta)
             }
-            crate::Statement::JumpTrue(var, target) => {
+            crate::Statement::JumpTrue(var, target, meta) => {
                 let n_target = block_map.get(&target.as_ptr()).unwrap().clone();
 
-                Self::JumpTrue(var, n_target)
+                Self::JumpTrue(var, n_target, meta)
             }
             crate::Statement::Return(var) => Self::Return(var),
         }

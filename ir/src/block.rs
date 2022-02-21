@@ -364,12 +364,12 @@ impl BasicBlock {
         let parts = self.0.parts.read().unwrap();
         for tmp in parts.iter() {
             match tmp {
-                Statement::Jump(target) => {
+                Statement::Jump(target, _) => {
                     let target_ptr = target.as_ptr();
 
                     result.insert(target_ptr, target.clone());
                 }
-                Statement::JumpTrue(_, target) => {
+                Statement::JumpTrue(_, target, _) => {
                     let target_ptr = target.as_ptr();
 
                     result.insert(target_ptr, target.clone());
@@ -669,7 +669,7 @@ impl ToDot for BasicBlock {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Constant, PhiEntry, Type, Value};
+    use crate::{general::JumpMetadata, Constant, PhiEntry, Type, Value};
 
     use super::*;
 
@@ -796,15 +796,15 @@ mod tests {
 
         let predecessor_2 = BasicBlock::new(vec![predecessor_1.weak_ptr()], vec![]);
         let predecessor_3 = BasicBlock::new(vec![predecessor_1.weak_ptr()], vec![]);
-        predecessor_1.add_statement(Statement::Jump(predecessor_2.clone()));
-        predecessor_1.add_statement(Statement::Jump(predecessor_3.clone()));
+        predecessor_1.add_statement(Statement::Jump(predecessor_2.clone(), JumpMetadata::Linear));
+        predecessor_1.add_statement(Statement::Jump(predecessor_3.clone(), JumpMetadata::Linear));
 
         let block = BasicBlock::new(
             vec![predecessor_2.weak_ptr(), predecessor_3.weak_ptr()],
             vec![],
         );
-        predecessor_2.add_statement(Statement::Jump(block.clone()));
-        predecessor_3.add_statement(Statement::Jump(block.clone()));
+        predecessor_2.add_statement(Statement::Jump(block.clone(), JumpMetadata::Linear));
+        predecessor_3.add_statement(Statement::Jump(block.clone(), JumpMetadata::Linear));
 
         let expected = Some(test_var.clone());
         let expected_block_stmnts: Vec<Statement> = vec![];

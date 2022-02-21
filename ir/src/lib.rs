@@ -40,6 +40,7 @@ mod comp;
 pub mod simpler;
 
 mod general;
+pub use crate::general::JumpMetadata;
 
 /// The overall Program Structure that contains all the needed information about the Program itself
 #[derive(Clone, PartialEq)]

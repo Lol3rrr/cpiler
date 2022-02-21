@@ -43,7 +43,7 @@ impl Iterator for BlockIter {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::Statement;
+    use crate::{JumpMetadata, Statement};
 
     use super::*;
 
@@ -52,10 +52,10 @@ mod tests {
         let starting = BasicBlock::initial(vec![]);
 
         let second = BasicBlock::new(vec![starting.weak_ptr()], vec![]);
-        starting.add_statement(Statement::Jump(second.clone()));
+        starting.add_statement(Statement::Jump(second.clone(), JumpMetadata::Linear));
 
         let third = BasicBlock::new(vec![second.weak_ptr()], vec![]);
-        second.add_statement(Statement::Jump(third.clone()));
+        second.add_statement(Statement::Jump(third.clone(), JumpMetadata::Linear));
 
         let mut targets = HashSet::new();
         targets.insert(starting.as_ptr());
@@ -77,17 +77,17 @@ mod tests {
         let starting = BasicBlock::initial(vec![]);
 
         let second = BasicBlock::new(vec![starting.weak_ptr()], vec![]);
-        starting.add_statement(Statement::Jump(second.clone()));
+        starting.add_statement(Statement::Jump(second.clone(), JumpMetadata::Linear));
 
         let third = BasicBlock::new(
             vec![second.weak_ptr()],
-            vec![Statement::Jump(second.clone())],
+            vec![Statement::Jump(second.clone(), JumpMetadata::Linear)],
         );
         second.add_predecessor(third.weak_ptr());
-        second.add_statement(Statement::Jump(third.clone()));
+        second.add_statement(Statement::Jump(third.clone(), JumpMetadata::Linear));
 
         let fourth = BasicBlock::new(vec![third.weak_ptr()], vec![]);
-        third.add_statement(Statement::Jump(fourth.clone()));
+        third.add_statement(Statement::Jump(fourth.clone(), JumpMetadata::Linear));
 
         let mut targets = HashSet::new();
         targets.insert(starting.as_ptr());

@@ -5,6 +5,15 @@ use crate::{Constant, Expression, Variable};
 mod statement;
 pub use statement::*;
 
+/// Some Metadata about a Jump to help the Compiler better understand the Reason for this Jump and
+/// aid in certain Tasks
+#[derive(Debug, PartialEq, Clone)]
+pub enum JumpMetadata {
+    Linear,
+    Loop,
+    LoopBreak,
+}
+
 /// This holds the Information for a single Source for a PhiNode
 #[derive(Debug, Clone)]
 pub struct PhiEntry<WB> {

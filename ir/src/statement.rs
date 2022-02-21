@@ -106,7 +106,7 @@ impl ToDot for Statement {
 
                 lines.add_edge(graphviz::Edge::new(src, &name));
             }
-            Self::Jump(target) => {
+            Self::Jump(target, _) => {
                 let content = "Jump".to_string();
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
@@ -118,7 +118,7 @@ impl ToDot for Statement {
 
                 lines.add_edge(graphviz::Edge::new(&name, target_name));
             }
-            Self::JumpTrue(cond, target) => {
+            Self::JumpTrue(cond, target, _) => {
                 let content = "JumpTrue".to_string();
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),

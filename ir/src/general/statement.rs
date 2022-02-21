@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{comp::CompareGraph, Operand, Variable};
 
-use super::Value;
+use super::{JumpMetadata, Value};
 
 #[derive(Clone)]
 pub enum Statement<B, WB> {
@@ -49,9 +49,9 @@ pub enum Statement<B, WB> {
     /// Returns the given Variable from the Function
     Return(Option<Variable>),
     /// Jumps to the given Block unconditionally
-    Jump(B),
+    Jump(B, JumpMetadata),
     /// Jumps to the given Block if the Variable is true
-    JumpTrue(Variable, B),
+    JumpTrue(Variable, B, JumpMetadata),
 }
 
 impl<B, WB> CompareGraph for Statement<B, WB>
@@ -112,10 +112,10 @@ where
                 },
             ) => s_temp == o_temp && s_in == o_in && s_out == o_out,
             (Self::Return(s_var), Self::Return(o_var)) => s_var == o_var,
-            (Self::Jump(s_next), Self::Jump(o_next)) => {
+            (Self::Jump(s_next, _), Self::Jump(o_next, _)) => {
                 s_next.compare(o_next, blocks, current_block)
             }
-            (Self::JumpTrue(s_var, s_next), Self::JumpTrue(o_var, o_next)) => {
+            (Self::JumpTrue(s_var, s_next, _), Self::JumpTrue(o_var, o_next, _)) => {
                 if s_var != o_var {
                     return false;
                 }
@@ -171,8 +171,8 @@ where
                 .field("inputs", inputs)
                 .finish(),
             Self::Return(var) => f.debug_tuple("Return").field(var).finish(),
-            Self::Jump(target) => f.debug_tuple("Jump").field(&(print_block(target))).finish(),
-            Self::JumpTrue(var, target) => f
+            Self::Jump(target, _) => f.debug_tuple("Jump").field(&(print_block(target))).finish(),
+            Self::JumpTrue(var, target, _) => f
                 .debug_tuple("JumpTrue")
                 .field(var)
                 .field(&(print_block(target)))
@@ -215,8 +215,8 @@ impl<B, WB> Statement<B, WB> {
             }
             Self::Return(None) => Vec::new(),
             Self::Return(Some(var)) => vec![var.clone()],
-            Self::Jump(_) => Vec::new(),
-            Self::JumpTrue(var, _) => vec![var.clone()],
+            Self::Jump(_, _) => Vec::new(),
+            Self::JumpTrue(var, _, _) => vec![var.clone()],
         }
     }
 }

@@ -41,14 +41,8 @@ long test() {
 
     expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(y_var.clone()));
     expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(z_var.clone()));
-    expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(w_var.clone()));
-
-    expected.add_edge(NodeId::new(y_var.clone()), NodeId::new(z_var.clone()));
 
     expected.add_edge(NodeId::new(z_var.clone()), NodeId::new(w_var.clone()));
-    expected.add_edge(NodeId::new(z_var.clone()), NodeId::new(tmp_var.clone()));
-
-    expected.add_edge(NodeId::new(w_var.clone()), NodeId::new(tmp_var.clone()));
 
     assert_eq!(expected, result_graph);
 }
