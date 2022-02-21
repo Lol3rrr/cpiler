@@ -2,8 +2,8 @@ use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
 use crate::{
-    statement::AssignTarget, EOFContext, Expression, ExpressionOperator, ExpressionReason,
-    Statement, SyntaxError,
+    statement::AssignTarget, EOFContext, ExpectedToken, Expression, ExpressionOperator,
+    ExpressionReason, Statement, SyntaxError,
 };
 
 use super::starting_type;
@@ -111,7 +111,12 @@ where
             })?;
             let assign_type = match next_token.data {
                 TokenData::Assign(assign_type) => assign_type,
-                _ => panic!("Expected '=' but got '{:?}'", next_token),
+                _ => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        expected: Some(vec![ExpectedToken::Equal]),
+                        got: next_token.span,
+                    })
+                }
             };
 
             let base_exp = Expression::parse(tokens).map_err(|e| match e {

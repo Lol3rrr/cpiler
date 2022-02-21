@@ -161,7 +161,6 @@ impl Statement {
                 let _ = tokens.next();
 
                 let target = Expression::parse(tokens)?;
-                dbg!(&target);
 
                 let assign_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                     ctx: EOFContext::Statement,
@@ -175,10 +174,8 @@ impl Statement {
                         });
                     }
                 };
-                dbg!(&assign_type);
 
                 let raw_value = Expression::parse(tokens)?;
-                dbg!(&raw_value);
 
                 let end_tok = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                     ctx: EOFContext::Statement,
@@ -498,8 +495,11 @@ impl Statement {
                     scope: inner_scope,
                 })
             }
-            unknown => {
-                todo!("Parse: {:?}", unknown);
+            _ => {
+                return Err(SyntaxError::UnexpectedToken {
+                    expected: None,
+                    got: tokens.next().unwrap().span,
+                });
             }
         }
     }

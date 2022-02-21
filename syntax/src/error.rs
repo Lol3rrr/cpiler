@@ -49,12 +49,16 @@ pub enum ExpectedToken {
     OpenBrace,
     /// }
     CloseBrace,
+    /// [
+    OpenBracket,
     /// ]
     CloseBracket,
     /// :
     Colon,
     /// if
     If,
+    /// =
+    Equal,
     Literal,
     IntegerLiteral,
     Assignment,

@@ -277,7 +277,7 @@ impl Iterator for TokenIter {
                         _ => continue,
                     };
 
-                    let sub_span = self.state.current_sub(&self.span, index).unwrap();
+                    let sub_span = self.state.current_sub(&self.span, index)?;
                     let content = sub_span.content().to_owned();
 
                     let token = Token {

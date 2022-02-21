@@ -1,7 +1,10 @@
 use general::{Span, SpanData};
 use tokenizer::{Operator, TokenData};
 
-use crate::{Expression, ExpressionOperator, ExpressionReason, SingleOperation, SyntaxError};
+use crate::{
+    EOFContext, ExpectedToken, Expression, ExpressionOperator, ExpressionReason, SingleOperation,
+    SyntaxError,
+};
 
 #[derive(Debug)]
 enum Assosication {
@@ -125,17 +128,9 @@ impl RpnOp {
             (Operator::Decrement, None) | (Operator::Decrement, Some(TokenData::Operator(_))) => {
                 RpnOp::SingleOp(SingleOperation::PrefixDecrement)
             }
-            (Operator::Decrement, Some(prev_tok)) => {
-                dbg!(&prev_tok);
-
-                RpnOp::SingleOp(SingleOperation::SuffixDecrement)
-            }
+            (Operator::Decrement, Some(_)) => RpnOp::SingleOp(SingleOperation::SuffixDecrement),
             (Operator::Multiply, None) => RpnOp::SingleOp(SingleOperation::Dereference),
-            (Operator::Multiply, prev) => {
-                dbg!(&prev);
-
-                RpnOp::Expression(ExpressionOperator::Multiply)
-            }
+            (Operator::Multiply, _) => RpnOp::Expression(ExpressionOperator::Multiply),
             (Operator::Divide, _) => RpnOp::Expression(ExpressionOperator::Divide),
             (Operator::Modulo, _) => RpnOp::Expression(ExpressionOperator::Modulo),
             (Operator::LogicalNot, _) => RpnOp::SingleOp(SingleOperation::LogicalNot),
@@ -264,8 +259,6 @@ impl ParseState {
                             final_stack.push(result);
                         }
                         RpnOp::Expression(op) => {
-                            dbg!(&op);
-
                             let right = final_stack.pop().ok_or_else(|| {
                                 SyntaxError::ExpectedExpression {
                                     span: span.clone(),
@@ -288,8 +281,18 @@ impl ParseState {
                             final_stack.push(result);
                         }
                         RpnOp::ConnectionOp(con_op) => {
-                            let right = final_stack.pop().unwrap();
-                            let left = final_stack.pop().unwrap();
+                            let right = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
+                            let left = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
 
                             let result = match (right, con_op) {
                                 (Expression::Identifier { ident }, _) => Expression::StructAccess {
@@ -307,7 +310,10 @@ impl ParseState {
                                     ) => {
                                         let left_str = &left_content.data;
                                         if left_str.chars().any(|c| !c.is_digit(10)) {
-                                            todo!("Left side is not a number");
+                                            return Err(SyntaxError::UnexpectedToken {
+                                                expected: None,
+                                                got: left_content.span.clone(),
+                                            });
                                         }
 
                                         let right_span = {
@@ -323,7 +329,10 @@ impl ParseState {
                                         };
 
                                         if right_span.content().chars().any(|c| !c.is_digit(10)) {
-                                            todo!("Right side is not a number");
+                                            return Err(SyntaxError::UnexpectedToken {
+                                                expected: None,
+                                                got: right_span.into(),
+                                            });
                                         }
 
                                         let combined_span =
@@ -337,10 +346,18 @@ impl ParseState {
                                         }
                                     }
                                     (left, right) => {
-                                        panic!("Unexpected Dot Combination: {:?}.{:?}", left, right)
+                                        return Err(SyntaxError::UnexpectedToken {
+                                            expected: None,
+                                            got: span.clone(),
+                                        });
                                     }
                                 },
-                                other => panic!("Expected Identifier but got: {:?}", other),
+                                (right, _) => {
+                                    return Err(SyntaxError::UnexpectedToken {
+                                        expected: None,
+                                        got: span.clone(),
+                                    })
+                                }
                             };
 
                             final_stack.push(result);
@@ -348,7 +365,12 @@ impl ParseState {
                         RpnOp::Conditional => {
                             let false_exp = final_stack.pop().unwrap();
                             let true_exp = final_stack.pop().unwrap();
-                            let cond = final_stack.pop().unwrap();
+                            let cond = final_stack.pop().ok_or_else(|| {
+                                SyntaxError::ExpectedExpression {
+                                    span: span.clone(),
+                                    reason: ExpressionReason::Operand,
+                                }
+                            })?;
 
                             let result = Expression::Conditional {
                                 condition: Box::new(cond),

@@ -103,7 +103,12 @@ where
                     })?;
                     match close_token.data {
                         TokenData::CloseBracket => {}
-                        other => panic!("Expected ']' but got '{:?}'", other),
+                        _ => {
+                            return Err(SyntaxError::UnexpectedToken {
+                                expected: Some(vec![ExpectedToken::CloseBracket]),
+                                got: close_token.span,
+                            })
+                        }
                     };
 
                     TypeToken::ArrayType {
@@ -116,7 +121,9 @@ where
         _ => ty_tokens,
     };
 
-    let peeked = tokens.peek().unwrap();
+    let peeked = tokens.peek().ok_or_else(|| SyntaxError::UnexpectedEOF {
+        ctx: EOFContext::Statement,
+    })?;
 
     match &peeked.data {
         TokenData::OpenParen => {
@@ -209,14 +216,22 @@ where
                     })
                 }
                 TokenData::Semicolon => Ok(Statement::FunctionDeclaration(f_head)),
-                other => panic!("Expected a {{ or ; but got: {:?}", other),
+                _ => {
+                    return Err(SyntaxError::UnexpectedToken {
+                        expected: Some(vec![ExpectedToken::OpenBrace, ExpectedToken::Semicolon]),
+                        got: next_tok.span,
+                    })
+                }
             }
         }
         TokenData::Assign(assign_type) => {
             match assign_type {
                 Assignment::Assign => {}
                 other => {
-                    panic!("Expected a normal Assignment('=') but got '{}'", other)
+                    return Err(SyntaxError::UnexpectedToken {
+                        expected: Some(vec![ExpectedToken::Equal]),
+                        got: peeked.span.clone(),
+                    });
                 }
             };
 
@@ -247,8 +262,9 @@ where
             let _ = tokens.next();
             Ok(Statement::VariableDeclaration { name, ty: f_type })
         }
-        tok_data => {
-            panic!("Unexpected Token: {:?}", tok_data);
-        }
+        _ => Err(SyntaxError::UnexpectedToken {
+            expected: None,
+            got: tokens.next().unwrap().span,
+        }),
     }
 }

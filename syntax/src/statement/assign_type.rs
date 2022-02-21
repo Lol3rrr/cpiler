@@ -13,6 +13,41 @@ where
             right: Box::new(value),
             operation: ExpressionOperator::Add,
         },
-        _ => todo!(""),
+        Assignment::Sub => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::Sub,
+        },
+        Assignment::Multiply => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::Multiply,
+        },
+        Assignment::Divide => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::Divide,
+        },
+        Assignment::Modulo => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::Modulo,
+        },
+        Assignment::BitwiseAnd => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::BitwiseAnd,
+        },
+        Assignment::BitwiseOr => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::BitwiseOr,
+        },
+        Assignment::BitwiseXor => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::BitwiseXor,
+        },
+        other => todo!("Convert Assignment: {:?}", other),
     }
 }

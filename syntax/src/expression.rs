@@ -297,7 +297,6 @@ impl Expression {
                     }
 
                     let ty = TypeToken::parse(tokens)?;
-                    dbg!(&ty);
 
                     if let Some(after_peeked) = tokens.peek() {
                         if after_peeked.data == TokenData::CloseParen {
@@ -461,7 +460,12 @@ impl Expression {
                     })?;
                     match ending_token.data {
                         TokenData::CloseBracket => {}
-                        other => panic!("Expected ']' but got '{:?}'", other),
+                        _ => {
+                            return Err(SyntaxError::UnexpectedToken {
+                                expected: Some(vec![ExpectedToken::OpenBracket]),
+                                got: ending_token.span,
+                            })
+                        }
                     };
 
                     let start = current.span.source_area().start;
@@ -526,7 +530,6 @@ impl Expression {
                 }
                 (TokenData::QuestionMark, _) => {
                     let first = Self::parse(tokens)?;
-                    dbg!(&first);
 
                     let seperator_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                         ctx: EOFContext::Expression,
@@ -542,7 +545,6 @@ impl Expression {
                     };
 
                     let second = Self::parse(tokens)?;
-                    dbg!(&second);
 
                     let start = current.span.source_area().start;
                     let end = start;
