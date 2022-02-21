@@ -35,7 +35,7 @@ fn insert_load(start_block: ir::BasicBlock, var: ir::Variable) {
         .find(|(_, stmnt)| {
             matches!(
                 stmnt,
-                ir::Statement::Jump(_) | ir::Statement::JumpTrue(_, _)
+                ir::Statement::Jump(_, _) | ir::Statement::JumpTrue(_, _, _)
             )
         })
         .map(|(i, _)| i);
@@ -128,7 +128,12 @@ pub fn spill_outer(
     let header_save_index_res = header_stmnts
         .iter()
         .enumerate()
-        .find(|(_, s)| matches!(s, ir::Statement::Jump(_) | ir::Statement::JumpTrue(_, _)))
+        .find(|(_, s)| {
+            matches!(
+                s,
+                ir::Statement::Jump(_, _) | ir::Statement::JumpTrue(_, _, _)
+            )
+        })
         .map(|(i, _)| i);
 
     let header_save_index =

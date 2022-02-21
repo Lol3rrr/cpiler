@@ -164,12 +164,12 @@ pub fn statement(
 
             ir::Statement::Return(n_var)
         }
-        ir::Statement::Jump(target) => ir::Statement::Jump(target),
-        ir::Statement::JumpTrue(var, target) => {
+        ir::Statement::Jump(target, meta) => ir::Statement::Jump(target, meta),
+        ir::Statement::JumpTrue(var, target, meta) => {
             if &var == to_replace {
-                ir::Statement::JumpTrue(replacement.clone(), target)
+                ir::Statement::JumpTrue(replacement.clone(), target, meta)
             } else {
-                ir::Statement::JumpTrue(var, target)
+                ir::Statement::JumpTrue(var, target, meta)
             }
         }
     }

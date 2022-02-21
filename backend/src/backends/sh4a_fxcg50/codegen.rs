@@ -158,12 +158,12 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
                     reg: sh4a::GeneralPurposeRegister::new(0),
                 });
             }
-            ir::Statement::Jump(target) => {
+            ir::Statement::Jump(target, _) => {
                 let target_name = block_name(&target);
 
                 instructions.push(sh4a::Instruction::JumpLabel { label: target_name });
             }
-            ir::Statement::JumpTrue(var, target) => {
+            ir::Statement::JumpTrue(var, target, _) => {
                 let target_name = block_name(&target);
 
                 let var_register = match ctx.registers.get(&var).unwrap().clone() {

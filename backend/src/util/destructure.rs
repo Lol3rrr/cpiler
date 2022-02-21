@@ -29,8 +29,8 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
                     .iter()
                     .enumerate()
                     .find(|(_, s)| match s {
-                        Statement::Jump(b) if b.as_ptr() == c_block.as_ptr() => true,
-                        Statement::JumpTrue(_, b) if b.as_ptr() == c_block.as_ptr() => true,
+                        Statement::Jump(b, _) if b.as_ptr() == c_block.as_ptr() => true,
+                        Statement::JumpTrue(_, b, _) if b.as_ptr() == c_block.as_ptr() => true,
                         _ => false,
                     })
                     .unwrap();

@@ -39,7 +39,7 @@ fn insert_load(start_block: ir::BasicBlock, var: ir::Variable) {
         .find(|(_, stmnt)| {
             matches!(
                 stmnt,
-                ir::Statement::Jump(_) | ir::Statement::JumpTrue(_, _)
+                ir::Statement::Jump(_, _) | ir::Statement::JumpTrue(_, _, _)
             )
         })
         .map(|(i, _)| i);

@@ -180,14 +180,14 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
             let exp_instr = expression::convert_assigned(exp, target, t_reg, ctx);
             instructions.extend(exp_instr);
         }
-        Statement::Jump(target) => {
+        Statement::Jump(target, _) => {
             let target_name = block_name(&target);
 
             instructions.push(asm::Instruction::JumpLabel {
                 target: target_name,
             });
         }
-        Statement::JumpTrue(condition, target) => {
+        Statement::JumpTrue(condition, target, _) => {
             let target_name = block_name(&target);
 
             let cond_reg = ctx.registers.get_reg(&condition).unwrap();
