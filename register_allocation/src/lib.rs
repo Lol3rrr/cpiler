@@ -6,10 +6,29 @@ use std::{
     hash::Hash,
 };
 
-mod context;
-mod determine_spill;
-mod spill;
+//mod context;
+//mod determine_spill;
+//mod spill;
 mod spilling;
+
+pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
+    if var.global() {
+        todo!()
+    } else {
+        ir::Statement::SaveVariable { var }
+    }
+}
+
+pub(crate) fn load_statement(var: ir::Variable) -> ir::Statement {
+    if var.global() {
+        todo!()
+    } else {
+        ir::Statement::Assignment {
+            target: var,
+            value: ir::Value::Unknown,
+        }
+    }
+}
 
 /// The Types of Registers that can be allocated
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

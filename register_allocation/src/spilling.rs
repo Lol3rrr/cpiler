@@ -2,28 +2,77 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::spill;
+use crate::{load_statement, save_statement};
 
-fn next_use_distances(root: &ir::BasicBlock) -> HashMap<ir::Variable, Option<usize>> {
-    let mut block_distance: HashMap<_, _> = vec![(root.as_ptr(), 0)].into_iter().collect();
+fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
+    let statements = block.get_statements();
+    (
+        statements
+            .iter()
+            .enumerate()
+            .rev()
+            .flat_map(|(i, s)| s.used_vars().into_iter().map(move |v| (v, i)))
+            .collect(),
+        statements.len(),
+    )
+}
 
-    let in_block_distances: HashMap<_, _> = root
-        .block_iter()
-        .map(|block| {
-            let var_distances: HashMap<_, _> = block
-                .get_statements()
+fn merge_distances<I>(target: &mut HashMap<ir::Variable, usize>, other: I)
+where
+    I: Iterator<Item = (ir::Variable, usize)>,
+{
+    for (var, n_distance) in other {
+        match target.get_mut(&var) {
+            Some(p_distance) => {
+                if *p_distance >= n_distance {
+                    *p_distance = n_distance;
+                }
+            }
+            None => {
+                target.insert(var, n_distance);
+            }
+        };
+    }
+}
+
+fn next_use_distances(root: &ir::BasicBlock) -> HashMap<ir::Variable, usize> {
+    let (root_distances, max_root) = inblock_distance(root);
+
+    let mut distances = root_distances;
+
+    let current = root.clone();
+    let succs = current.successors();
+    if succs.is_empty() {
+    } else if succs.len() == 1 {
+        let succ = succs.into_values().next().unwrap();
+
+        let succ_distances = next_use_distances(&succ);
+
+        merge_distances(
+            &mut distances,
+            succ_distances
                 .into_iter()
-                .enumerate()
-                .rev()
-                .flat_map(|(i, stmnt)| stmnt.used_vars().into_iter().zip(std::iter::repeat(i + 1)))
-                .collect();
-            (block.as_ptr(), var_distances)
-        })
-        .collect();
+                .map(|(k, v)| (k, v + max_root + 1)),
+        );
+    } else if succs.len() == 2 {
+        let preds = current.get_predecessors();
 
-    dbg!(&in_block_distances);
+        if preds.len() == 1 {
+            let succ_distances = succs.into_values().map(|b| next_use_distances(&b));
+            for tmp_dist in succ_distances {
+                merge_distances(
+                    &mut distances,
+                    tmp_dist.into_iter().map(|(k, v)| (k, v + max_root + 1)),
+                );
+            }
+        } else {
+            todo!("Loop")
+        }
+    } else {
+        todo!("More than 2 Successors")
+    }
 
-    todo!("Calculate next use distances")
+    distances
 }
 
 #[derive(Debug)]
@@ -42,6 +91,59 @@ fn replace_operand(oper: &mut ir::Operand, previous: &ir::Variable, n_var: &ir::
     };
 }
 
+fn reconstruct_ssa_statements<'s, SI>(statements: SI, previous: &ir::Variable, n_var: &ir::Variable)
+where
+    SI: Iterator<Item = &'s mut ir::Statement>,
+{
+    for stmnt in statements {
+        match stmnt {
+            ir::Statement::SaveVariable { var } if var == previous => {
+                *var = n_var.clone();
+            }
+            ir::Statement::SaveVariable { .. } => {}
+            ir::Statement::Assignment { value, .. } => {
+                match value {
+                    ir::Value::Expression(exp) => {
+                        match exp {
+                            ir::Expression::BinaryOp { left, right, .. } => {
+                                replace_operand(left, previous, n_var);
+                                replace_operand(right, previous, n_var);
+                            }
+                            other => {
+                                dbg!(other);
+                                todo!()
+                            }
+                        };
+                    }
+                    ir::Value::Variable(var) if var == previous => {
+                        *var = n_var.clone();
+                    }
+                    ir::Value::Variable(_) => {}
+                    ir::Value::Constant(_) => {}
+                    ir::Value::Unknown => {}
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                };
+            }
+            ir::Statement::Return(Some(var)) if var == previous => {
+                *var = n_var.clone();
+            }
+            ir::Statement::Return(_) => {}
+            ir::Statement::Jump(_, _) => {}
+            ir::Statement::JumpTrue(var, _, _) if var == previous => {
+                *var = n_var.clone();
+            }
+            ir::Statement::JumpTrue(_, _, _) => {}
+            other => {
+                dbg!(&other);
+                todo!()
+            }
+        };
+    }
+}
+
 fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Reload>)>) {
     let reloads = reloads
         .into_iter()
@@ -51,43 +153,11 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Rel
         dbg!(r_block.as_ptr(), &r_reload);
 
         let mut statements = r_block.get_statements();
-        for stmnt in statements.iter_mut().skip(r_reload.position + 1) {
-            match stmnt {
-                ir::Statement::SaveVariable { var } if var == &r_reload.previous => {
-                    *var = r_reload.var.clone();
-                }
-                ir::Statement::SaveVariable { .. } => {}
-                ir::Statement::Assignment { value, .. } => {
-                    match value {
-                        ir::Value::Expression(exp) => {
-                            match exp {
-                                ir::Expression::BinaryOp { left, right, .. } => {
-                                    replace_operand(left, &r_reload.previous, &r_reload.var);
-                                    replace_operand(right, &r_reload.previous, &r_reload.var);
-                                }
-                                other => {
-                                    dbg!(other);
-                                    todo!()
-                                }
-                            };
-                        }
-                        ir::Value::Unknown => {}
-                        other => {
-                            dbg!(&other);
-                            todo!()
-                        }
-                    };
-                }
-                ir::Statement::Return(Some(var)) if var == &r_reload.previous => {
-                    *var = r_reload.var.clone();
-                }
-                ir::Statement::Return(_) => {}
-                other => {
-                    dbg!(&other);
-                    todo!()
-                }
-            };
-        }
+        reconstruct_ssa_statements(
+            statements.iter_mut().skip(r_reload.position + 1),
+            &r_reload.previous,
+            &r_reload.var,
+        );
         r_block.set_statements(statements);
 
         let succs = r_block.successors();
@@ -146,13 +216,15 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
                 |acc, current| acc.intersection(&current).cloned().collect(),
             );
 
-            let some = pred_data.values().cloned().map(|d| d.exit_vars).fold(
-                BTreeSet::new(),
-                |mut acc, mut current| {
-                    acc.append(&mut current);
+            let some = pred_data
+                .values()
+                .cloned()
+                .flat_map(|d| d.exit_vars)
+                .filter(|v| !all.contains(v))
+                .fold(BTreeSet::new(), |mut acc, current| {
+                    acc.insert(current);
                     acc
-                },
-            );
+                });
 
             // TODO
             // Also fill the remaining slots with Variables from some
@@ -194,8 +266,25 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
 
         let mut exit_vars = entry_vars.clone();
         let mut exit_spilled = entry_spilled.clone();
-        let tmp_reloads = min_algorithm(&current, &mut exit_vars, &mut exit_spilled, max_vars);
+
+        let next_use_distance = current
+            .successors()
+            .into_values()
+            .map(|b| next_use_distances(&b))
+            .fold(HashMap::new(), |mut acc, elem| {
+                merge_distances(&mut acc, elem.into_iter());
+                acc
+            });
+        let tmp_reloads = min_algorithm(
+            &current,
+            &mut exit_vars,
+            &mut exit_spilled,
+            max_vars,
+            next_use_distance,
+        );
         reloads.push((current.clone(), tmp_reloads));
+
+        dbg!(current.as_ptr(), &entry_vars, &exit_vars);
 
         result.insert(
             current.as_ptr(),
@@ -208,6 +297,7 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
         );
 
         pending_blocks.extend(current.successors().into_iter().map(|(_, b)| b));
+        pending_blocks.retain(|b| !result.contains_key(&b.as_ptr()));
     }
 
     reconstruct_ssa(root, reloads);
@@ -226,6 +316,7 @@ fn min_algorithm(
     current_vars: &mut BTreeSet<ir::Variable>,
     spilled: &mut BTreeSet<ir::Variable>,
     max_vars: usize,
+    across_distance: HashMap<ir::Variable, usize>,
 ) -> Vec<Reload> {
     let statements = block.get_statements();
 
@@ -250,13 +341,21 @@ fn min_algorithm(
             _ => None,
         };
 
-        let spill_first = limit(current_vars, spilled, &statements, index, max_vars);
+        let spill_first = limit(
+            current_vars,
+            spilled,
+            &statements,
+            index,
+            max_vars,
+            &across_distance,
+        );
         let spill_second = limit(
             current_vars,
             spilled,
             &statements,
             index + 1,
             max_vars - definition.as_ref().map(|_| 1).unwrap_or(0),
+            &across_distance,
         );
 
         for spill_var in spill_first.into_iter().chain(spill_second) {
@@ -290,10 +389,10 @@ fn min_algorithm(
     for (offset, (index, var, action)) in action_iter.iter().enumerate() {
         match action {
             MinAction::Spill => {
-                n_statements.insert(index + offset, spill::save_statement(var.clone()));
+                n_statements.insert(index + offset, save_statement(var.clone()));
             }
             MinAction::Reload { n_var } => {
-                n_statements.insert(index + offset, spill::load_statement(n_var.clone()));
+                n_statements.insert(index + offset, load_statement(n_var.clone()));
             }
         };
     }
@@ -321,8 +420,9 @@ fn limit(
     instructions: &[ir::Statement],
     current: usize,
     max_vars: usize,
+    across_distance: &HashMap<ir::Variable, usize>,
 ) -> Vec<ir::Variable> {
-    let distance: BTreeMap<_, _> = instructions
+    let local_distance: BTreeMap<_, _> = instructions
         .into_iter()
         .skip(current)
         .enumerate()
@@ -330,19 +430,31 @@ fn limit(
         .flat_map(|(i, s)| s.used_vars().into_iter().zip(std::iter::repeat(i)))
         .collect();
 
+    let max_local_distance = local_distance.values().cloned().max().unwrap_or(0);
+    let max_across_distance = across_distance
+        .values()
+        .cloned()
+        .map(|v| v + max_local_distance)
+        .max()
+        .unwrap_or(0)
+        .max(local_distance.values().cloned().max().unwrap_or(0));
+
     let mut sorted_current = current_vars
         .iter()
         .cloned()
-        .map(|var| match distance.get(&var) {
+        .map(|var| match local_distance.get(&var) {
             Some(dist) => (var, *dist),
-            None => (var, instructions.len() + 1),
+            None => match across_distance.get(&var) {
+                Some(ad) => (var, *ad + max_local_distance),
+                None => (var, max_across_distance + 3),
+            },
         })
         .collect::<Vec<_>>();
     sorted_current.sort_by_key(|(_, d)| *d);
 
     let mut result = Vec::new();
     for (tmp, dist) in sorted_current.iter().skip(max_vars) {
-        if !spilled.contains(tmp) && *dist < instructions.len() {
+        if !spilled.contains(tmp) && *dist < max_across_distance + 2 {
             result.push(tmp.clone());
         }
 

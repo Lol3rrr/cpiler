@@ -181,7 +181,10 @@ int main() {
                 ir::Statement::Return(Some(tmp2)),
             ],
         );
-        expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block2));
+        expected_ir_block1.add_statement(ir::Statement::Jump(
+            expected_ir_block2,
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_func = ir::FunctionDefinition {
             name: "main".to_string(),
@@ -201,7 +204,7 @@ int main() {
     int y = 3;
     int z = x + y;
     int w = x + y;
-    int res = x + z;
+    int res = x + z + w + y;
     
     if (1) {
         int x = 13;
@@ -305,7 +308,10 @@ int main() {
                 },
             ],
         );
-        expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block2.clone()));
+        expected_ir_block1.add_statement(ir::Statement::Jump(
+            expected_ir_block2.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         // True Block
         let expected_ir_block4 = ir::BasicBlock::new(
@@ -324,6 +330,7 @@ int main() {
         expected_ir_block2.add_statement(ir::Statement::JumpTrue(
             t0.clone(),
             expected_ir_block4.clone(),
+            ir::JumpMetadata::Linear,
         ));
 
         // False Block
@@ -340,7 +347,10 @@ int main() {
                 ir::Statement::SaveVariable { var: x0_1.clone() },
             ],
         );
-        expected_ir_block2.add_statement(ir::Statement::Jump(expected_ir_block3.clone()));
+        expected_ir_block2.add_statement(ir::Statement::Jump(
+            expected_ir_block3.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         // After Block
         let expected_ir_block5 = ir::BasicBlock::new(
@@ -353,8 +363,14 @@ int main() {
                 ir::Statement::Return(Some(t1.clone())),
             ],
         );
-        expected_ir_block3.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
-        expected_ir_block4.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
+        expected_ir_block3.add_statement(ir::Statement::Jump(
+            expected_ir_block5.clone(),
+            ir::JumpMetadata::Linear,
+        ));
+        expected_ir_block4.add_statement(ir::Statement::Jump(
+            expected_ir_block5.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_func = ir::FunctionDefinition {
             name: "main".to_string(),
@@ -467,7 +483,10 @@ int main() {
                 },
             ],
         );
-        expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block2.clone()));
+        expected_ir_block1.add_statement(ir::Statement::Jump(
+            expected_ir_block2.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         // True Block
         let expected_ir_block_true = ir::BasicBlock::new(
@@ -515,8 +534,11 @@ int main() {
                 ir::Statement::SaveVariable { var: x0.clone() },
             ],
         );
-        expected_ir_block2
-            .add_statement(ir::Statement::JumpTrue(t0, expected_ir_block_true.clone()));
+        expected_ir_block2.add_statement(ir::Statement::JumpTrue(
+            t0,
+            expected_ir_block_true.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         // False Block
         let expected_ir_block4 = ir::BasicBlock::new(
@@ -541,7 +563,10 @@ int main() {
                 ir::Statement::SaveVariable { var: x0.clone() },
             ],
         );
-        expected_ir_block2.add_statement(ir::Statement::Jump(expected_ir_block4.clone()));
+        expected_ir_block2.add_statement(ir::Statement::Jump(
+            expected_ir_block4.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         // After Block
         let expected_ir_block5 = ir::BasicBlock::new(
@@ -603,8 +628,14 @@ int main() {
                 ir::Statement::Return(Some(t6)),
             ],
         );
-        expected_ir_block_true.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
-        expected_ir_block4.add_statement(ir::Statement::Jump(expected_ir_block5.clone()));
+        expected_ir_block_true.add_statement(ir::Statement::Jump(
+            expected_ir_block5.clone(),
+            ir::JumpMetadata::Linear,
+        ));
+        expected_ir_block4.add_statement(ir::Statement::Jump(
+            expected_ir_block5.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_func = ir::FunctionDefinition {
             name: "main".to_string(),
@@ -712,7 +743,10 @@ int main() {
                 // Jump
             ],
         );
-        expected_ir_block_start.add_statement(ir::Statement::Jump(expected_ir_block1.clone()));
+        expected_ir_block_start.add_statement(ir::Statement::Jump(
+            expected_ir_block1.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_block_true = ir::BasicBlock::new(
             vec![expected_ir_block1.weak_ptr()],
@@ -801,6 +835,7 @@ int main() {
         expected_ir_block1.add_statement(ir::Statement::JumpTrue(
             tmp0,
             expected_ir_block_true.clone(),
+            ir::JumpMetadata::Linear,
         ));
 
         let expected_ir_block_false = ir::BasicBlock::new(
@@ -825,7 +860,10 @@ int main() {
                 // Jump to After-Block
             ],
         );
-        expected_ir_block1.add_statement(ir::Statement::Jump(expected_ir_block_false.clone()));
+        expected_ir_block1.add_statement(ir::Statement::Jump(
+            expected_ir_block_false.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_block_after = ir::BasicBlock::new(
             vec![
@@ -886,8 +924,14 @@ int main() {
             },
             ir::Statement::Return(Some(tmp6)),
         ]);
-        expected_ir_block_true.add_statement(ir::Statement::Jump(expected_ir_block_after.clone()));
-        expected_ir_block_false.add_statement(ir::Statement::Jump(expected_ir_block_after.clone()));
+        expected_ir_block_true.add_statement(ir::Statement::Jump(
+            expected_ir_block_after.clone(),
+            ir::JumpMetadata::Linear,
+        ));
+        expected_ir_block_false.add_statement(ir::Statement::Jump(
+            expected_ir_block_after.clone(),
+            ir::JumpMetadata::Linear,
+        ));
 
         let expected_ir_func = ir::FunctionDefinition {
             name: "main".to_string(),
