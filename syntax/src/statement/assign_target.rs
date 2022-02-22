@@ -1,7 +1,7 @@
 use itertools::PeekNth;
 use tokenizer::{Operator, Token, TokenData};
 
-use crate::{EOFContext, ExpectedToken, Expression, Identifier, SyntaxError};
+use crate::{EOFContext, ExpectedToken, Expression, Identifier, SingleOperation, SyntaxError};
 
 #[derive(Debug, PartialEq)]
 pub enum AssignTarget {
@@ -81,6 +81,15 @@ impl AssignTarget {
             Self::StructAccess { base, field } => Expression::StructAccess {
                 field: field.clone(),
                 base: Box::new(base.to_exp()),
+            },
+            // TODO
+            // Im am not realyl sure if this is actually the Right thing
+            Self::StructPtrAccess { base, field } => Expression::StructAccess {
+                field: field.clone(),
+                base: Box::new(Expression::SingleOperation {
+                    base: Box::new(base.to_exp()),
+                    operation: SingleOperation::Dereference,
+                }),
             },
             other => todo!("{:?}", other),
         }

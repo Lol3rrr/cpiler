@@ -48,6 +48,16 @@ where
             right: Box::new(value),
             operation: ExpressionOperator::BitwiseXor,
         },
+        Assignment::ShiftRight => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::ShiftRight,
+        },
+        Assignment::ShiftLeft => Expression::Operation {
+            left: Box::new(left()),
+            right: Box::new(value),
+            operation: ExpressionOperator::ShiftLeft,
+        },
         other => todo!("Convert Assignment: {:?}", other),
     }
 }
