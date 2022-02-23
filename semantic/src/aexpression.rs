@@ -6,7 +6,7 @@ use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
     assign_type, atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType,
-    ArrayAccessTarget, SemanticError, TypeDefinitions, VariableContainer,
+    ArrayAccessTarget, SemanticError, StructDef, StructMember, TypeDefinitions, VariableContainer,
 };
 
 mod operator;
@@ -102,8 +102,16 @@ impl AExpression {
                     let value: i64 = match content.data.parse() {
                         Ok(v) => v,
                         Err(e) => {
-                            dbg!(e);
-                            panic!("Parsing Integer Type");
+                            return Err(SemanticError::MismatchedTypes {
+                                expected: SpanData {
+                                    span: content.span.clone(),
+                                    data: AType::Primitve(APrimitive::LongInt),
+                                },
+                                received: SpanData {
+                                    span: content.span.clone(),
+                                    data: AType::Primitve(APrimitive::Void),
+                                },
+                            });
                         }
                     };
 
@@ -152,9 +160,24 @@ impl AExpression {
                 let (struct_def, def_span) = match base_ty.get_struct_def() {
                     Some(s) => s,
                     None => {
-                        dbg!(&base_ty);
-
-                        todo!("Wrong Type, expected Struct");
+                        return Err(SemanticError::MismatchedTypes {
+                            expected: SpanData {
+                                span: field.0.span.clone(),
+                                data: atype::AType::Struct {
+                                    def: StructDef {
+                                        members: vec![StructMember {
+                                            name: field.clone(),
+                                            ty: AType::Primitve(APrimitive::Void),
+                                        }],
+                                    },
+                                    area: field.0.span.clone(),
+                                },
+                            },
+                            received: SpanData {
+                                span: base_exp.entire_span().clone(),
+                                data: base_ty,
+                            },
+                        });
                     }
                 };
 
@@ -354,7 +377,8 @@ impl AExpression {
                 match a_base {
                     AExpression::Variable { .. } => {}
                     AExpression::ArrayAccess { .. } => {}
-                    _ => {
+                    unknown => {
+                        dbg!(&unknown);
                         todo!("Cant take address of this Expression");
                     }
                 };
@@ -400,6 +424,11 @@ impl AExpression {
                         (left_a, right_a)
                     }
                     AOperator::Arithmetic(_) => atype::determine_types(left_a, right_a)?,
+                    AOperator::Bitwise(_) => {
+                        // TODO
+                        // Check for Type Compatibility when performing bitwise operations
+                        (left_a, right_a)
+                    }
                 };
 
                 Ok(Self::BinaryOperator {
@@ -417,6 +446,10 @@ impl AExpression {
                     target: ty,
                     base: Box::new(inner_exp),
                 })
+            }
+            Expression::ArrayLiteral { parts } => {
+                dbg!(&parts);
+                todo!()
             }
             unknown => panic!("Unknown Expression: {:?}", unknown),
         }
@@ -463,6 +496,7 @@ impl AExpression {
 
                     left.result_type()
                 }
+                AOperator::Bitwise(_) => AType::Primitve(APrimitive::Int),
             },
             Self::UnaryOperator { op, base } => match op {
                 UnaryOperator::Arithmetic(_) => AType::Primitve(APrimitive::Int),

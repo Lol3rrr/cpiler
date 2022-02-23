@@ -22,6 +22,7 @@ pub use enums::*;
 mod assign_type;
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum TypeDefType {
     Type(TypeToken),
     NamedStruct {
@@ -35,6 +36,7 @@ pub enum TypeDefType {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct FunctionHead {
     pub r_type: TypeToken,
     pub name: Identifier,
@@ -43,6 +45,7 @@ pub struct FunctionHead {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Statement {
     SubScope(Scope),
     FunctionDeclaration(FunctionHead),
@@ -265,8 +268,12 @@ impl Statement {
                     }
                     _ => {
                         let ty = TypeToken::parse(tokens)?;
-
                         dbg!(&ty);
+
+                        let name = tokens.next().ok_or_else(|| SyntaxError::UnexpectedEOF {
+                            ctx: EOFContext::Statement,
+                        })?;
+                        dbg!(&name);
 
                         todo!("Parsing TypeDef");
                     }

@@ -1,5 +1,5 @@
 [package]
-name = "syntax-fuzz"
+name = "semantic-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
@@ -10,10 +10,11 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-tokenizer = { path = "../../tokenizer" }
+syntax = { path = "../../syntax", features = ["fuzzing"] }
 general = { path = "../../general", features = ["fuzzing"] }
+tokenizer = { path = "../../tokenizer", features = ["fuzzing"] }
 
-[dependencies.syntax]
+[dependencies.semantic]
 path = ".."
 
 # Prevent this from interfering with workspaces

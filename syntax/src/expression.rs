@@ -13,6 +13,7 @@ use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError, TypeToken};
 mod parse_state;
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Expression {
     Identifier {
         ident: Identifier,
@@ -68,6 +69,7 @@ pub enum Expression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum SingleOperation {
     Positive,
     Negative,
@@ -88,6 +90,7 @@ pub enum SingleOperation {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum ExpressionOperator {
     Add,
     Sub,
@@ -181,7 +184,12 @@ impl Expression {
                         match next {
                             '0' => '\0',
                             'n' => '\n',
-                            other => panic!("Unexpected Escape Sequence: {:?}", other),
+                            _ => {
+                                return Err(SyntaxError::UnexpectedToken {
+                                    expected: None,
+                                    got: current.span.sub_span(1..2).unwrap().into(),
+                                })
+                            }
                         }
                     }
                     other => other,

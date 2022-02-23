@@ -98,6 +98,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "semantic"
+version = "0.1.0"
+dependencies = [
+ "general",
+ "ir",
+ "syntax",
+]
+
+[[package]]
+name = "semantic-fuzz"
+version = "0.0.0"
+dependencies = [
+ "general",
+ "libfuzzer-sys",
+ "semantic",
+ "syntax",
+ "tokenizer",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -112,18 +132,9 @@ dependencies = [
 name = "syntax"
 version = "0.1.0"
 dependencies = [
+ "arbitrary",
  "general",
  "itertools",
- "tokenizer",
-]
-
-[[package]]
-name = "syntax-fuzz"
-version = "0.0.0"
-dependencies = [
- "general",
- "libfuzzer-sys",
- "syntax",
  "tokenizer",
 ]
 
@@ -131,6 +142,7 @@ dependencies = [
 name = "tokenizer"
 version = "0.1.0"
 dependencies = [
+ "arbitrary",
  "general",
  "itertools",
 ]

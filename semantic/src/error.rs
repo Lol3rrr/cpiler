@@ -25,6 +25,9 @@ pub enum SemanticError {
     UnknownIdentifier {
         name: Identifier,
     },
+    UnknownType {
+        name: Identifier,
+    },
     UnknownStructField {
         /// The Name of the Field that the Code tried to access
         field_name: Identifier,

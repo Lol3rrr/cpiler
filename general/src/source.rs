@@ -1,6 +1,7 @@
 use std::{fmt::Debug, ops::Range};
 
 #[derive(PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct Source {
     name: String,
     content: String,

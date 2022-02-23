@@ -5,6 +5,7 @@ use tokenizer::{Assignment, Token, TokenData};
 use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct EnumVariant {
     pub name: Identifier,
     pub value: Option<SpanData<u64>>,
@@ -69,6 +70,7 @@ impl EnumVariant {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct EnumVariants {
     pub members: Vec<EnumVariant>,
 }

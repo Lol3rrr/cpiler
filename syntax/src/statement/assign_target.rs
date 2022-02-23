@@ -4,6 +4,7 @@ use tokenizer::{Operator, Token, TokenData};
 use crate::{EOFContext, ExpectedToken, Expression, Identifier, SingleOperation, SyntaxError};
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum AssignTarget {
     Variable(Identifier),
     ArrayAccess { base: Box<Self>, index: Expression },

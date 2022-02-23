@@ -4,6 +4,7 @@ use tokenizer::{Token, TokenData};
 use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct StructMembers {
     pub members: Vec<(TypeToken, Identifier)>,
 }

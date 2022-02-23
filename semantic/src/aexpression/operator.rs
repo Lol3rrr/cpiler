@@ -56,10 +56,24 @@ impl ArithemticOp {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum BitwiseOp {
+    And,
+}
+
+impl BitwiseOp {
+    fn to_ir(&self) -> ir::BinaryBitwiseOp {
+        match self {
+            Self::And => ir::BinaryBitwiseOp::And,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum AOperator {
     Comparison(AComparitor),
     Combinator(LogicCombinator),
     Arithmetic(ArithemticOp),
+    Bitwise(BitwiseOp),
 }
 
 impl From<ExpressionOperator> for AOperator {
@@ -76,6 +90,7 @@ impl From<ExpressionOperator> for AOperator {
             ExpressionOperator::Add => Self::Arithmetic(ArithemticOp::Add),
             ExpressionOperator::Sub => Self::Arithmetic(ArithemticOp::Sub),
             ExpressionOperator::Multiply => Self::Arithmetic(ArithemticOp::Multiply),
+            ExpressionOperator::BitwiseAnd => Self::Bitwise(BitwiseOp::And),
             unknown => panic!("Unknown OP: {:?}", unknown),
         }
     }
@@ -87,6 +102,7 @@ impl AOperator {
             Self::Arithmetic(arith_op) => ir::BinaryOp::Arith(arith_op.to_ir()),
             Self::Comparison(comp_op) => ir::BinaryOp::Logic(comp_op.to_ir()),
             Self::Combinator(comb_op) => ir::BinaryOp::LogicCombinator(comb_op.to_ir()),
+            Self::Bitwise(bit_op) => ir::BinaryOp::Bitwise(bit_op.to_ir()),
         }
     }
 }

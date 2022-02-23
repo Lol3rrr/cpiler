@@ -321,20 +321,15 @@ impl AType {
                     ty: Box::new(base_ty),
                 }))
             }
-            TypeToken::TypeDefed { name } => {
-                dbg!(&name);
-
-                match ty_defs.get_definition(&name) {
-                    Some(ty) => Ok(Self::TypeDef {
-                        name,
-                        ty: Box::new(ty.clone()),
-                    }),
-                    None => {
-                        dbg!(&ty_defs);
-                        todo!("Unknown Typename: {:?}", &name);
-                    }
+            TypeToken::TypeDefed { name } => match ty_defs.get_definition(&name) {
+                Some(ty) => Ok(Self::TypeDef {
+                    name,
+                    ty: Box::new(ty.clone()),
+                }),
+                None => {
+                    return Err(SemanticError::UnknownType { name });
                 }
-            }
+            },
             TypeToken::Composition { base, modifier } => {
                 Self::parse_composition(modifier, base, ty_defs, vars)
             }

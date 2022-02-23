@@ -247,6 +247,10 @@ where
                     SemanticError::InvalidType {} => {
                         todo!("Invalid Type")
                     }
+                    SemanticError::UnknownType { name } => {
+                        dbg!(&name);
+                        todo!("Unknown Type")
+                    }
                     SemanticError::Redeclaration {
                         name,
                         previous_declaration,

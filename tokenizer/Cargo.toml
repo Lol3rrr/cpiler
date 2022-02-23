@@ -5,10 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+fuzzing = ["arbitrary", "general/fuzzing"]
+
 [dependencies]
 general = { path = "../general" }
 
 itertools = { version = "0.10" }
+
+arbitrary = { version = "1.1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 criterion = "0.3"

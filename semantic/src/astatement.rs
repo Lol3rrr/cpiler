@@ -233,7 +233,11 @@ impl AStatement {
                 let ty = AType::parse(ty, parse_state.type_defs(), parse_state)?;
 
                 if parse_state.is_locally_declared(&name) {
-                    panic!("Redeclaration Error");
+                    let prev_dec = parse_state.get_declaration(&name).unwrap();
+                    return Err(SemanticError::Redeclaration {
+                        name,
+                        previous_declaration: prev_dec,
+                    });
                 }
 
                 let declaration = name.0.span.clone();

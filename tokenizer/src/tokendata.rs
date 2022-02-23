@@ -9,6 +9,7 @@ impl ParseSpan for TokenData {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum TokenData {
     Keyword(Keyword),
     Assign(Assignment),
@@ -72,6 +73,7 @@ impl Display for TokenData {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Assignment {
     Assign,
     Add,
@@ -105,6 +107,7 @@ impl Display for Assignment {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Keyword {
     DataType(DataType),
     ControlFlow(ControlFlow),
@@ -148,6 +151,7 @@ impl Display for Keyword {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum DataType {
     Void,
     Short,
@@ -183,6 +187,7 @@ impl Display for DataType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum ControlFlow {
     If,
     Else,
@@ -216,6 +221,7 @@ impl Display for ControlFlow {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Operator {
     /// +
     Add,

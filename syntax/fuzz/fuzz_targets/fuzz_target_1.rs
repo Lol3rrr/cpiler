@@ -1,11 +1,9 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &str| {
+fuzz_target!(|data: general::Span| {
     // fuzzed code goes here
-    let source = general::Source::new("test", data);
-    let span: general::Span = source.clone().into();
-    let mut tokens = tokenizer::tokenize(span);
+    let mut tokens = tokenizer::tokenize(data);
 
     let result = syntax::parse(tokens.by_ref());
 });

@@ -1,6 +1,7 @@
 use crate::{Span, SpanRef};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct SpanData<D> {
     pub span: Span,
     pub data: D,

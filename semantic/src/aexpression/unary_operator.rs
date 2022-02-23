@@ -38,6 +38,8 @@ impl From<SingleOperation> for UnaryOperator {
             SingleOperation::Negative => Self::Arithmetic(UnaryArithmeticOp::Negate),
             SingleOperation::LogicalNot => Self::Logic(UnaryLogicOp::Not),
             SingleOperation::Dereference => Self::Derference,
+            SingleOperation::PrefixIncrement => Self::Arithmetic(UnaryArithmeticOp::Increment),
+            SingleOperation::PrefixDecrement => Self::Arithmetic(UnaryArithmeticOp::Decrement),
             unknown => todo!("Parse SingleOP: {:?}", unknown),
         }
     }

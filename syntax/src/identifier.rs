@@ -5,6 +5,7 @@ use tokenizer::{Token, TokenData};
 use crate::{EOFContext, ExpectedToken, SyntaxError};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct Identifier(pub SpanData<String>);
 
 impl Identifier {

@@ -24,6 +24,7 @@ pub use error::*;
 pub use tokenizer::DataType;
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct FunctionArgument {
     /// The Name of the Argument
     pub name: Identifier,
@@ -32,6 +33,7 @@ pub struct FunctionArgument {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct AST {
     pub global_scope: Scope,
 }

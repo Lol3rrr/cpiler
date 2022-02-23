@@ -5,6 +5,7 @@ use tokenizer::{DataType, Keyword, Operator, Token, TokenData};
 use crate::{EOFContext, ExpectedToken, Expression, Identifier, SyntaxError};
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Modifier {
     Const,
     Signed,
@@ -35,6 +36,7 @@ impl Modifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum TypeToken {
     /// A Pointer to some other Type
     Pointer(Box<Self>),

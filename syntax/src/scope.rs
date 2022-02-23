@@ -4,6 +4,7 @@ use tokenizer::{Token, TokenData};
 use crate::{Statement, SyntaxError};
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub struct Scope {
     pub statements: Vec<Statement>,
 }

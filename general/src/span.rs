@@ -16,6 +16,22 @@ pub struct Span {
     original: Option<Box<Self>>,
 }
 
+#[cfg(feature = "fuzzing")]
+impl arbitrary::Arbitrary<'_> for Span {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
+        let source = u.arbitrary::<Source>()?;
+
+        let max_area = source.content().len();
+        let area = 0..max_area;
+
+        Ok(Self {
+            source: Arc::new(source),
+            source_area: area,
+            original: None,
+        })
+    }
+}
+
 impl Hash for Span {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write(self.content().as_bytes());
