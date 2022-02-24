@@ -163,7 +163,16 @@ impl Expression {
             Self::StringLiteral { content } => Some(content.span.clone()),
             Self::CharLiteral { content } => Some(content.span.clone()),
             Self::ArrayLiteral { parts } => Some(parts.span.clone()),
-            _ => None,
+            Self::Operation { left, right, .. } => {
+                let l_span = left.entire_span()?;
+                let r_span = right.entire_span()?;
+                Some(l_span.join(r_span))
+            }
+            Self::SingleOperation { base, .. } => base.entire_span(),
+            other => {
+                dbg!(&other);
+                None
+            }
         }
     }
 

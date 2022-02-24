@@ -6,7 +6,8 @@ use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
     assign_type, atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType,
-    ArrayAccessTarget, SemanticError, StructDef, StructMember, TypeDefinitions, VariableContainer,
+    ArrayAccessTarget, InvalidOperation, SemanticError, StructDef, StructMember, TypeDefinitions,
+    VariableContainer,
 };
 
 mod operator;
@@ -91,7 +92,21 @@ impl AExpression {
         match raw {
             Expression::Literal { content } => {
                 if content.data.contains('.') {
-                    let value: f64 = content.data.parse().unwrap();
+                    let value: f64 = match content.data.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return Err(SemanticError::MismatchedTypes {
+                                expected: SpanData {
+                                    span: content.span.clone(),
+                                    data: AType::Primitve(APrimitive::Double),
+                                },
+                                received: SpanData {
+                                    span: content.span.clone(),
+                                    data: AType::Primitve(APrimitive::Void),
+                                },
+                            });
+                        }
+                    };
 
                     let span_d = SpanData {
                         span: content.span,
@@ -377,9 +392,11 @@ impl AExpression {
                 match a_base {
                     AExpression::Variable { .. } => {}
                     AExpression::ArrayAccess { .. } => {}
-                    unknown => {
-                        dbg!(&unknown);
-                        todo!("Cant take address of this Expression");
+                    _ => {
+                        return Err(SemanticError::InvalidOperation {
+                            base: a_base.entire_span(),
+                            operation: InvalidOperation::AdressOf,
+                        });
                     }
                 };
 
@@ -389,6 +406,28 @@ impl AExpression {
                 Ok(Self::AddressOf {
                     base: Box::new(a_base),
                     ty: target_ty,
+                })
+            }
+            Expression::SingleOperation {
+                base,
+                operation: SingleOperation::Dereference,
+            } => {
+                let a_base = Self::parse(*base, ty_defs, vars)?;
+
+                let base_ty = a_base.result_type();
+                match base_ty {
+                    AType::Pointer(_) => {}
+                    _ => {
+                        return Err(SemanticError::InvalidOperation {
+                            base: a_base.entire_span(),
+                            operation: InvalidOperation::Dereference,
+                        })
+                    }
+                };
+
+                Ok(Self::UnaryOperator {
+                    base: Box::new(a_base),
+                    op: UnaryOperator::Derference,
                 })
             }
             Expression::SingleOperation { base, operation } => {
@@ -501,6 +540,7 @@ impl AExpression {
             Self::UnaryOperator { op, base } => match op {
                 UnaryOperator::Arithmetic(_) => AType::Primitve(APrimitive::Int),
                 UnaryOperator::Logic(_) => AType::Primitve(APrimitive::Int),
+                UnaryOperator::Bitwise(_) => AType::Primitve(APrimitive::Int),
                 UnaryOperator::Derference => match base.result_type() {
                     AType::Pointer(inner) => *inner,
                     other => {

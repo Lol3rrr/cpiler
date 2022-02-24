@@ -10,11 +10,20 @@ pub fn determine_types(
         return Ok((left, right));
     }
 
-    dbg!(&left, &right);
-
     let left_prim = match left_type {
         AType::Primitve(prim) => prim,
-        _ => panic!("Different Types with more Complex DataTypes"),
+        _ => {
+            return Err(SemanticError::MismatchedOperationTypes {
+                left: general::SpanData {
+                    span: left.entire_span(),
+                    data: left_type,
+                },
+                right: general::SpanData {
+                    span: right.entire_span(),
+                    data: right_type,
+                },
+            })
+        }
     };
     let right_prim = match right_type {
         AType::Primitve(prim) => prim,
@@ -71,8 +80,6 @@ pub fn determine_types(
             Ok((n_exp, right))
         }
         (left_prim, right_prim) if left_prim.is_unsigned() && right_prim.is_unsigned() => {
-            dbg!(&left_prim, &right_prim);
-
             if left_prim.rank() > right_prim.rank() {
                 let n_exp = AExpression::Cast {
                     target: AType::Primitve(left_prim),
@@ -90,8 +97,6 @@ pub fn determine_types(
             }
         }
         (left_prim, right_prim) if left_prim.is_signed() && right_prim.is_signed() => {
-            dbg!(&left_prim, &right_prim);
-
             if left_prim.rank() > right_prim.rank() {
                 let n_exp = AExpression::Cast {
                     target: AType::Primitve(left_prim),
@@ -109,8 +114,6 @@ pub fn determine_types(
             }
         }
         (left_prim, right_prim) => {
-            dbg!(&left_prim, &right_prim);
-
             let left_rank = left_prim.rank().unwrap();
             let right_rank = right_prim.rank().unwrap();
 

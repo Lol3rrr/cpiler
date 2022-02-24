@@ -4,16 +4,30 @@ use syntax::Identifier;
 use crate::{AType, StructDef};
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum InvalidOperation {
+    AdressOf,
+    Dereference,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum SemanticError {
     MismatchedTypes {
         expected: SpanData<AType>,
         received: SpanData<AType>,
+    },
+    MismatchedOperationTypes {
+        left: SpanData<AType>,
+        right: SpanData<AType>,
     },
     AmbiguousTypeConversion {
         target: SpanData<AType>,
         base: SpanData<AType>,
     },
     InvalidType {},
+    InvalidOperation {
+        base: Span,
+        operation: InvalidOperation,
+    },
     Redeclaration {
         name: Identifier,
         previous_declaration: Span,

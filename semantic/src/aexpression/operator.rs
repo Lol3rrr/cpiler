@@ -43,6 +43,8 @@ pub enum ArithemticOp {
     Add,
     Sub,
     Multiply,
+    Divide,
+    Modulo,
 }
 
 impl ArithemticOp {
@@ -51,6 +53,8 @@ impl ArithemticOp {
             Self::Add => ir::BinaryArithmeticOp::Add,
             Self::Sub => ir::BinaryArithmeticOp::Sub,
             Self::Multiply => ir::BinaryArithmeticOp::Multiply,
+            Self::Divide => ir::BinaryArithmeticOp::Divide,
+            Self::Modulo => ir::BinaryArithmeticOp::Modulo,
         }
     }
 }
@@ -58,12 +62,16 @@ impl ArithemticOp {
 #[derive(Debug, PartialEq, Clone)]
 pub enum BitwiseOp {
     And,
+    Xor,
+    Or,
 }
 
 impl BitwiseOp {
     fn to_ir(&self) -> ir::BinaryBitwiseOp {
         match self {
             Self::And => ir::BinaryBitwiseOp::And,
+            Self::Xor => ir::BinaryBitwiseOp::Xor,
+            Self::Or => ir::BinaryBitwiseOp::Or,
         }
     }
 }
@@ -90,7 +98,11 @@ impl From<ExpressionOperator> for AOperator {
             ExpressionOperator::Add => Self::Arithmetic(ArithemticOp::Add),
             ExpressionOperator::Sub => Self::Arithmetic(ArithemticOp::Sub),
             ExpressionOperator::Multiply => Self::Arithmetic(ArithemticOp::Multiply),
+            ExpressionOperator::Divide => Self::Arithmetic(ArithemticOp::Divide),
+            ExpressionOperator::Modulo => Self::Arithmetic(ArithemticOp::Modulo),
             ExpressionOperator::BitwiseAnd => Self::Bitwise(BitwiseOp::And),
+            ExpressionOperator::BitwiseXor => Self::Bitwise(BitwiseOp::Xor),
+            ExpressionOperator::BitwiseOr => Self::Bitwise(BitwiseOp::Or),
             unknown => panic!("Unknown OP: {:?}", unknown),
         }
     }

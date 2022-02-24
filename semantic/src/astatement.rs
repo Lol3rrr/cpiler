@@ -4,7 +4,7 @@ use syntax::{AssignTarget, FunctionHead, Identifier, Statement};
 
 use crate::{
     atype, conversion::ConvertContext, AExpression, AFunctionArg, APrimitive, AScope, AType,
-    FunctionDeclaration, ParseState, SemanticError, VariableContainer,
+    FunctionDeclaration, InvalidOperation, ParseState, SemanticError, VariableContainer,
 };
 
 mod for_to_while;
@@ -310,10 +310,11 @@ impl AStatement {
 
                 let inner_ty = match target_type {
                     AType::Pointer(inner) => *inner,
-                    other => {
-                        dbg!(&other);
-
-                        todo!("Can only dereference a Pointer")
+                    _ => {
+                        return Err(SemanticError::InvalidOperation {
+                            base: value.entire_span().unwrap(),
+                            operation: InvalidOperation::Dereference,
+                        })
                     }
                 };
 
@@ -428,7 +429,12 @@ impl AStatement {
                     Some(raw) => {
                         let value = AExpression::parse(raw, parse_state.type_defs(), parse_state)?;
 
-                        let expected_r_ty = parse_state.return_ty().unwrap();
+                        let expected_r_ty = match parse_state.return_ty() {
+                            Some(t) => t,
+                            None => {
+                                todo!("Return with Type outside of Function")
+                            }
+                        };
                         if let AType::Primitve(APrimitive::Void) = expected_r_ty.data {
                             return Err(SemanticError::MismatchedTypes {
                                 expected: expected_r_ty.clone(),

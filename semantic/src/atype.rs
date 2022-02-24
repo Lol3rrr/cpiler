@@ -397,7 +397,17 @@ impl AType {
                     }),
                 }
             }
-            unknown => panic!("Unknown TypeDefType: {:?}", unknown),
+            TypeDefType::Type(inner_type) => {
+                let ty = Self::parse(inner_type, ty_defs, vars)?;
+                dbg!(&ty);
+
+                todo!()
+            }
+            TypeDefType::NamedStruct { name } => {
+                dbg!(&name);
+
+                todo!()
+            }
         }
     }
 

@@ -19,8 +19,11 @@ pub enum UnaryLogicOp {
 /// A Bitwise Operation applied to a single Operand
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryBitwiseOp {
+    And,
     /// Switches all the bits of the Value
     Not,
+    Xor,
+    Or,
 }
 
 /// An Operator that is applied to a single Operand at a Time

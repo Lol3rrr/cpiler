@@ -268,14 +268,13 @@ impl Statement {
                     }
                     _ => {
                         let ty = TypeToken::parse(tokens)?;
-                        dbg!(&ty);
 
-                        let name = tokens.next().ok_or_else(|| SyntaxError::UnexpectedEOF {
-                            ctx: EOFContext::Statement,
-                        })?;
-                        dbg!(&name);
+                        let n_type_name = Identifier::parse(tokens)?;
 
-                        todo!("Parsing TypeDef");
+                        Ok(Self::TypeDef {
+                            name: n_type_name,
+                            base_type: TypeDefType::Type(ty),
+                        })
                     }
                 }
             }

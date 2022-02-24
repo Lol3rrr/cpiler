@@ -7,6 +7,7 @@ use crate::{conversion::ConvertContext, AExpression, AStatement};
 pub enum UnaryArithmeticOp {
     SuffixIncrement,
     SuffixDecrement,
+    Positive,
     Negate,
     /// Simply increments the base Value and returns the Result
     Increment,
@@ -20,9 +21,18 @@ pub enum UnaryLogicOp {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Bitwise {
+    Not,
+    And,
+    Or,
+    Xor,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOperator {
     Logic(UnaryLogicOp),
     Arithmetic(UnaryArithmeticOp),
+    Bitwise(Bitwise),
     Derference,
 }
 
@@ -40,6 +50,8 @@ impl From<SingleOperation> for UnaryOperator {
             SingleOperation::Dereference => Self::Derference,
             SingleOperation::PrefixIncrement => Self::Arithmetic(UnaryArithmeticOp::Increment),
             SingleOperation::PrefixDecrement => Self::Arithmetic(UnaryArithmeticOp::Decrement),
+            SingleOperation::Positive => Self::Arithmetic(UnaryArithmeticOp::Positive),
+            SingleOperation::BitwiseNot => Self::Bitwise(Bitwise::Not),
             unknown => todo!("Parse SingleOP: {:?}", unknown),
         }
     }
@@ -101,6 +113,7 @@ impl UnaryOperator {
 
                 ir::Value::Variable(result_var)
             }
+            Self::Arithmetic(UnaryArithmeticOp::Positive) => base.to_ir(block, ctx),
             Self::Arithmetic(UnaryArithmeticOp::Negate) => {
                 let base_operand = AExpression::val_to_operand(base_value, block, ctx);
                 Value::Expression(ir::Expression::UnaryOp {
@@ -128,6 +141,38 @@ impl UnaryOperator {
                 Value::Expression(ir::Expression::UnaryOp {
                     base: base_operand,
                     op: ir::UnaryOp::Logic(ir::UnaryLogicOp::Not),
+                })
+            }
+            Self::Bitwise(Bitwise::Not) => {
+                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
+
+                Value::Expression(ir::Expression::UnaryOp {
+                    base: base_operand,
+                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Not),
+                })
+            }
+            Self::Bitwise(Bitwise::And) => {
+                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
+
+                Value::Expression(ir::Expression::UnaryOp {
+                    base: base_operand,
+                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::And),
+                })
+            }
+            Self::Bitwise(Bitwise::Xor) => {
+                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
+
+                Value::Expression(ir::Expression::UnaryOp {
+                    base: base_operand,
+                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Xor),
+                })
+            }
+            Self::Bitwise(Bitwise::Or) => {
+                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
+
+                Value::Expression(ir::Expression::UnaryOp {
+                    base: base_operand,
+                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Or),
                 })
             }
             Self::Derference => {
