@@ -13,6 +13,9 @@ pub enum SyntaxError {
         span: Span,
         reason: ExpressionReason,
     },
+    TooNestedExpression {
+        //span: Span,
+    },
 }
 
 #[derive(Debug, PartialEq)]

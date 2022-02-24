@@ -12,6 +12,28 @@ use crate::{EOFContext, ExpectedToken, Identifier, SyntaxError, TypeToken};
 
 mod parse_state;
 
+struct ExpressionParseContext {
+    current_level: usize,
+}
+
+impl ExpressionParseContext {
+    pub fn new() -> Self {
+        Self { current_level: 0 }
+    }
+
+    pub fn sub_expression(&self) -> Result<Self, SyntaxError> {
+        let n_level = self.current_level + 1;
+
+        if n_level > 8 {
+            return Err(SyntaxError::TooNestedExpression {});
+        }
+
+        Ok(Self {
+            current_level: n_level,
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 pub enum Expression {
@@ -218,6 +240,7 @@ impl Expression {
     fn parse_exp_list<I>(
         tokens: &mut PeekNth<I>,
         end_tok: TokenData,
+        ctx: ExpressionParseContext,
     ) -> Result<Vec<Self>, SyntaxError>
     where
         I: Iterator<Item = Token>,
@@ -229,7 +252,7 @@ impl Expression {
                 break;
             }
 
-            let tmp_exp = Self::parse(tokens)?;
+            let tmp_exp = Self::parse_internal(tokens, ctx.sub_expression()?)?;
             result.push(tmp_exp);
 
             let comma_ending_token = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
@@ -255,6 +278,7 @@ impl Expression {
 
     fn parse_expressions<I, F>(
         tokens: &mut PeekNth<I>,
+        ctx: ExpressionParseContext,
         is_terminator: F,
     ) -> Result<Self, SyntaxError>
     where
@@ -335,7 +359,11 @@ impl Expression {
                 (TokenData::OpenParen, _) => {
                     match state.get_cloned_last_token_data() {
                         Some(TokenData::Literal { .. }) => {
-                            let params = Self::parse_exp_list(tokens, TokenData::CloseParen)?;
+                            let params = Self::parse_exp_list(
+                                tokens,
+                                TokenData::CloseParen,
+                                ctx.sub_expression()?,
+                            )?;
 
                             let closing_token =
                                 tokens.next().ok_or(SyntaxError::UnexpectedEOF {
@@ -385,7 +413,10 @@ impl Expression {
                                         | TokenData::Semicolon
                                         | TokenData::Comma
                                         | TokenData::CloseParen => {
-                                            let exp = Self::parse(tokens)?;
+                                            let exp = Self::parse_internal(
+                                                tokens,
+                                                ctx.sub_expression()?,
+                                            )?;
 
                                             let closing_token = tokens.next().ok_or(
                                                 SyntaxError::UnexpectedEOF {
@@ -426,7 +457,10 @@ impl Expression {
                                                 }
                                             };
 
-                                            let exp = Self::parse(tokens)?;
+                                            let exp = Self::parse_internal(
+                                                tokens,
+                                                ctx.sub_expression()?,
+                                            )?;
 
                                             let cast_exp = Self::Cast {
                                                 target_ty,
@@ -438,7 +472,7 @@ impl Expression {
                                     };
                                 }
                                 None => {
-                                    let exp = Self::parse(tokens)?;
+                                    let exp = Self::parse_internal(tokens, ctx.sub_expression()?)?;
 
                                     let closing_token =
                                         tokens.next().ok_or(SyntaxError::UnexpectedEOF {
@@ -461,7 +495,7 @@ impl Expression {
                     };
                 }
                 (TokenData::OpenBracket, _) => {
-                    let exp = Self::parse(tokens)?;
+                    let exp = Self::parse_internal(tokens, ctx.sub_expression()?)?;
 
                     let ending_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                         ctx: EOFContext::Expression,
@@ -487,7 +521,7 @@ impl Expression {
                 }
                 (TokenData::OpenBrace, _) => {
                     let mut items = Vec::new();
-                    while let Ok(exp) = Expression::parse(tokens) {
+                    while let Ok(exp) = Self::parse_internal(tokens, ctx.sub_expression()?) {
                         items.push(exp);
 
                         let peeked_seperator_token =
@@ -537,7 +571,7 @@ impl Expression {
                     });
                 }
                 (TokenData::QuestionMark, _) => {
-                    let first = Self::parse(tokens)?;
+                    let first = Self::parse_internal(tokens, ctx.sub_expression()?)?;
 
                     let seperator_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                         ctx: EOFContext::Expression,
@@ -552,7 +586,7 @@ impl Expression {
                         }
                     };
 
-                    let second = Self::parse(tokens)?;
+                    let second = Self::parse_internal(tokens, ctx.sub_expression()?)?;
 
                     let start = current.span.source_area().start;
                     let end = start;
@@ -580,11 +614,14 @@ impl Expression {
         Ok(result)
     }
 
-    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
+    fn parse_internal<I>(
+        tokens: &mut PeekNth<I>,
+        ctx: ExpressionParseContext,
+    ) -> Result<Self, SyntaxError>
     where
         I: Iterator<Item = Token>,
     {
-        Self::parse_expressions(tokens, |data| {
+        Self::parse_expressions(tokens, ctx, |data| {
             matches!(
                 data,
                 TokenData::Comma
@@ -596,6 +633,14 @@ impl Expression {
                     | TokenData::Assign(_)
             )
         })
+    }
+
+    pub fn parse<I>(tokens: &mut PeekNth<I>) -> Result<Self, SyntaxError>
+    where
+        I: Iterator<Item = Token>,
+    {
+        let ctx = ExpressionParseContext::new();
+        Self::parse_internal(tokens, ctx)
     }
 }
 
