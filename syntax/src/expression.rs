@@ -76,9 +76,13 @@ pub enum Expression {
         /// The Right side of the Operation
         right: Box<Self>,
     },
+    /// This is used by the ternary Operator "?"
     Conditional {
+        /// The Conditional used to determine which Expression to use
         condition: Box<Self>,
+        /// The Exprsesion to use if the Conditional is true
         first: Box<Self>,
+        /// The Exprsesion to use if the Conditional is false
         second: Box<Self>,
     },
     StructAccess {
@@ -169,6 +173,11 @@ impl Expression {
                 Some(l_span.join(r_span))
             }
             Self::SingleOperation { base, .. } => base.entire_span(),
+            Self::StructAccess { base, field } => {
+                let base_span = base.entire_span()?;
+                let field_span = field.0.span.clone();
+                Some(base_span.join(field_span))
+            }
             other => {
                 dbg!(&other);
                 None

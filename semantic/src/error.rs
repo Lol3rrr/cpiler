@@ -7,6 +7,8 @@ use crate::{AType, StructDef};
 pub enum InvalidOperation {
     AdressOf,
     Dereference,
+    ArrayAccess,
+    FunctionCall,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,6 +30,8 @@ pub enum SemanticError {
         base: Span,
         operation: InvalidOperation,
     },
+    InvalidReturn {},
+    MissingReturn {},
     Redeclaration {
         name: Identifier,
         previous_declaration: Span,
@@ -55,5 +59,8 @@ pub enum SemanticError {
     MismatchedFunctionArgsCount {
         expected: SpanData<usize>,
         received: SpanData<usize>,
+    },
+    NotImplemented {
+        ctx: String,
     },
 }

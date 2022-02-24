@@ -125,12 +125,8 @@ impl Statement {
     where
         I: Iterator<Item = Token>,
     {
-        let peeked = tokens.peek().ok_or_else(|| {
-            println!("Peeked Parse Statement");
-
-            SyntaxError::UnexpectedEOF {
-                ctx: EOFContext::Statement,
-            }
+        let peeked = tokens.peek().ok_or_else(|| SyntaxError::UnexpectedEOF {
+            ctx: EOFContext::Statement,
         })?;
 
         match &peeked.data {
@@ -323,8 +319,6 @@ impl Statement {
                 };
 
                 let inner_scope = Scope::parse(tokens)?;
-
-                dbg!(&condition_exp, &inner_scope);
 
                 let else_block = if let Some(peeked) = tokens.peek() {
                     match &peeked.data {

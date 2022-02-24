@@ -48,6 +48,8 @@ pub enum BinaryBitwiseOp {
     Or,
     /// Combines the two Operands with a bitwise XOR
     Xor,
+    ShiftLeft,
+    ShiftRight,
 }
 
 /// An Operator that is applied to two Operands at a Time

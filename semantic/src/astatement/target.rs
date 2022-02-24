@@ -228,10 +228,7 @@ impl AAssignTarget {
                 }))
             }
             AssignTarget::StructPtrAccess { base, field } => {
-                dbg!(&base, &field);
-
                 let base_target = Self::parse(*base, ty_defs, vars)?;
-                dbg!(&base_target);
 
                 let (struct_def, def_span) = match base_target.base_ty() {
                     AType::Pointer(inner) => match inner.get_struct_def() {
@@ -248,7 +245,6 @@ impl AAssignTarget {
                         todo!("Expected a Struct-Pointer");
                     }
                 };
-                dbg!(&struct_def);
 
                 let (field_ty, field_span) = match struct_def.find_member(&field) {
                     Some(f) => (f.data, f.span),

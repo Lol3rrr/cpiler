@@ -27,7 +27,18 @@ pub fn determine_types(
     };
     let right_prim = match right_type {
         AType::Primitve(prim) => prim,
-        _ => panic!("Different Types with more Complex DataTypes"),
+        _ => {
+            return Err(SemanticError::MismatchedOperationTypes {
+                left: general::SpanData {
+                    span: left.entire_span(),
+                    data: AType::Primitve(left_prim),
+                },
+                right: general::SpanData {
+                    span: right.entire_span(),
+                    data: right_type,
+                },
+            })
+        }
     };
 
     match (left_prim, right_prim) {

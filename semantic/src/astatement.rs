@@ -188,9 +188,7 @@ impl AStatement {
                 if trailing_ret {
                     let last = match inner_scope.statements.last() {
                         Some(l) => l,
-                        None => {
-                            todo!()
-                        }
+                        None => return Err(SemanticError::MissingReturn {}),
                     };
 
                     let expected_ty = match expected_r_val_ty {
@@ -431,9 +429,7 @@ impl AStatement {
 
                         let expected_r_ty = match parse_state.return_ty() {
                             Some(t) => t,
-                            None => {
-                                todo!("Return with Type outside of Function")
-                            }
+                            None => return Err(SemanticError::InvalidReturn {}),
                         };
                         if let AType::Primitve(APrimitive::Void) = expected_r_ty.data {
                             return Err(SemanticError::MismatchedTypes {

@@ -64,6 +64,8 @@ pub enum BitwiseOp {
     And,
     Xor,
     Or,
+    ShiftLeft,
+    ShiftRight,
 }
 
 impl BitwiseOp {
@@ -72,6 +74,8 @@ impl BitwiseOp {
             Self::And => ir::BinaryBitwiseOp::And,
             Self::Xor => ir::BinaryBitwiseOp::Xor,
             Self::Or => ir::BinaryBitwiseOp::Or,
+            Self::ShiftLeft => ir::BinaryBitwiseOp::ShiftLeft,
+            Self::ShiftRight => ir::BinaryBitwiseOp::ShiftRight,
         }
     }
 }
@@ -103,7 +107,8 @@ impl From<ExpressionOperator> for AOperator {
             ExpressionOperator::BitwiseAnd => Self::Bitwise(BitwiseOp::And),
             ExpressionOperator::BitwiseXor => Self::Bitwise(BitwiseOp::Xor),
             ExpressionOperator::BitwiseOr => Self::Bitwise(BitwiseOp::Or),
-            unknown => panic!("Unknown OP: {:?}", unknown),
+            ExpressionOperator::ShiftLeft => Self::Bitwise(BitwiseOp::ShiftLeft),
+            ExpressionOperator::ShiftRight => Self::Bitwise(BitwiseOp::ShiftRight),
         }
     }
 }

@@ -352,7 +352,16 @@ impl AType {
 
                 Ok(target_ty.clone())
             }
-            unknown => panic!("Unknown TypeToken: {:?}", unknown),
+            TypeToken::EnumType { name } => {
+                let target_ty = match ty_defs.get_definition(&name) {
+                    Some(t) => t,
+                    None => return Err(SemanticError::UnknownType { name }),
+                };
+
+                dbg!(&target_ty);
+
+                todo!("Enum Type")
+            }
         }
     }
 

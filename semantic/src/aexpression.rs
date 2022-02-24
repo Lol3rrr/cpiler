@@ -61,6 +61,11 @@ pub enum AExpression {
         base: Box<Self>,
         op: UnaryOperator,
     },
+    InlineConditional {
+        condition: Box<Self>,
+        left: Box<Self>,
+        right: Box<Self>,
+    },
     InlineAssembly {
         template: SpanData<String>,
         input_vars: Vec<(Identifier, SpanData<AType>)>,
@@ -221,7 +226,12 @@ impl AExpression {
             } => {
                 let name = match *base {
                     Expression::Identifier { ident } => ident,
-                    other => unreachable!("The Function-Call Operation should always only be applied to an identifier: {:?}", other),
+                    other => {
+                        return Err(SemanticError::InvalidOperation {
+                            base: other.entire_span().unwrap(),
+                            operation: InvalidOperation::FunctionCall,
+                        })
+                    }
                 };
 
                 if name.0.data == "asm" {
@@ -364,10 +374,11 @@ impl AExpression {
                 let elem_ty = match base_ty {
                     AType::Array(arr) => arr.ty,
                     AType::Pointer(inner) => inner,
-                    other => {
-                        dbg!(&other);
-
-                        todo!("Expected Array");
+                    _ => {
+                        return Err(SemanticError::InvalidOperation {
+                            base: base_exp.entire_span(),
+                            operation: InvalidOperation::ArrayAccess,
+                        })
                     }
                 };
                 let ty_span = base_exp.entire_span();
@@ -488,9 +499,46 @@ impl AExpression {
             }
             Expression::ArrayLiteral { parts } => {
                 dbg!(&parts);
-                todo!()
+
+                return Err(SemanticError::NotImplemented {
+                    ctx: "Array Literals".to_string(),
+                });
             }
-            unknown => panic!("Unknown Expression: {:?}", unknown),
+            Expression::Conditional {
+                condition,
+                first,
+                second,
+            } => {
+                let condition_exp = Self::parse(*condition, ty_defs, vars)?;
+                let left_exp = Self::parse(*first, ty_defs, vars)?;
+                let right_exp = Self::parse(*second, ty_defs, vars)?;
+
+                let left_ty = left_exp.result_type();
+                let right_ty = right_exp.result_type();
+                if &left_ty != &right_ty {
+                    return Err(SemanticError::MismatchedTypes {
+                        expected: SpanData {
+                            span: left_exp.entire_span(),
+                            data: left_ty,
+                        },
+                        received: SpanData {
+                            span: right_exp.entire_span(),
+                            data: right_ty,
+                        },
+                    });
+                }
+
+                Ok(Self::InlineConditional {
+                    condition: Box::new(condition_exp),
+                    left: Box::new(left_exp),
+                    right: Box::new(right_exp),
+                })
+            }
+            unknown => {
+                dbg!(&unknown);
+
+                todo!("Handle Expression")
+            }
         }
     }
 
@@ -549,6 +597,11 @@ impl AExpression {
                     }
                 },
             },
+            Self::InlineConditional { left, right, .. } => {
+                debug_assert_eq!(left.result_type(), right.result_type());
+
+                left.result_type()
+            }
             Self::InlineAssembly { .. } => AType::Primitve(APrimitive::Void),
         }
     }
@@ -579,6 +632,14 @@ impl AExpression {
                 Span::new_arc_source(source, start..end)
             }
             Self::UnaryOperator { base, .. } => base.entire_span(),
+            Self::InlineConditional {
+                condition, right, ..
+            } => {
+                let conditional_span = condition.entire_span();
+                let right_span = right.entire_span();
+
+                conditional_span.join(right_span)
+            }
             Self::InlineAssembly { span, .. } => span.clone(),
         }
     }
@@ -642,6 +703,17 @@ impl AExpression {
                 tmp
             }
             Self::UnaryOperator { base, .. } => base.used_variables(),
+            Self::InlineConditional {
+                condition,
+                left,
+                right,
+            } => {
+                let mut tmp = BTreeSet::new();
+                tmp.extend(condition.used_variables());
+                tmp.extend(left.used_variables());
+                tmp.extend(right.used_variables());
+                tmp
+            }
             Self::InlineAssembly {
                 output_var,
                 input_vars,
