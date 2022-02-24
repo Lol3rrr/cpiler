@@ -50,11 +50,9 @@ int main() {
         let aast = semantic::parse(ast).unwrap();
         let ir = aast.convert_to_ir(general::arch::Arch::X86_64);
 
-        dbg!(&ir);
-
         let main_func: ir::FunctionDefinition = ir.functions.get("main").unwrap().clone();
 
-        let result_allocation = RegisterMapping::allocate(
+        let _ = RegisterMapping::allocate(
             &main_func,
             &[
                 TestRegister::GeneralPurpose(0),
@@ -64,7 +62,6 @@ int main() {
                 TestRegister::GeneralPurpose(4),
             ],
         );
-        dbg!(&result_allocation);
 
         dbg!(&main_func);
 

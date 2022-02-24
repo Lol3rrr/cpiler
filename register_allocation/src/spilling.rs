@@ -75,7 +75,7 @@ fn next_use_distances(root: &ir::BasicBlock) -> HashMap<ir::Variable, usize> {
     distances
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Reload {
     previous: ir::Variable,
     var: ir::Variable,
@@ -104,8 +104,6 @@ fn find_previous_definition<SI>(
 where
     SI: Iterator<Item = ir::Statement>,
 {
-    dbg!(&preds, &var_name);
-
     let mut last_def = None;
     for stmnt in statements {
         if let ir::Statement::Assignment { target, .. } = stmnt {
@@ -116,6 +114,26 @@ where
     }
     if let Some(var) = last_def {
         return PrevDefinition::Single(var);
+    }
+
+    if preds.len() == 1 {
+        let weak_pred = preds.into_iter().next().unwrap();
+        let pred = weak_pred.upgrade().unwrap();
+
+        let n_preds = pred.get_predecessors();
+        let statements = pred.get_statements();
+
+        let pred_def = find_previous_definition(&n_preds, statements.into_iter().rev(), var_name);
+
+        if let PrevDefinition::Single(_) = &pred_def {
+            return pred_def;
+        }
+
+        dbg!(&pred_def);
+
+        todo!("Find Variable in Single Predecessor");
+    } else if preds.len() > 1 {
+        todo!("Find Variable in Multiple Predecessors")
     }
 
     todo!()
@@ -138,6 +156,9 @@ fn replace_used_variables(
                         ir::Expression::BinaryOp { left, right, .. } => {
                             replace_operand(left, previous, n_var);
                             replace_operand(right, previous, n_var);
+                        }
+                        ir::Expression::Cast { base, .. } => {
+                            replace_operand(base, previous, n_var);
                         }
                         other => {
                             dbg!(other);
@@ -241,6 +262,11 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Rel
         .iter()
         .map(|(_, r)| r.previous.name.clone())
         .collect();
+
+    dbg!(reloads
+        .iter()
+        .map(|(_, r)| r.clone())
+        .collect::<Vec<Reload>>());
 
     for tmp_b in block.block_iter() {
         let preds = tmp_b.get_predecessors();
