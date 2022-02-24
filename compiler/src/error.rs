@@ -91,6 +91,9 @@ where
                             .print(sources)
                             .unwrap();
                     }
+                    SyntaxError::TooNestedExpression {} => {
+                        todo!()
+                    }
                 };
             }
             Self::Semantic(se) => {
@@ -211,6 +214,11 @@ where
                             .print(sources)
                             .unwrap();
                     }
+                    SemanticError::MismatchedOperationTypes { left, right } => {
+                        dbg!(&left, &right);
+
+                        todo!()
+                    }
                     SemanticError::StructAccessOnNonStruct {
                         field_name,
                         received,
@@ -301,6 +309,11 @@ where
                         dbg!(&expected, &received);
 
                         todo!("Mismatched Function Args Count");
+                    }
+                    SemanticError::InvalidOperation { base, operation } => {
+                        dbg!(&base, &operation);
+
+                        todo!()
                     }
                 };
             }
