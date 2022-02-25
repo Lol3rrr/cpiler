@@ -125,6 +125,7 @@ impl BasicBlock {
     pub fn block_iter(&self) -> BlockIter {
         BlockIter::new(self.0.clone())
     }
+    /// A Linear Iterator
     pub fn linear_iter(&self) -> LinearIter {
         LinearIter::new(self.0.clone())
     }
@@ -421,6 +422,8 @@ impl BasicBlock {
         base
     }
 
+    /// Determines the first common Block, like after a conditional the first Block where control
+    /// flow is unified
     pub fn earliest_common_block(&self, other: &Self) -> Option<Self> {
         let own_iter = self.block_iter();
         let other_iter = other.block_iter();

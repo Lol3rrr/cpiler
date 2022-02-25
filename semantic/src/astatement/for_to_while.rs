@@ -1,6 +1,6 @@
 use crate::{AExpression, AScope, AStatement};
 
-fn insert_updates(scope: &mut AScope, updates: &[AStatement]) {
+fn insert_updates(scope: &mut AScope, _updates: &[AStatement]) {
     let start = 0;
     loop {
         let sub_set = &scope.statements[start..];
@@ -12,7 +12,7 @@ fn insert_updates(scope: &mut AScope, updates: &[AStatement]) {
             .map(|(i, _)| i);
 
         match raw_found {
-            Some(found) => {
+            Some(_) => {
                 todo!()
             }
             None => break,

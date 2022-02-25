@@ -53,10 +53,7 @@ where
             });
         }
         (TypeToken::EnumType { name }, TokenData::OpenBrace) => {
-            dbg!(&name);
-
             let variants = enums::EnumVariants::parse(tokens)?;
-            dbg!(&variants);
 
             let end_token = tokens.next().ok_or(SyntaxError::UnexpectedEOF {
                 ctx: EOFContext::Statement,
@@ -227,7 +224,7 @@ where
         TokenData::Assign(assign_type) => {
             match assign_type {
                 Assignment::Assign => {}
-                other => {
+                _ => {
                     return Err(SyntaxError::UnexpectedToken {
                         expected: Some(vec![ExpectedToken::Equal]),
                         got: peeked.span.clone(),

@@ -178,6 +178,17 @@ impl Expression {
                 let field_span = field.0.span.clone();
                 Some(base_span.join(field_span))
             }
+            Self::Conditional {
+                condition,
+                first,
+                second,
+            } => {
+                let condition_span = condition.entire_span()?;
+                let first_span = first.entire_span()?;
+                let second_span = second.entire_span()?;
+                Some(condition_span.join(first_span).join(second_span))
+            }
+            Self::Cast { exp, .. } => exp.entire_span(),
             other => {
                 dbg!(&other);
                 None

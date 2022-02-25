@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{BasicBlock, InnerBlock, Statement, WeakBlockPtr};
 
+/// This is a more convient way to create Blocks
 pub struct BlockBuilder {
     predecessors: Vec<WeakBlockPtr>,
     parts: Vec<Statement>,
@@ -9,6 +10,7 @@ pub struct BlockBuilder {
 }
 
 impl BlockBuilder {
+    /// Creates a new Builder with these most essential Parts that are always needed
     pub fn new(predecessors: Vec<WeakBlockPtr>, parts: Vec<Statement>) -> Self {
         Self {
             predecessors,
@@ -17,6 +19,7 @@ impl BlockBuilder {
         }
     }
 
+    /// Sets the Description of the Block
     pub fn description<S>(mut self, description: S) -> Self
     where
         S: Into<String>,
@@ -25,6 +28,7 @@ impl BlockBuilder {
         self
     }
 
+    /// Actually builds the Block
     pub fn build(self) -> BasicBlock {
         Arc::new(InnerBlock {
             predecessor: RwLock::new(self.predecessors),

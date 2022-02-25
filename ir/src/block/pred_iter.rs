@@ -2,12 +2,14 @@ use std::collections::HashSet;
 
 use crate::{BasicBlock, InnerBlock};
 
+/// An iterator over the Predecessors of a Block
 pub struct PredecessorIterator {
     visited: HashSet<*const InnerBlock>,
     to_visit: Vec<BasicBlock>,
 }
 
 impl PredecessorIterator {
+    /// Creates a new Iterator with the given Block as the starting Point
     pub fn new(start: BasicBlock) -> Self {
         Self {
             visited: HashSet::new(),

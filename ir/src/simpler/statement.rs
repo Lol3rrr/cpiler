@@ -4,6 +4,7 @@ use crate::general;
 
 use super::{BlockIndex, Value};
 
+/// The Statement in the simpler IR
 pub type Statement = general::Statement<BlockIndex, BlockIndex>;
 
 impl Statement {

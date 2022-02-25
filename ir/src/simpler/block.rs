@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use super::{BlockIndex, Statement};
 
+/// A single Basic Block in the simpler IR
 #[derive(Debug, Clone)]
 pub struct Block {
+    /// The Predecessors of this Block
     pub predecessors: Vec<BlockIndex>,
+    /// The actual Statements in this Block
     pub statments: Vec<Statement>,
 }
 

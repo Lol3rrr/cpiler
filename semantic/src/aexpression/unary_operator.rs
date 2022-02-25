@@ -23,9 +23,6 @@ pub enum UnaryLogicOp {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Bitwise {
     Not,
-    And,
-    Or,
-    Xor,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -149,30 +146,6 @@ impl UnaryOperator {
                 Value::Expression(ir::Expression::UnaryOp {
                     base: base_operand,
                     op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Not),
-                })
-            }
-            Self::Bitwise(Bitwise::And) => {
-                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
-
-                Value::Expression(ir::Expression::UnaryOp {
-                    base: base_operand,
-                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::And),
-                })
-            }
-            Self::Bitwise(Bitwise::Xor) => {
-                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
-
-                Value::Expression(ir::Expression::UnaryOp {
-                    base: base_operand,
-                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Xor),
-                })
-            }
-            Self::Bitwise(Bitwise::Or) => {
-                let base_operand = AExpression::val_to_operand(base_value, block, ctx);
-
-                Value::Expression(ir::Expression::UnaryOp {
-                    base: base_operand,
-                    op: ir::UnaryOp::Bitwise(ir::UnaryBitwiseOp::Or),
                 })
             }
             Self::Derference => {

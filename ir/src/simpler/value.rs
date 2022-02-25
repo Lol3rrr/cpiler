@@ -4,6 +4,7 @@ use crate::general;
 
 use super::{BlockIndex, PhiEntry};
 
+/// The Value in the simpler IR
 pub type Value = general::Value<BlockIndex>;
 
 impl Value {

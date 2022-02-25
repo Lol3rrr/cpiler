@@ -16,11 +16,14 @@ pub use value::*;
 mod statement;
 pub use statement::*;
 
+/// This is used to identify a given Block
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockIndex(usize);
 
+/// The PhiEntry in the simpler IR
 pub type PhiEntry = general::PhiEntry<BlockIndex>;
 
+/// Represents a Function
 pub struct Function {
     name: String,
     arguments: Vec<(String, Type)>,

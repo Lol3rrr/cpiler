@@ -48,7 +48,9 @@ pub enum BinaryBitwiseOp {
     Or,
     /// Combines the two Operands with a bitwise XOR
     Xor,
+    /// Shifts the Bits left in the first Operand by the amount specified with the second Operand
     ShiftLeft,
+    /// Shifts the Bits right in the first Operand by the amount specified with the second Operand
     ShiftRight,
 }
 

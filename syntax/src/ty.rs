@@ -68,6 +68,11 @@ pub enum TypeToken {
         base: Box<Self>,
         size: Option<Box<Expression>>,
     },
+    /// Union Types
+    UnionType {
+        /// The Name of the Union
+        name: Identifier,
+    },
 }
 
 impl TypeToken {
@@ -88,6 +93,11 @@ impl TypeToken {
                 let name = Identifier::parse(tokens)?;
 
                 TypeToken::EnumType { name }
+            }
+            TokenData::Keyword(Keyword::DataType(DataType::Union)) => {
+                let name = Identifier::parse(tokens)?;
+
+                TypeToken::UnionType { name }
             }
             TokenData::Keyword(Keyword::DataType(dt)) => {
                 let base = dt;

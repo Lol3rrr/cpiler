@@ -92,7 +92,10 @@ impl AssignTarget {
                     operation: SingleOperation::Dereference,
                 }),
             },
-            other => todo!("{:?}", other),
+            Self::ArrayAccess { base, index } => Expression::SingleOperation {
+                base: Box::new(base.to_exp()),
+                operation: SingleOperation::ArrayAccess(Box::new(index.clone())),
+            },
         }
     }
 }

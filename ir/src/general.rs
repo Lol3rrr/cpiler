@@ -9,8 +9,11 @@ pub use statement::*;
 /// aid in certain Tasks
 #[derive(Debug, PartialEq, Clone)]
 pub enum JumpMetadata {
+    /// A Linear Jump between two Blocks
     Linear,
+    /// A Jump into a loop, either from the start or from the end back to the start
     Loop,
+    /// A Jump out of a loop
     LoopBreak,
 }
 

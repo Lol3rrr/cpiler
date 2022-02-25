@@ -58,6 +58,5 @@ where
             right: Box::new(value),
             operation: ExpressionOperator::ShiftLeft,
         },
-        other => todo!("Convert Assignment: {:?}", other),
     }
 }

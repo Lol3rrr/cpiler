@@ -1,10 +1,7 @@
 use general::{Span, SpanData};
 use tokenizer::{Operator, TokenData};
 
-use crate::{
-    EOFContext, ExpectedToken, Expression, ExpressionOperator, ExpressionReason, SingleOperation,
-    SyntaxError,
-};
+use crate::{Expression, ExpressionOperator, ExpressionReason, SingleOperation, SyntaxError};
 
 #[derive(Debug)]
 enum Assosication {
@@ -345,14 +342,14 @@ impl ParseState {
                                             },
                                         }
                                     }
-                                    (left, right) => {
+                                    (_, _) => {
                                         return Err(SyntaxError::UnexpectedToken {
                                             expected: None,
                                             got: span.clone(),
                                         });
                                     }
                                 },
-                                (right, _) => {
+                                (_, _) => {
                                     return Err(SyntaxError::UnexpectedToken {
                                         expected: None,
                                         got: span.clone(),

@@ -315,6 +315,16 @@ where
 
                         todo!()
                     }
+                    SemanticError::InvalidReturn {} => {
+                        todo!()
+                    }
+                    SemanticError::MissingReturn {} => {
+                        todo!()
+                    }
+                    SemanticError::NotImplemented { ctx } => {
+                        dbg!(&ctx);
+                        todo!()
+                    }
                 };
             }
         };

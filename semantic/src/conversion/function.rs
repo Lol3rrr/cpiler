@@ -4,8 +4,8 @@ use super::ConvertContext;
 
 pub fn convert(
     global: &ir::BasicBlock,
-    global_vars: Vec<ir::Variable>,
-    name: String,
+    _global_vars: Vec<ir::Variable>,
+    _name: String,
     func_dec: FunctionDeclaration,
     inner_scope: AScope,
     arch: general::arch::Arch,

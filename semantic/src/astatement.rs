@@ -201,11 +201,7 @@ impl AStatement {
                         AStatement::Return { value: None } => {
                             todo!()
                         }
-                        other => {
-                            dbg!(&other);
-
-                            todo!()
-                        }
+                        _ => return Err(SemanticError::MissingReturn {}),
                     };
 
                     if ret_ty != expected_ty {

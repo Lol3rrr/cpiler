@@ -362,6 +362,16 @@ impl AType {
 
                 todo!("Enum Type")
             }
+            TypeToken::UnionType { name } => {
+                let target_ty = match ty_defs.get_definition(&name) {
+                    Some(t) => t,
+                    None => return Err(SemanticError::UnknownType { name }),
+                };
+
+                dbg!(&target_ty);
+
+                todo!("Union Type")
+            }
         }
     }
 

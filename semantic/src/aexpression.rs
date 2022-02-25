@@ -5,9 +5,8 @@ use ir::{BasicBlock, Value};
 use syntax::{Expression, Identifier, SingleOperation};
 
 use crate::{
-    assign_type, atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType,
-    ArrayAccessTarget, InvalidOperation, SemanticError, StructDef, StructMember, TypeDefinitions,
-    VariableContainer,
+    atype, conversion::ConvertContext, AAssignTarget, APrimitive, AType, ArrayAccessTarget,
+    InvalidOperation, SemanticError, StructDef, StructMember, TypeDefinitions, VariableContainer,
 };
 
 mod operator;
@@ -121,7 +120,7 @@ impl AExpression {
                 } else {
                     let value: i64 = match content.data.parse() {
                         Ok(v) => v,
-                        Err(e) => {
+                        Err(_) => {
                             return Err(SemanticError::MismatchedTypes {
                                 expected: SpanData {
                                     span: content.span.clone(),
@@ -498,7 +497,7 @@ impl AExpression {
                 })
             }
             Expression::ArrayLiteral { parts } => {
-                dbg!(&parts);
+                //dbg!(&parts);
 
                 return Err(SemanticError::NotImplemented {
                     ctx: "Array Literals".to_string(),
@@ -533,11 +532,6 @@ impl AExpression {
                     left: Box::new(left_exp),
                     right: Box::new(right_exp),
                 })
-            }
-            unknown => {
-                dbg!(&unknown);
-
-                todo!("Handle Expression")
             }
         }
     }
@@ -719,9 +713,7 @@ impl AExpression {
                 input_vars,
                 ..
             } => {
-                let mut tmp = BTreeSet::new();
                 todo!();
-                tmp
             }
         }
     }
@@ -849,7 +841,7 @@ impl AExpression {
 
                         Value::Expression(ir::Expression::AdressOf { base: base_oper })
                     }
-                    ir::Value::Expression(exp) => base_value,
+                    ir::Value::Expression(_) => base_value,
                     other => {
                         dbg!(&other);
                         todo!()
