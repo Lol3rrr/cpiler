@@ -73,6 +73,17 @@ impl AStatement {
                 parse_state.mut_type_defs().add_definition(name, ty);
                 Ok(None)
             }
+            Statement::EnumDefinition { name, variants } => {
+                let ty = AType::parse_enum(
+                    variants,
+                    name.0.span.clone(),
+                    parse_state.type_defs(),
+                    parse_state,
+                )?;
+
+                parse_state.mut_type_defs().add_definition(name, ty);
+                Ok(None)
+            }
             Statement::FunctionDeclaration(FunctionHead {
                 name,
                 r_type,
@@ -80,7 +91,11 @@ impl AStatement {
                 var_args,
             }) => {
                 if parse_state.is_declared(&name) {
-                    panic!("Redefinition Error");
+                    let prev = parse_state.get_func(&name).unwrap();
+                    return Err(SemanticError::Redefinition {
+                        name,
+                        previous_definition: prev.declaration.clone(),
+                    });
                 }
 
                 let r_ty = AType::parse(r_type, parse_state.type_defs(), parse_state)?;
@@ -196,16 +211,25 @@ impl AStatement {
                         None => unreachable!("If we expect a trailing Return Statement there also has to be a type set for it"),
                     };
 
-                    let ret_ty = match last {
-                        AStatement::Return { value: Some(val) } => val.result_type(),
+                    let (ret_ty, ret_exp) = match last {
+                        AStatement::Return { value: Some(val) } => (val.result_type(), val),
                         AStatement::Return { value: None } => {
-                            todo!()
+                            return Err(SemanticError::InvalidReturn {});
                         }
                         _ => return Err(SemanticError::MissingReturn {}),
                     };
 
                     if ret_ty != expected_ty {
-                        todo!()
+                        return Err(SemanticError::MismatchedTypes {
+                            expected: SpanData {
+                                span: name.0.span.clone(),
+                                data: expected_ty.clone(),
+                            },
+                            received: SpanData {
+                                span: ret_exp.entire_span(),
+                                data: ret_ty,
+                            },
+                        });
                     }
                 }
 

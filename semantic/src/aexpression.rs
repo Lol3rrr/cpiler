@@ -39,6 +39,7 @@ pub enum AExpression {
     SizeOf {
         /// The Type of which we want to calculate the Size
         ty: AType,
+        area: Span,
     },
     ArrayAccess {
         base: Box<Self>,
@@ -145,10 +146,10 @@ impl AExpression {
                 Ok(Self::Literal(Literal::StringLiteral(content)))
             }
             Expression::CharLiteral { content } => Ok(Self::Literal(Literal::CharLiteral(content))),
-            Expression::SizeOf { ty } => {
+            Expression::SizeOf { ty, area } => {
                 let a_ty = AType::parse(ty, ty_defs, vars)?;
 
-                Ok(Self::SizeOf { ty: a_ty })
+                Ok(Self::SizeOf { ty: a_ty, area })
             }
             Expression::Identifier { ident } => {
                 let var_dec = match vars.get_var(&ident) {
@@ -609,7 +610,7 @@ impl AExpression {
             },
             Self::Variable { src, .. } => src.0.span.clone(),
             Self::AddressOf { base, .. } => base.entire_span(),
-            Self::SizeOf { .. } => panic!("SizeOf Operand"),
+            Self::SizeOf { area, .. } => area.clone(),
             Self::ArrayAccess { base, .. } => base.entire_span(),
             Self::StructAccess(StructAccess { field, .. }) => field.0.span.clone(),
             Self::FunctionCall(FunctionCall { name, .. }) => name.0.span.clone(),
@@ -919,7 +920,7 @@ impl AExpression {
                     read_ty: field_ty,
                 })
             }
-            AExpression::SizeOf { ty } => {
+            AExpression::SizeOf { ty, .. } => {
                 let size = ty.byte_size(ctx.arch());
 
                 ir::Value::Constant(ir::Constant::I64(size as i64))

@@ -91,6 +91,7 @@ pub enum Expression {
     },
     SizeOf {
         ty: TypeToken,
+        area: Span,
     },
 }
 
@@ -365,7 +366,10 @@ impl Expression {
                         }
                     }
 
-                    let inner = Expression::SizeOf { ty };
+                    let inner = Expression::SizeOf {
+                        ty,
+                        area: current.span,
+                    };
                     state.add_expression(inner);
                 }
                 (TokenData::Operator(op), _) => {

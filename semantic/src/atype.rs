@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use general::{Span, SpanData};
-use syntax::{DataType, Identifier, Modifier, StructMembers, TypeDefType, TypeToken};
+use syntax::{DataType, EnumVariants, Identifier, Modifier, StructMembers, TypeDefType, TypeToken};
 
 use crate::{AExpression, EvaluationValue, SemanticError, TypeDefinitions, VariableContainer};
 
@@ -16,11 +16,15 @@ pub mod assign_type;
 mod base;
 use base::BaseTypes;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDefinition {}
+
 #[derive(Debug, Clone)]
 pub enum AType {
     Primitve(APrimitive),
     Pointer(Box<Self>),
     Struct { def: StructDef, area: Span },
+    Enum { def: EnumDefinition, area: Span },
     Array(Array),
     Const(Box<Self>),
     TypeDef { name: Identifier, ty: Box<Self> },
@@ -40,6 +44,16 @@ where
                     area: s_area,
                 },
                 Self::Struct {
+                    def: o_def,
+                    area: o_area,
+                },
+            ) => s_def.eq(o_def) && s_area.eq(o_area),
+            (
+                Self::Enum {
+                    def: s_def,
+                    area: s_area,
+                },
+                Self::Enum {
                     def: o_def,
                     area: o_area,
                 },
@@ -196,6 +210,30 @@ impl AType {
         })
     }
 
+    pub fn parse_enum<VC>(
+        variants: EnumVariants,
+        entire_span: Span,
+        ty_defs: &TypeDefinitions,
+        vars: &VC,
+    ) -> Result<Self, SemanticError>
+    where
+        VC: VariableContainer,
+    {
+        let p_variants: Vec<_> = variants
+            .members
+            .into_iter()
+            .map(|v| {
+                dbg!(&v);
+                todo!()
+            })
+            .collect();
+
+        Ok(Self::Enum {
+            def: EnumDefinition {},
+            area: entire_span,
+        })
+    }
+
     fn parse_composition<VC>(
         modifier: SpanData<Modifier>,
         base: Box<TypeToken>,
@@ -205,8 +243,6 @@ impl AType {
     where
         VC: VariableContainer,
     {
-        dbg!(&base, &modifier);
-
         match (*base, modifier.data) {
             (base, Modifier::Signed) => {
                 let base_ty = BaseTypes::parse(base).unwrap();
@@ -253,7 +289,10 @@ impl AType {
                     },
                 };
 
-                let base_ty = BaseTypes::parse(tmp_tok).unwrap();
+                let base_ty = match BaseTypes::parse(tmp_tok) {
+                    Some(b) => b,
+                    None => return Err(SemanticError::InvalidType {}),
+                };
 
                 let prim = base_ty.to_primitive();
                 Ok(Self::Primitve(prim))

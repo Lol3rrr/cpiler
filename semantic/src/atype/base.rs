@@ -35,14 +35,13 @@ impl BaseTypes {
                     },
                 base,
             } => {
-                dbg!(&base);
                 let base = Self::parse(*base)?;
 
                 match base {
                     BaseTypes::Int => Some(Self::Long),
                     BaseTypes::Long => Some(Self::LongLong),
                     BaseTypes::Double => Some(Self::LongDouble),
-                    _ => panic!("Unknown Long modifier for {:?}", base),
+                    _ => None,
                 }
             }
             _ => None,
