@@ -387,21 +387,6 @@ impl register_allocation::Register for ArmRegister {
         }
     }
 }
-impl util::registers::Register for ArmRegister {
-    fn reg_type(&self) -> util::registers::RegisterType {
-        match self {
-            Self::GeneralPurpose(_) => util::registers::RegisterType::GeneralPurpose,
-            Self::FloatingPoint(_) => util::registers::RegisterType::FloatingPoint,
-        }
-    }
-
-    fn align_size(&self) -> (usize, usize) {
-        match self {
-            Self::GeneralPurpose(_) => (8, 8),
-            Self::FloatingPoint(_) => (8, 8),
-        }
-    }
-}
 
 impl Target for Backend {
     fn generate(&self, program: ir::Program) {

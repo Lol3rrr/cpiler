@@ -239,22 +239,3 @@ impl register_allocation::Register for Register {
         }
     }
 }
-impl util::registers::Register for Register {
-    fn reg_type(&self) -> util::registers::RegisterType {
-        match self {
-            Self::GeneralPurpose(_) => util::registers::RegisterType::GeneralPurpose,
-            Self::FloatingPoint(_) => util::registers::RegisterType::FloatingPoint,
-            Self::PR => unreachable!("This should never be considered for Register Allocation"),
-        }
-    }
-
-    fn align_size(&self) -> (usize, usize) {
-        match self {
-            Self::GeneralPurpose(_) => (4, 4),
-            other => {
-                dbg!(&other);
-                todo!()
-            }
-        }
-    }
-}

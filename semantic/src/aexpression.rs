@@ -190,11 +190,11 @@ impl AExpression {
                                             ty: AType::Primitve(APrimitive::Void),
                                         }],
                                     },
-                                    area: field.0.span.clone(),
+                                    area: field.0.span,
                                 },
                             },
                             received: SpanData {
-                                span: base_exp.entire_span().clone(),
+                                span: base_exp.entire_span(),
                                 data: base_ty,
                             },
                         });
@@ -497,12 +497,12 @@ impl AExpression {
                     base: Box::new(inner_exp),
                 })
             }
-            Expression::ArrayLiteral { parts } => {
-                //dbg!(&parts);
+            Expression::ArrayLiteral { .. } => {
+                // dbg!(&parts);
 
-                return Err(SemanticError::NotImplemented {
+                Err(SemanticError::NotImplemented {
                     ctx: "Array Literals".to_string(),
-                });
+                })
             }
             Expression::Conditional {
                 condition,
@@ -515,7 +515,7 @@ impl AExpression {
 
                 let left_ty = left_exp.result_type();
                 let right_ty = right_exp.result_type();
-                if &left_ty != &right_ty {
+                if left_ty != right_ty {
                     return Err(SemanticError::MismatchedTypes {
                         expected: SpanData {
                             span: left_exp.entire_span(),
@@ -714,6 +714,8 @@ impl AExpression {
                 input_vars,
                 ..
             } => {
+                println!("Inputs: {:?}", input_vars);
+                println!("Output: {:?}", output_var);
                 todo!();
             }
         }
@@ -796,7 +798,7 @@ impl AExpression {
                     block.add_statement(ir::Statement::Assignment {
                         target: next_var.clone(),
                         value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
-                            name: var.name.clone(),
+                            name: var.name,
                         }),
                     });
 
@@ -834,7 +836,7 @@ impl AExpression {
             AExpression::UnaryOperator { base, op } => op.to_ir(base, block, ctx),
             AExpression::FunctionCall(call) => call.to_ir(block, ctx),
             AExpression::AddressOf { base, .. } => {
-                let base_value = base.clone().ir_address(block, ctx);
+                let base_value = base.ir_address(block, ctx);
 
                 match &base_value {
                     ir::Value::Variable(_) => {
@@ -955,7 +957,7 @@ impl AExpression {
                     block.add_statement(ir::Statement::Assignment {
                         target: next_var.clone(),
                         value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
-                            name: var.name.clone(),
+                            name: var.name,
                         }),
                     });
 

@@ -213,8 +213,8 @@ impl AType {
     pub fn parse_enum<VC>(
         variants: EnumVariants,
         entire_span: Span,
-        ty_defs: &TypeDefinitions,
-        vars: &VC,
+        _ty_defs: &TypeDefinitions,
+        _vars: &VC,
     ) -> Result<Self, SemanticError>
     where
         VC: VariableContainer,
@@ -227,6 +227,7 @@ impl AType {
                 todo!()
             })
             .collect();
+        dbg!(p_variants);
 
         Ok(Self::Enum {
             def: EnumDefinition {},
@@ -236,14 +237,14 @@ impl AType {
 
     fn parse_composition<VC>(
         modifier: SpanData<Modifier>,
-        base: Box<TypeToken>,
+        base: TypeToken,
         ty_defs: &TypeDefinitions,
         vars: &VC,
     ) -> Result<Self, SemanticError>
     where
         VC: VariableContainer,
     {
-        match (*base, modifier.data) {
+        match (base, modifier.data) {
             (base, Modifier::Signed) => {
                 let base_ty = BaseTypes::parse(base).unwrap();
 
@@ -365,12 +366,10 @@ impl AType {
                     name,
                     ty: Box::new(ty.clone()),
                 }),
-                None => {
-                    return Err(SemanticError::UnknownType { name });
-                }
+                None => Err(SemanticError::UnknownType { name }),
             },
             TypeToken::Composition { base, modifier } => {
-                Self::parse_composition(modifier, base, ty_defs, vars)
+                Self::parse_composition(modifier, *base, ty_defs, vars)
             }
             TypeToken::StructType { name } => {
                 let target_ty = match ty_defs.get_definition(&name) {

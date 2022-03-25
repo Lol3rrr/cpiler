@@ -1,9 +1,11 @@
+//! Contains all the general Code for handling the Stack of functions
+
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     hash::Hash,
 };
 
-use super::registers::Register;
+use register_allocation::Register;
 
 fn stack_space<ISI, IS>(allocations: ISI, base: usize, forced_alignment: usize) -> usize
 where
@@ -69,22 +71,34 @@ fn allocations(start: &ir::BasicBlock) -> BTreeMap<ir::Variable, (usize, usize)>
     result
 }
 
+/// Describes the Stack that should be allocated
 #[derive(Debug)]
 pub struct StackAllocation<I> {
+    /// The Instructions to setup the Stack, moving the Stack Pointer and all that
     pub setup_instr: Vec<I>,
+    /// The Instructions that should be run before returning from the function to make sure that
+    /// the Stack gets reset properly
     pub pre_return_instr: Vec<I>,
     pub var_offsets: HashMap<String, isize>,
     pub allocations: HashMap<ir::Variable, isize>,
 }
 
+/// This performs the corresponding allocation of the Stack for the given Function
 pub fn allocate_stack<I, R, ASF, DSF, SS, LS, TAS>(
+    // The function
     func: &ir::FunctionDefinition,
     reg_map: &HashMap<ir::Variable, R>,
+    // A closure that returns the instructions for allocating the given space in bytes on the Stack
     alloc_space: ASF,
+    // A closure that returns the instructions for deallocating the given space in bytes on the Stack
     dealloc_space: DSF,
+    // A closure that returns the instructions to store a Register on the Stack at the given offset
     store_on_stack: SS,
+    // A closure that returns the instructions to load a Value from the Stack into a Register
     load_from_stack: LS,
+    // A closure that returns the alignment and size of the given Type
     type_align_size: TAS,
+    // The Alignment that the stack needs on the Platform
     stack_alignment: usize,
     stack_base: usize,
 ) -> StackAllocation<I>
@@ -126,7 +140,7 @@ where
 
     let start_base = {
         let mut current_base = stack_base as i16;
-        for (index, raw_reg) in used_registers.iter().enumerate() {
+        for (_, raw_reg) in used_registers.iter().enumerate() {
             let (reg_align, reg_size) = raw_reg.align_size();
             let (reg_align, reg_size) = (reg_align as i16, reg_size as i16);
 
