@@ -1220,6 +1220,7 @@ mod tests {
                 span: Span::new_source(source.clone(), 7..10),
                 data: DataType::Int,
             }),
+            area: Span::new_source(source.clone(), 0..6),
         });
 
         let mut iter = peek_nth(tokens);
@@ -1239,6 +1240,7 @@ mod tests {
                 span: Span::new_source(source.clone(), 7..10),
                 data: DataType::Int,
             }),
+            area: Span::new_source(source.clone(), 0..6),
         });
 
         let mut iter = peek_nth(tokens);

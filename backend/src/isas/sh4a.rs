@@ -220,6 +220,25 @@ pub enum Register {
     PR,
 }
 
+impl register_allocation::Register for Register {
+    fn reg_type(&self) -> register_allocation::RegisterType {
+        match self {
+            Self::GeneralPurpose(_) => register_allocation::RegisterType::GeneralPurpose,
+            Self::FloatingPoint(_) => register_allocation::RegisterType::FloatingPoint,
+            Self::PR => unreachable!("This should never be considered for Register Allocation"),
+        }
+    }
+
+    fn align_size(&self) -> (usize, usize) {
+        match self {
+            Self::GeneralPurpose(_) => (4, 4),
+            other => {
+                dbg!(&other);
+                todo!()
+            }
+        }
+    }
+}
 impl util::registers::Register for Register {
     fn reg_type(&self) -> util::registers::RegisterType {
         match self {

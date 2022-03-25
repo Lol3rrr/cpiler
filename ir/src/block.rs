@@ -404,6 +404,7 @@ impl BasicBlock {
     pub fn following_uses(&self) -> HashMap<Variable, usize> {
         let mut base = HashMap::new();
 
+        // The skip(1) is needed to ignore the block itself
         for succ in self.block_iter().skip(1) {
             let succ_uses = succ.block_used_vars();
 

@@ -24,5 +24,8 @@ pub struct Args {
     #[clap(short = 'L')]
     pub libs: Vec<String>,
 
+    #[clap(short = 'O', default_value = "0")]
+    pub optimization_level: u8,
+
     pub input: String,
 }

@@ -6,6 +6,8 @@ use std::{
     hash::Hash,
 };
 
+use spilling::RegisterConfig;
+
 //mod context;
 //mod determine_spill;
 //mod spill;
@@ -79,68 +81,21 @@ where
         // TODO
         // Instead of registers.len() we should calculate the correct Number of available
         // registers
-        spilling::spill(func.block.clone(), registers.len());
-
-        /*
-        let mut spill_count = 0;
-        let interference_graph = loop {
-            let mut interference_graph = ir::DefaultInterferenceGraph::new();
-            let mut too_large_clique = None;
-            func.interference_graph(&mut interference_graph, |live, block, index| {
-                if too_large_clique.is_some() {
-                    return;
-                }
-
-                let mut available_registers: HashMap<RegisterType, isize> = HashMap::new();
-                for reg in registers {
-                    let reg_type = reg.reg_type();
-
-                    let reg_avail = available_registers.entry(reg_type).or_insert(0);
-                    *reg_avail += 1;
-                }
-
-                for var in live.iter() {
-                    let useable_reg = registers
-                        .iter()
-                        .filter(|r| r.reg_type().useable(&var.ty))
-                        .map(|r| r.reg_type())
-                        .next()
-                        .unwrap();
-
-                    let regs_avail = available_registers.get_mut(&useable_reg).unwrap();
-                    *regs_avail -= 1;
-                }
-
-                for (reg, available) in available_registers {
-                    if available < 0 {
-                        too_large_clique = Some((live.clone(), block.clone(), index));
-                        return;
-                    }
-                }
-            });
-
-            let (largest_vars, largest_block, largest_stmnt_i) = match too_large_clique {
-                Some(l) => l,
-                None => break interference_graph,
-            };
-
-            let spill_ctx = context::SpillContext::determine(largest_block.clone());
-
-            spill::spill_variable(
-                largest_vars,
-                largest_block.clone(),
-                largest_stmnt_i,
-                spill_ctx,
-            );
-
-            spill_count += 1;
-
-            if spill_count > 2 {
-                dbg!(&largest_block);
-                panic!("Spilled more than 2 times in a single Function");
-            }
-        };
-        */
+        let float_registers = registers
+            .iter()
+            .filter(|r| matches!(r.reg_type(), RegisterType::FloatingPoint))
+            .count();
+        let general_registers = registers
+            .iter()
+            .filter(|r| matches!(r.reg_type(), RegisterType::GeneralPurpose))
+            .count();
+        spilling::spill(
+            func.block.clone(),
+            RegisterConfig {
+                general_purpose_count: general_registers - 1,
+                floating_point_count: float_registers - 1,
+            },
+        );
 
         let mut interference_graph = ir::DefaultInterferenceGraph::new();
         func.interference_graph(&mut interference_graph, |_, _, _| {});
@@ -178,5 +133,11 @@ where
         }
 
         RegisterMapping { inner: coloring }
+    }
+}
+
+impl<R> Into<HashMap<ir::Variable, R>> for RegisterMapping<R> {
+    fn into(self) -> HashMap<ir::Variable, R> {
+        self.inner
     }
 }

@@ -1,4 +1,4 @@
-use backend::util::registers;
+use backend::util::registers::{self, Register};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 enum TestRegister {
@@ -6,11 +6,11 @@ enum TestRegister {
     FloatingPoint(u8),
 }
 
-impl registers::Register for TestRegister {
-    fn reg_type(&self) -> registers::RegisterType {
+impl register_allocation::Register for TestRegister {
+    fn reg_type(&self) -> register_allocation::RegisterType {
         match self {
-            Self::GeneralPurpose(_) => registers::RegisterType::GeneralPurpose,
-            Self::FloatingPoint(_) => registers::RegisterType::FloatingPoint,
+            Self::GeneralPurpose(_) => register_allocation::RegisterType::GeneralPurpose,
+            Self::FloatingPoint(_) => register_allocation::RegisterType::FloatingPoint,
         }
     }
 
@@ -66,7 +66,7 @@ int main() {
     int y = 3;
     int z = x + y;
     int w = x + y;
-    return x + z;
+    return x + z + w;
 }
         ";
         let test_source = general::Source::new("test", test_program);

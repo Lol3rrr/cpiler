@@ -6,6 +6,7 @@ pub use error::Error;
 
 pub struct Config {
     pub target: general::arch::Target,
+    pub opt_level: u8,
 }
 
 pub fn run<L>(files: Vec<String>, loader: L, config: Config) -> Result<(), Error<L::LoadError>>
@@ -43,12 +44,14 @@ where
     };
 
     let mut optimizier_config = optimizer::Config::new();
-    optimizier_config.add_pass(optimizer::optimizations::Merger::new());
+    if config.opt_level > 0 {
+        optimizier_config.add_pass(optimizer::optimizations::Merger::new());
 
-    let chain = optimizer::optimizations::ConstantProp::new()
-        .chain(optimizer::optimizations::DeadCode::new())
-        .repeat(25);
-    optimizier_config.add_pass(chain);
+        let chain = optimizer::optimizations::ConstantProp::new()
+            .chain(optimizer::optimizations::DeadCode::new())
+            .repeat(25);
+        optimizier_config.add_pass(chain);
+    }
 
     let ir = optimizer::optimize(raw_ir, optimizier_config);
 

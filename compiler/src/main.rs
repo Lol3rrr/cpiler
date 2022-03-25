@@ -35,8 +35,13 @@ where
     result.into_iter().filter(|s| s.ends_with(".c")).collect()
 }
 
+#[allow(unreachable_code)]
 fn current_target() -> Target {
-    Target(Arch::AArch64, Platform::MacOs)
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    return Target(Arch::AArch64, Platform::MacOs);
+
+    // This is needed if the current Target used for rust compilation is not supported by the Compiler
+    panic!("Unknown current Target")
 }
 
 fn main() {
@@ -59,6 +64,7 @@ fn main() {
 
     let config = Config {
         target: args.target.map(|t| t.into()).unwrap_or_else(current_target),
+        opt_level: args.optimization_level,
     };
 
     match run(sources, loader, config) {

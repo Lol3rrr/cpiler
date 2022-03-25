@@ -9,6 +9,7 @@ edition = "2021"
 ir = { path = "../ir" }
 general = { path = "../general" }
 g3a = { path = "../g3a" }
+register_allocation = { path = "../register_allocation" }
 
 [dev-dependencies]
 tokenizer = { path = "../tokenizer" }

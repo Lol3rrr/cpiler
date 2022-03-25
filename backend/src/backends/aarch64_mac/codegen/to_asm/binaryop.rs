@@ -191,6 +191,9 @@ pub fn to_asm(
                                 first_var_reg,
                                 asm::Register::GeneralPurpose(asm::GPRegister::DWord(*n)),
                             ),
+                            (asm::GPRegister::Word(_), asm::GPRegister::Word(_)) => {
+                                (first_var_reg, second_var_reg)
+                            }
                             other => {
                                 dbg!(&other);
                                 todo!()

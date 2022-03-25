@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use crate::{load_statement, save_statement};
+use crate::{load_statement, save_statement, Register};
 
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
@@ -601,9 +601,20 @@ fn limit(
     result
 }
 
-pub fn spill(root: ir::BasicBlock, available_registers: usize) {
+pub struct RegisterConfig {
+    pub general_purpose_count: usize,
+    pub floating_point_count: usize,
+}
+
+pub fn spill(root: ir::BasicBlock, available_registers: RegisterConfig) {
     //let n_use_distance = next_use_distances(&root);
     //dbg!(&n_use_distance);
 
-    let register_sets = intialize_register_sets(&root, available_registers, available_registers);
+    // TODO
+    // Handle the max register Count correctly
+    let register_sets = intialize_register_sets(
+        &root,
+        available_registers.general_purpose_count,
+        available_registers.general_purpose_count,
+    );
 }

@@ -265,10 +265,13 @@ impl Backend {
         let name = "g_init".to_string();
         let tmp_func = ir::FunctionDefinition {
             name: name.clone(),
-            block: global,
+            block: global.clone(),
             arguments: Vec::new(),
             return_ty: ir::Type::Void,
         };
+
+        let leading_block = ir::BasicBlock::new(Vec::new(), Vec::new());
+        global.add_predecessor(leading_block.weak_ptr());
 
         let registers = util::registers::allocate_registers(&tmp_func, &Self::registers());
         util::destructure::destructure_func(&tmp_func);
@@ -313,9 +316,11 @@ impl Backend {
     }
 
     fn asm_start_func(&self, init_name: &str) -> Vec<asm::Block> {
+        let lead_block = ir::BasicBlock::new(vec![], vec![]);
+
         let res_var = ir::Variable::new("main_res", ir::Type::I32);
         let raw_block = ir::BasicBlock::new(
-            vec![],
+            vec![lead_block.weak_ptr()],
             vec![
                 ir::Statement::Call {
                     name: init_name.to_string(),
@@ -367,6 +372,21 @@ impl From<ArmRegister> for asm::Register {
     }
 }
 
+impl register_allocation::Register for ArmRegister {
+    fn reg_type(&self) -> register_allocation::RegisterType {
+        match self {
+            Self::GeneralPurpose(_) => register_allocation::RegisterType::GeneralPurpose,
+            Self::FloatingPoint(_) => register_allocation::RegisterType::FloatingPoint,
+        }
+    }
+
+    fn align_size(&self) -> (usize, usize) {
+        match self {
+            Self::GeneralPurpose(_) => (8, 8),
+            Self::FloatingPoint(_) => (8, 8),
+        }
+    }
+}
 impl util::registers::Register for ArmRegister {
     fn reg_type(&self) -> util::registers::RegisterType {
         match self {
