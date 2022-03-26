@@ -1,4 +1,4 @@
-use backend::util::registers::{self, Register};
+use backend::util::registers::{self};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 enum TestRegister {
@@ -233,6 +233,8 @@ int main() {
         dbg!(&result_allocation);
 
         dbg!(&main_func);
+
+        dbg!(ir::text_rep::generate_text_rep(&main_func));
 
         // TODO
     }

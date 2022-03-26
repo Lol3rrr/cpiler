@@ -1,17 +1,19 @@
 #![warn(missing_docs)]
 //! The actual Register Allocation with Graph-Coloring is based on [this Paper](https://link.springer.com/content/pdf/10.1007%2F11688839_20.pdf)
 
+// TODO
+// The Register allocator should reuse the same Registers for Variables that are combined using Phi nodes
+
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
 };
 
 use spilling::RegisterConfig;
-
-//mod context;
-//mod determine_spill;
-//mod spill;
 mod spilling;
+
+mod debug_ctx;
+use debug_ctx::DebugContext;
 
 pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
@@ -78,6 +80,9 @@ where
 {
     /// Actually performs the Register allocation
     pub fn allocate(func: &ir::FunctionDefinition, registers: &[R]) -> Self {
+        let mut debug_context = DebugContext::new();
+        debug_context.add_state(func);
+
         // TODO
         // Instead of registers.len() we should calculate the correct Number of available
         // registers
@@ -90,12 +95,17 @@ where
             .filter(|r| matches!(r.reg_type(), RegisterType::GeneralPurpose))
             .count();
         spilling::spill(
-            func.block.clone(),
+            func,
             RegisterConfig {
-                general_purpose_count: general_registers - 1,
-                floating_point_count: float_registers - 1,
+                general_purpose_count: general_registers.saturating_sub(1),
+                floating_point_count: float_registers.saturating_sub(1),
             },
+            &mut debug_context,
         );
+
+        debug_context
+            .get_steps()
+            .for_each(|s| println!("{:?}\n", s));
 
         let mut interference_graph = ir::DefaultInterferenceGraph::new();
         func.interference_graph(&mut interference_graph, |_, _, _| {});
@@ -123,7 +133,10 @@ where
             let used_color = match avail_colors.next() {
                 Some(c) => c,
                 None => {
-                    dbg!(&current, &neighbours);
+                    //dbg!(&current, &neighbours);
+                    dbg!(current);
+
+                    eprintln!("{}", ir::text_rep::generate_text_rep(func));
 
                     todo!("Not enough Registers available")
                 }

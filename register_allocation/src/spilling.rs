@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use crate::{load_statement, save_statement, Register};
+use crate::debug_ctx::DebugContext;
+
+mod min;
+use min::min_algorithm;
 
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
@@ -76,7 +79,7 @@ fn next_use_distances(root: &ir::BasicBlock) -> HashMap<ir::Variable, usize> {
 }
 
 #[derive(Debug, Clone)]
-struct Reload {
+pub struct Reload {
     previous: ir::Variable,
     var: ir::Variable,
     position: usize,
@@ -281,7 +284,7 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Rel
             for re_var in s_re_vars {
                 let prev_def = find_previous_definition(
                     &preds,
-                    search_statements.iter().take(index + 1).cloned(),
+                    search_statements.iter().take(index).cloned(),
                     &re_var.name,
                 );
                 match prev_def {
@@ -306,7 +309,13 @@ struct BlockSpillingData {
     exit_spilled: BTreeSet<ir::Variable>,
 }
 
-fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, max_vars: usize) {
+fn intialize_register_sets(
+    func: &ir::FunctionDefinition,
+    available_registers: usize,
+    max_vars: usize,
+    dbg_ctx: &mut DebugContext,
+) {
+    let root = &func.block;
     let mut result: HashMap<_, BlockSpillingData> = root
         .get_predecessors()
         .into_iter()
@@ -317,16 +326,11 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
 
     let mut reloads = Vec::new();
     let mut pending_blocks = vec![root.clone()];
-    loop {
-        let current = match pending_blocks.iter().enumerate().find(|(_, b)| {
-            b.get_predecessors()
-                .into_iter()
-                .all(|p| result.contains_key(&p.as_ptr()))
-        }) {
-            Some((i, _)) => pending_blocks.remove(i),
-            None => break,
-        };
-
+    while let Some((_, current)) = pending_blocks.iter().enumerate().find(|(_, b)| {
+        b.get_predecessors()
+            .into_iter()
+            .all(|p| result.contains_key(&p.as_ptr()))
+    }) {
         let preds = current.get_predecessors();
         let succs = current.successors();
 
@@ -429,121 +433,13 @@ fn intialize_register_sets(root: &ir::BasicBlock, available_registers: usize, ma
 
         pending_blocks.extend(current.successors().into_iter().map(|(_, b)| b));
         pending_blocks.retain(|b| !result.contains_key(&b.as_ptr()));
+
+        //dbg_ctx.add_state(&func);
     }
 
     reconstruct_ssa(root, reloads);
 
     assert!(pending_blocks.is_empty());
-}
-
-#[derive(Debug)]
-enum MinAction {
-    Spill,
-    Reload { n_var: ir::Variable },
-}
-
-fn min_algorithm(
-    block: &ir::BasicBlock,
-    current_vars: &mut BTreeSet<ir::Variable>,
-    spilled: &mut BTreeSet<ir::Variable>,
-    max_vars: usize,
-    across_distance: HashMap<ir::Variable, usize>,
-) -> Vec<Reload> {
-    let statements = block.get_statements();
-
-    let mut spills = Vec::new();
-    let mut reloads = Vec::new();
-
-    for (index, stmnt) in statements.iter().enumerate() {
-        let used_vars = stmnt.used_vars();
-        let r: BTreeSet<ir::Variable> = used_vars
-            .into_iter()
-            .filter(|v| !current_vars.contains(&v))
-            .collect();
-
-        //dbg!(&r, &current_vars);
-        for tmp_use in r.iter() {
-            current_vars.insert(tmp_use.clone());
-            spilled.insert(tmp_use.clone());
-        }
-
-        let definition = match &stmnt {
-            ir::Statement::Assignment { target, .. } => Some(target.clone()),
-            _ => None,
-        };
-
-        let spill_first = limit(
-            current_vars,
-            spilled,
-            &statements,
-            index,
-            max_vars,
-            &across_distance,
-        );
-        let spill_second = limit(
-            current_vars,
-            spilled,
-            &statements,
-            index + 1,
-            max_vars - definition.as_ref().map(|_| 1).unwrap_or(0),
-            &across_distance,
-        );
-
-        for spill_var in spill_first.into_iter().chain(spill_second) {
-            spills.push((index, spill_var));
-        }
-
-        if let Some(defed) = definition {
-            current_vars.insert(defed);
-        }
-
-        for r_var in r {
-            reloads.push((index, r_var));
-        }
-    }
-
-    let mut n_statements = statements;
-    let mut action_iter: Vec<_> = spills
-        .into_iter()
-        .map(|(i, v)| (i, v, MinAction::Spill))
-        .chain(reloads.clone().into_iter().map(|(i, v)| {
-            (
-                i,
-                v.clone(),
-                MinAction::Reload {
-                    n_var: v.next_gen(),
-                },
-            )
-        }))
-        .collect();
-    action_iter.sort_by_key(|(i, _, _)| *i);
-
-    for (offset, (index, var, action)) in action_iter.iter().enumerate() {
-        match action {
-            MinAction::Spill => {
-                n_statements.insert(index + offset, save_statement(var.clone()));
-            }
-            MinAction::Reload { n_var } => {
-                n_statements.insert(index + offset, load_statement(n_var.clone()));
-            }
-        };
-    }
-
-    block.set_statements(n_statements);
-
-    action_iter
-        .into_iter()
-        .enumerate()
-        .filter_map(|(o, (i, v, action))| match action {
-            MinAction::Spill => None,
-            MinAction::Reload { n_var } => Some((o, (i, v, n_var))),
-        })
-        .map(|(offset, (index, var, n_var))| Reload {
-            var: n_var,
-            previous: var,
-            position: offset + index,
-        })
-        .collect()
 }
 
 fn limit(
@@ -555,7 +451,7 @@ fn limit(
     across_distance: &HashMap<ir::Variable, usize>,
 ) -> Vec<ir::Variable> {
     let local_distance: BTreeMap<_, _> = instructions
-        .into_iter()
+        .iter()
         .skip(current)
         .enumerate()
         .rev()
@@ -606,15 +502,20 @@ pub struct RegisterConfig {
     pub floating_point_count: usize,
 }
 
-pub fn spill(root: ir::BasicBlock, available_registers: RegisterConfig) {
+pub fn spill(
+    func: &ir::FunctionDefinition,
+    available_registers: RegisterConfig,
+    dbg_ctx: &mut DebugContext,
+) {
     //let n_use_distance = next_use_distances(&root);
     //dbg!(&n_use_distance);
 
     // TODO
     // Handle the max register Count correctly
-    let register_sets = intialize_register_sets(
-        &root,
+    intialize_register_sets(
+        func,
         available_registers.general_purpose_count,
         available_registers.general_purpose_count,
+        dbg_ctx,
     );
 }

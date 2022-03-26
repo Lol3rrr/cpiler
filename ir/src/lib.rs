@@ -42,6 +42,8 @@ pub mod simpler;
 mod general;
 pub use crate::general::JumpMetadata;
 
+pub mod text_rep;
+
 /// The overall Program Structure that contains all the needed information about the Program itself
 #[derive(Clone, PartialEq)]
 pub struct Program {
