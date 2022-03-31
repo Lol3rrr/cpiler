@@ -41,12 +41,16 @@ impl Default for Arch {
         #[cfg(target_arch = "aarch64")]
         return Self::AArch64;
 
+        #[cfg(target_arch = "x86_64")]
+        return Self::X86_64;
+
         panic!("Unsupported Platform")
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Platform {
+    Linux,
     MacOs,
     CasioPrizm,
 }
@@ -56,6 +60,9 @@ impl Default for Platform {
     fn default() -> Self {
         #[cfg(target_os = "macos")]
         return Self::MacOs;
+
+        #[cfg(target_os = "linux")]
+        return Self::Linux;
 
         panic!("Unsupported Platform")
     }

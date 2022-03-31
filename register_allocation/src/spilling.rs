@@ -513,6 +513,7 @@ fn intialize_register_sets(
         // This does not work for loop headers yet because one of the Predecessor may not have been
         // processed yet
         for pred in preds.iter() {
+            let pred_block = pred.upgrade().unwrap();
             let p_data = match pred_data.get(&pred.as_ptr()) {
                 Some(d) => d,
                 None => {
@@ -526,9 +527,20 @@ fn intialize_register_sets(
             let to_spill = (entry_spilled.difference(&p_data.exit_spilled))
                 .filter(|v| p_data.exit_vars.contains(v));
 
-            for r_var in to_reload {
-                todo!("Reload Variable: {:?}", r_var);
-            }
+            let pred_statements = pred_block.get_statements();
+
+            let pred_reloads: Vec<Reload> = to_reload
+                .into_iter()
+                .enumerate()
+                .map(|(i, r_var)| Reload {
+                    previous: r_var.clone(),
+                    var: r_var.next_gen(),
+                    position: pred_statements.len() + i,
+                })
+                .collect();
+
+            reloads.push((pred_block, pred_reloads));
+
             for s_var in to_spill {
                 todo!("Spill Variable: {:?}", s_var);
             }
@@ -546,14 +558,14 @@ fn intialize_register_sets(
                 merge_distances(&mut acc, elem.into_iter());
                 acc
             });
-        let tmp_reloads = min_algorithm(
+        let min_reloads = min_algorithm(
             current,
             &mut exit_vars,
             &mut exit_spilled,
             max_vars,
             next_use_distance,
         );
-        reloads.push((current.clone(), tmp_reloads));
+        reloads.push((current.clone(), min_reloads));
 
         result.insert(
             current.as_ptr(),
