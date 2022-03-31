@@ -28,6 +28,8 @@ void test() {
     let x_var = Variable::new("x_17563920617334630623", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::Pointer);
 
+    let t0_var = Variable::tmp(0, Type::I32);
+
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
         vec![
@@ -39,12 +41,16 @@ void test() {
                 }),
             },
             Statement::SaveVariable { var: x_var.clone() },
-            Statement::WriteMemory {
-                target: Operand::Variable(x_var.clone()),
+            Statement::Assignment {
+                target: t0_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(x_var.clone()),
+                value: Operand::Variable(t0_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -101,6 +107,7 @@ void test() {
         .set_meta(VariableMetadata::VarPointer {
             var: Box::new(y0_var.name.clone()),
         });
+    let t0_var = Variable::tmp(0, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -122,12 +129,16 @@ void test() {
                 }),
             },
             Statement::SaveVariable { var: x_var.clone() },
-            Statement::WriteMemory {
-                target: Operand::Variable(x_var.clone()),
+            Statement::Assignment {
+                target: t0_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(x_var.clone()),
+                value: Operand::Variable(t0_var.clone()),
             },
             Statement::Assignment {
                 target: y1_var.clone(),

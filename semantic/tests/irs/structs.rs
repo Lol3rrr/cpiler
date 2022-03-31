@@ -107,6 +107,9 @@ void test() {
     let t0_var = Variable::new("__t_0", Type::Pointer(Box::new(Type::Void)));
     let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::Void)));
     let t2_var = Variable::new("__t_2", Type::Pointer(Box::new(Type::Void)));
+    let t3_var = Variable::tmp(3, Type::I32);
+    let t4_var = Variable::tmp(4, Type::I32);
+    let t5_var = Variable::tmp(5, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -126,12 +129,16 @@ void test() {
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t0_var.clone()),
+            Statement::Assignment {
+                target: t4_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t0_var.clone()),
+                value: Operand::Variable(t4_var.clone()),
             },
             Statement::Assignment {
                 target: t1_var.clone(),
@@ -141,12 +148,16 @@ void test() {
                     right: Operand::Constant(Constant::I64(4)),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t1_var.clone()),
+            Statement::Assignment {
+                target: t5_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I8,
                     base: Operand::Constant(Constant::I64(23)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t1_var.clone()),
+                value: Operand::Variable(t5_var.clone()),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
@@ -156,12 +167,16 @@ void test() {
                     right: Operand::Constant(Constant::I64(8)),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
+            Statement::Assignment {
+                target: t3_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(33)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t2_var.clone()),
+                value: Operand::Variable(t3_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -225,6 +240,7 @@ void test() {
     let t2_var = Variable::new("__t_2", Type::I64);
     let t3_var = Variable::new("__t_3", Type::I64);
     let t4_var = Variable::new("__t_4", Type::Pointer(Box::new(Type::Void)));
+    let t5_var = Variable::tmp(5, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -280,13 +296,17 @@ void test() {
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            // Store the new Value back into the target Field
-            Statement::WriteMemory {
-                target: Operand::Variable(t4_var.clone()),
+            Statement::Assignment {
+                target: t5_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Variable(t3_var.clone()),
                 }),
+            },
+            // Store the new Value back into the target Field
+            Statement::WriteMemory {
+                target: Operand::Variable(t4_var.clone()),
+                value: Operand::Variable(t5_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -353,6 +373,7 @@ void test() {
         "__t_2",
         Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Void)))),
     );
+    let t3_var = Variable::tmp(3, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -388,12 +409,16 @@ void test() {
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
+            Statement::Assignment {
+                target: t3_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t2_var.clone()),
+                value: Operand::Variable(t3_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -572,6 +597,7 @@ void test() {
         "__t_2",
         Type::Pointer(Box::new(Type::Pointer(Box::new(Type::Void)))),
     );
+    let t3_var = Variable::tmp(3, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -607,12 +633,16 @@ void test() {
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
+            Statement::Assignment {
+                target: t3_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t2_var.clone()),
+                value: ir::Operand::Variable(t3_var.clone()),
             },
             Statement::Return(None),
         ],

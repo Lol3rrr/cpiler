@@ -32,8 +32,10 @@ void test() {
     let t1_var = Variable::new("__t_1", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::Pointer);
     let t2_var = Variable::new("__t_2", Type::I64);
-    let t3_var = Variable::new("__t_3", Type::Pointer(Box::new(Type::I32)))
+    let t3_var = Variable::tmp(3, Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::Pointer);
+    let t4_var = Variable::tmp(4, Type::I32);
+    let t5_var = Variable::tmp(5, Type::I32);
 
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
@@ -61,12 +63,16 @@ void test() {
                     right: Operand::Variable(t0_var.clone()),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t1_var.clone()),
+            Statement::Assignment {
+                target: t4_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t1_var.clone()),
+                value: Operand::Variable(t4_var.clone()),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
@@ -84,12 +90,16 @@ void test() {
                     right: Operand::Variable(t2_var.clone()),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t3_var.clone()),
+            Statement::Assignment {
+                target: t5_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(23)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t3_var.clone()),
+                value: Operand::Variable(t5_var.clone()),
             },
             Statement::Return(None),
         ],
@@ -178,6 +188,10 @@ void test() {
     let t17_var =
         Variable::tmp(17, Type::Pointer(Box::new(Type::I32))).set_meta(VariableMetadata::Pointer);
 
+    let t18_var = Variable::tmp(18, Type::I32);
+    let t19_var = Variable::tmp(19, Type::I32);
+    let t20_var = Variable::tmp(20, Type::I32);
+
     let func_inner = BasicBlock::new(
         vec![func_initial.weak_ptr()],
         vec![
@@ -205,12 +219,16 @@ void test() {
                     right: Operand::Variable(t0_var.clone()),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t1_var.clone()),
+            Statement::Assignment {
+                target: t18_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t1_var.clone()),
+                value: Operand::Variable(t18_var.clone()),
             },
             // This is related to the first Assign + Update
             Statement::Assignment {
@@ -275,12 +293,16 @@ void test() {
                     right: Operand::Variable(t8_var.clone()),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t9_var.clone()),
+            Statement::Assignment {
+                target: t19_var.clone(),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
                     base: Operand::Variable(t7_var.clone()),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t9_var.clone()),
+                value: Operand::Variable(t19_var.clone()),
             },
             Statement::Assignment {
                 target: tmp1_var.clone(),
@@ -352,12 +374,16 @@ void test() {
                     right: Operand::Variable(t16_var.clone()),
                 }),
             },
-            Statement::WriteMemory {
-                target: Operand::Variable(t17_var.clone()),
+            Statement::Assignment {
+                target: t20_var.clone(),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Decrement),
                     base: Operand::Variable(t15_var.clone()),
-                }),
+                })
+            },
+            Statement::WriteMemory {
+                target: Operand::Variable(t17_var.clone()),
+                value: Operand::Variable(t20_var.clone()),
             },
             Statement::Assignment {
                 target: tmp2_var.clone(),
