@@ -1,6 +1,6 @@
 use crate::backends::aarch64_mac::{asm, codegen::Context};
 
-pub fn write(addr_op: ir::Operand, value: ir::Value, ctx: &Context) -> Vec<asm::Instruction> {
+pub fn write(addr_op: ir::Operand, value: ir::Operand, ctx: &Context) -> Vec<asm::Instruction> {
     let mut result = Vec::with_capacity(1);
 
     match addr_op {
@@ -18,7 +18,7 @@ pub fn write(addr_op: ir::Operand, value: ir::Value, ctx: &Context) -> Vec<asm::
 
 fn write_var(
     addr: ir::Variable,
-    value: ir::Value,
+    value: ir::Operand,
     ctx: &Context,
     instr: &mut Vec<asm::Instruction>,
 ) {
@@ -32,7 +32,7 @@ fn write_var(
     };
 
     match value {
-        ir::Value::Constant(con) => match con {
+        ir::Operand::Constant(con) => match con {
             ir::Constant::I32(val) => {
                 let val_register = asm::GPRegister::Word(9); // Register 9 should be a scratch register that can be used as seen fit
                 instr.push(asm::Instruction::MovI64 {
@@ -65,7 +65,7 @@ fn write_var(
                 todo!()
             }
         },
-        ir::Value::Variable(var) => {
+        ir::Operand::Variable(var) => {
             let value_reg = ctx.registers.get_reg(&var).unwrap();
 
             match (value_reg, var.ty) {
@@ -81,10 +81,6 @@ fn write_var(
                     todo!()
                 }
             };
-        }
-        other => {
-            dbg!(&other);
-            todo!()
         }
     };
 }

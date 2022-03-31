@@ -4,16 +4,13 @@
 // Call ABI: https://developer.arm.com/documentation/ihi0055/b/
 // https://stackoverflow.com/questions/65351533/apple-clang12-llvm-unknown-aarch64-fixup-kind
 
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-};
+use std::{collections::HashMap, process::Command};
 
 use ir::Variable;
 
 use crate::{backends::aarch64_mac::codegen::ArgTarget, util};
 
-use super::Target;
+use super::{Target, TargetConfig};
 
 mod asm;
 mod codegen;
@@ -173,7 +170,7 @@ impl Backend {
 
                         match register_map.get(&target).unwrap() {
                             ArmRegister::GeneralPurpose(n) => asm::GPRegister::DWord(*n),
-                            ArmRegister::FloatingPoint(n) => todo!("Floating Point Register"),
+                            ArmRegister::FloatingPoint(_n) => todo!("Floating Point Register"),
                         }
                     }
                     other => {
@@ -256,7 +253,7 @@ impl Backend {
             .get_statements()
             .into_iter()
             .filter_map(|s| match s {
-                ir::Statement::Assignment { target, .. } => Some(target.clone()),
+                ir::Statement::Assignment { target, .. } => Some(target),
                 _ => None,
             })
             .map(|v| (v.name, v.ty))
@@ -282,6 +279,8 @@ impl Backend {
     }
 
     fn assemble(&self, input_file: &str, target_file: &str) {
+        println!("Assemble File");
+
         let output = Command::new("as")
             .args(["-o", target_file, input_file])
             .output()
@@ -294,6 +293,8 @@ impl Backend {
     }
 
     fn link(&self, files: &[&str], target_file: &str) {
+        println!("Linking");
+
         let output = Command::new("ld")
             .args(["-macosx_version_min", "12.0.0"])
             .args(["-o", target_file])
@@ -389,7 +390,7 @@ impl register_allocation::Register for ArmRegister {
 }
 
 impl Target for Backend {
-    fn generate(&self, program: ir::Program) {
+    fn generate(&self, program: ir::Program, conf: TargetConfig) {
         let (g_init_name, global_blocks, global_vars) = self.global_init(program.global.clone());
 
         let all_registers = Self::registers();
@@ -457,7 +458,10 @@ impl Target for Backend {
         std::fs::write("./code.s", asm_text).unwrap();
 
         self.assemble("./code.s", "./code.o");
-        self.link(&["./code.o"], "./code");
+        self.link(
+            &["./code.o"],
+            conf.target_file.as_deref().unwrap_or("./code"),
+        );
 
         std::fs::remove_file("./code.s").unwrap();
         std::fs::remove_file("./code.o").unwrap();

@@ -575,6 +575,7 @@ impl AStatement {
                 };
             }
             AStatement::Assignment { target, value } => {
+                let value_ty = value.result_type();
                 let value_exp = value.to_ir(block, ctx);
 
                 match target {
@@ -611,9 +612,14 @@ impl AStatement {
 
                         let target_oper = AExpression::val_to_operand(address_value, block, ctx);
 
+                        let tmp_value_var = ir::Variable::tmp(ctx.next_tmp(), value_ty.to_ir());
+                        block.add_statement(ir::Statement::Assignment {
+                            target: tmp_value_var.clone(),
+                            value: value_exp.clone(),
+                        });
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper.clone(),
-                            value: value_exp.clone(),
+                            value: ir::Operand::Variable(tmp_value_var),
                         });
 
                         if let ir::Operand::Variable(target_var) = &target_oper {
@@ -643,9 +649,14 @@ impl AStatement {
                         let target_value = ir::Value::Expression(target_exp);
                         let target_oper = AExpression::val_to_operand(target_value, block, ctx);
 
+                        let tmp_value_var = ir::Variable::tmp(ctx.next_tmp(), value_ty.to_ir());
+                        block.add_statement(ir::Statement::Assignment {
+                            target: tmp_value_var.clone(),
+                            value: value_exp.clone(),
+                        });
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
-                            value: value_exp,
+                            value: ir::Operand::Variable(tmp_value_var),
                         });
                     }
                     AAssignTarget::StructField(target) => {
@@ -654,9 +665,14 @@ impl AStatement {
                         let target_value = ir::Value::Expression(target_exp);
                         let target_oper = AExpression::val_to_operand(target_value, block, ctx);
 
+                        let tmp_value_var = ir::Variable::tmp(ctx.next_tmp(), value_ty.to_ir());
+                        block.add_statement(ir::Statement::Assignment {
+                            target: tmp_value_var.clone(),
+                            value: value_exp.clone(),
+                        });
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
-                            value: value_exp,
+                            value: ir::Operand::Variable(tmp_value_var),
                         });
                     }
                 };

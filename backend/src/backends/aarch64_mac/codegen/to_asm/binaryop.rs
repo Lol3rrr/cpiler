@@ -218,6 +218,28 @@ pub fn to_asm(
                         }
                     }
                 }
+                (ir::Operand::Constant(left_con), ir::Operand::Constant(right_con)) => {
+                    dbg!(&left_con, &right_con);
+
+                    let (left_reg, right_reg) = match (&left_con, &right_con) {
+                        (ir::Constant::I64(_), ir::Constant::I64(_)) => (
+                            asm::Register::GeneralPurpose(asm::GPRegister::DWord(9)),
+                            asm::Register::GeneralPurpose(asm::GPRegister::DWord(10)),
+                        ),
+                        (l, r) => {
+                            dbg!(l, r);
+                            todo!()
+                        }
+                    };
+
+                    let left_reg_store_instr = util::constant_to_asm(&left_con, left_reg.clone());
+                    instructions.extend(left_reg_store_instr);
+                    let right_reg_store_instr =
+                        util::constant_to_asm(&right_con, right_reg.clone());
+                    instructions.extend(right_reg_store_instr);
+
+                    (left_reg, right_reg)
+                }
                 other => {
                     dbg!(&other);
                     todo!()

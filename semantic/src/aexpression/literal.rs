@@ -53,7 +53,7 @@ impl Literal {
 
                     let assign_statement = Statement::WriteMemory {
                         target: Operand::Variable(offset_var),
-                        value: Value::Constant(Constant::U8(tmp_byte)),
+                        value: Operand::Constant(Constant::U8(tmp_byte)),
                     };
                     block.add_statement(assign_statement);
                 }

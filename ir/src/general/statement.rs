@@ -18,7 +18,7 @@ pub enum Statement<B, WB> {
         /// The Target on where to write the Value
         target: Operand,
         /// The Value
-        value: Value<WB>,
+        value: Operand,
     },
     /// A single Function-Call
     Call {

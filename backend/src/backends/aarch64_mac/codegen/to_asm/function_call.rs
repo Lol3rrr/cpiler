@@ -45,9 +45,11 @@ pub fn to_asm(
     // 2.
     let arg_mapping = codegen::arguments(arguments.iter().map(|a| a.ty()));
     for (arg, mapped) in arguments.into_iter().zip(arg_mapping) {
-        let arg_src = match arg {
+        let (arg_src, dword_sized) = match arg {
             ir::Operand::Variable(var) => match ctx.registers.get_reg(&var).unwrap() {
-                asm::Register::GeneralPurpose(gp) => gp,
+                asm::Register::GeneralPurpose(gp) => {
+                    (gp.clone(), matches!(gp, asm::GPRegister::DWord(_)))
+                }
                 other => {
                     dbg!(&other);
                     todo!()
@@ -61,7 +63,11 @@ pub fn to_asm(
 
         match mapped {
             ArgTarget::GPRegister(n) => {
-                let target_reg = asm::GPRegister::DWord(n);
+                let target_reg = if dword_sized {
+                    asm::GPRegister::DWord(n)
+                } else {
+                    asm::GPRegister::Word(n)
+                };
 
                 instructions.push(asm::Instruction::MovRegister {
                     dest: target_reg,

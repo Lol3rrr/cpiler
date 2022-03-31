@@ -48,7 +48,7 @@ fn assignments() {
             data: TokenData::Assign(Assignment::BitwiseOr),
         },
         Token {
-            span: Span::new_source(input_source.clone(), 31..33),
+            span: Span::new_source(input_source, 31..33),
             data: TokenData::Assign(Assignment::BitwiseXor),
         },
     ];

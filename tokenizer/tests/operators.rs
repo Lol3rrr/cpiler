@@ -101,7 +101,7 @@ fn operators() {
             data: TokenData::Operator(Operator::LogicalAnd),
         },
         Token {
-            span: Span::new_source(source.clone(), 56..58),
+            span: Span::new_source(source, 56..58),
             data: TokenData::Operator(Operator::LogicalOr),
         },
     ];

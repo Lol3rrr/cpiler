@@ -121,4 +121,17 @@ impl Expression {
             Self::StackAlloc { .. } => Vec::new(),
         }
     }
+
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::BinaryOp { left, .. } => left.ty(),
+            Self::UnaryOp { base, .. } => base.ty(),
+            Self::Cast { target, .. } => target.clone(),
+            other => {
+                dbg!(other);
+
+                todo!()
+            }
+        }
+    }
 }

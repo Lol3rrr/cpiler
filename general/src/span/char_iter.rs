@@ -42,7 +42,7 @@ mod tests {
         let content = "test";
         let source = Source::new("input", content);
         let span: Arc<Span> = Arc::new(source.into());
-        let mut iter = CharIndexIter::new(span.clone());
+        let mut iter = CharIndexIter::new(span);
 
         assert_eq!(Some((0, 't')), iter.next());
     }
@@ -52,7 +52,7 @@ mod tests {
         let content = "y̆a";
         let source = Source::new("input", content);
         let span: Arc<Span> = Arc::new(source.into());
-        let mut iter = CharIndexIter::new(span.clone());
+        let mut iter = CharIndexIter::new(span);
 
         assert_eq!(Some((0, 'y')), iter.next());
         assert_eq!(Some((1, '\u{0306}')), iter.next());

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use crate::{isas::sh4a, util};
 
-use super::Target;
+use super::{Target, TargetConfig};
 
 mod codegen;
 
@@ -172,7 +172,7 @@ impl Backend {
 }
 
 impl Target for Backend {
-    fn generate(&self, program: ir::Program) {
+    fn generate(&self, program: ir::Program, conf: TargetConfig) {
         let global_statements = program.global.get_statements();
         for stmnt in global_statements {
             dbg!(&stmnt);
@@ -209,8 +209,9 @@ impl Target for Backend {
 
         let g3a_file = g3a_builder.finish();
 
-        let g3a_data = g3a_file.serialize("testing.g3a");
+        let filename = conf.target_file.as_deref().unwrap_or("testing.g3a");
+        let g3a_data = g3a_file.serialize(filename);
 
-        std::fs::write("./testing.g3a", g3a_data).unwrap();
+        std::fs::write(filename, g3a_data).unwrap();
     }
 }

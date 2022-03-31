@@ -5,8 +5,12 @@ use crate::Config;
 mod aarch64_mac;
 mod sh4a_fxcg50;
 
+pub struct TargetConfig {
+    pub target_file: Option<String>,
+}
+
 pub trait Target {
-    fn generate(&self, program: ir::Program);
+    fn generate(&self, program: ir::Program, conf: TargetConfig);
 }
 
 pub fn get_backend(config: &Config) -> Box<dyn Target> {

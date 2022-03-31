@@ -121,17 +121,6 @@ impl ConstantProp {
                     value: n_value,
                 }
             }
-            Statement::WriteMemory {
-                target,
-                value: Value::Expression(exp),
-            } => {
-                let n_value = self.eval_expression(exp, consts);
-
-                Statement::WriteMemory {
-                    target,
-                    value: n_value,
-                }
-            }
             other => other,
         }
     }

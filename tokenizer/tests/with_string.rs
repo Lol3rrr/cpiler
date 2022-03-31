@@ -73,7 +73,7 @@ fn with_string_program() {
             data: TokenData::Semicolon,
         },
         Token {
-            span: Span::new_source(source.clone(), 53..54),
+            span: Span::new_source(source, 53..54),
             data: TokenData::CloseBrace,
         },
     ];

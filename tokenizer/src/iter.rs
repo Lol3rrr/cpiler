@@ -349,7 +349,7 @@ mod tests {
                 data: TokenData::Hashtag,
             },
             Token {
-                span: Span::new_source(input_source.clone(), 3..4),
+                span: Span::new_source(input_source, 3..4),
                 data: TokenData::Literal {
                     content: "b".to_string(),
                 },
@@ -368,7 +368,7 @@ mod tests {
         let input_span: Span = input_source.clone().into();
 
         let expected = vec![Token {
-            span: Span::new_source(input_source.clone(), 0..3),
+            span: Span::new_source(input_source, 0..3),
             data: TokenData::CharLiteral {
                 content: "c".to_string(),
             },

@@ -149,8 +149,8 @@ where
     }
 }
 
-impl<R> Into<HashMap<ir::Variable, R>> for RegisterMapping<R> {
-    fn into(self) -> HashMap<ir::Variable, R> {
-        self.inner
+impl<R> From<RegisterMapping<R>> for HashMap<ir::Variable, R> {
+    fn from(other: RegisterMapping<R>) -> Self {
+        other.inner
     }
 }

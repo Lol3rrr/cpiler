@@ -63,7 +63,7 @@ fn comments_program() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 115..116),
+            span: Span::new_source(source, 115..116),
             data: TokenData::CloseBrace,
         },
     ];

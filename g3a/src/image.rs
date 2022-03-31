@@ -125,7 +125,7 @@ impl Image {
     }
 
     /// Saves the Image into a File at the given Path
-    pub fn save_to_file(&self, path: &str) -> Result<(), ()> {
+    pub fn save_to_file(&self, path: &str) -> Result<(), image::error::ImageError> {
         let width = 92;
         let height = 64;
 
@@ -137,10 +137,7 @@ impl Image {
             }
         }
 
-        match imgbuf.save(path) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(()),
-        }
+        imgbuf.save(path)
     }
 }
 

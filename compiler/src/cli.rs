@@ -20,6 +20,8 @@ impl From<Targets> for general::arch::Target {
 pub struct Args {
     #[clap(long = "target", arg_enum)]
     pub target: Option<Targets>,
+    #[clap(long = "out")]
+    pub target_file: Option<String>,
 
     #[clap(short = 'L')]
     pub libs: Vec<String>,

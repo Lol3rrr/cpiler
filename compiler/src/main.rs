@@ -64,6 +64,7 @@ fn main() {
 
     let config = Config {
         target: args.target.map(|t| t.into()).unwrap_or_else(current_target),
+        target_file: args.target_file,
         opt_level: args.optimization_level,
     };
 

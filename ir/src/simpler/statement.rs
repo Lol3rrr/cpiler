@@ -21,14 +21,7 @@ impl Statement {
                     value: n_value,
                 }
             }
-            crate::Statement::WriteMemory { target, value } => {
-                let n_value = Value::from_complex(value, block_map);
-
-                Self::WriteMemory {
-                    target,
-                    value: n_value,
-                }
-            }
+            crate::Statement::WriteMemory { target, value } => Self::WriteMemory { target, value },
             crate::Statement::SaveVariable { var } => Self::SaveVariable { var },
             crate::Statement::SaveGlobalVariable { var } => Self::SaveGlobalVariable { var },
             crate::Statement::InlineAsm {

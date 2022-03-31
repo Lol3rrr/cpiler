@@ -6,7 +6,7 @@ use super::{binaryop, function_call, unaryop, util, Context};
 
 pub fn convert_assigned(
     exp: ir::Expression,
-    target: ir::Variable,
+    target_var: ir::Variable,
     t_reg: asm::Register,
     ctx: &Context,
 ) -> Vec<asm::Instruction> {
@@ -70,14 +70,10 @@ pub fn convert_assigned(
                                 todo!()
                             }
                         }
-                        asm::Register::FloatingPoint(n) => {
+                        asm::Register::FloatingPoint(_n) => {
                             todo!()
                         }
                     };
-                }
-                other => {
-                    dbg!(&other);
-                    todo!()
                 }
             };
         }
@@ -117,7 +113,7 @@ pub fn convert_assigned(
             }
         }
         ir::Expression::StackAlloc { .. } => {
-            let alloc_offset = *ctx.stack_allocs.get(&target).unwrap();
+            let alloc_offset = *ctx.stack_allocs.get(&target_var).unwrap();
 
             let t_reg = match t_reg {
                 asm::Register::GeneralPurpose(r) => r,
@@ -180,7 +176,7 @@ pub fn convert_assigned(
                 addr_register, addr_register, name
             )));
 
-            match (t_reg, target.ty) {
+            match (t_reg, target_var.ty) {
                 (asm::Register::GeneralPurpose(target), ir::Type::Pointer(_))
                 | (asm::Register::GeneralPurpose(target), ir::Type::U32)
                 | (asm::Register::GeneralPurpose(target), ir::Type::I32) => {

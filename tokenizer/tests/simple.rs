@@ -45,7 +45,7 @@ fn simple_program() {
             data: TokenData::Semicolon,
         },
         Token {
-            span: Span::new_source(source.clone(), 24..25),
+            span: Span::new_source(source, 24..25),
             data: TokenData::CloseBrace,
         },
     ];

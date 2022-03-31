@@ -6,6 +6,7 @@ pub use error::Error;
 
 pub struct Config {
     pub target: general::arch::Target,
+    pub target_file: Option<String>,
     pub opt_level: u8,
 }
 
@@ -57,7 +58,10 @@ where
 
     std::fs::write("./program.dot", ir.to_dot()).expect("");
 
-    let backend_config = backend::Config::new(config.target.clone());
+    let mut backend_config = backend::Config::new(config.target.clone());
+    if let Some(path) = config.target_file {
+        backend_config.set_target_file(path);
+    }
     backend::codegen(ir, backend_config);
 
     Ok(())

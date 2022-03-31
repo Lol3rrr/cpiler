@@ -29,7 +29,7 @@ fn simple_char() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 15..16),
+            span: Span::new_source(source, 15..16),
             data: TokenData::Semicolon,
         },
     ];

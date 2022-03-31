@@ -35,11 +35,31 @@ impl Arch {
     }
 }
 
+impl Default for Arch {
+    #[allow(unreachable_code)]
+    fn default() -> Self {
+        #[cfg(target_arch = "aarch64")]
+        return Self::AArch64;
+
+        panic!("Unsupported Platform")
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Platform {
     MacOs,
     CasioPrizm,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl Default for Platform {
+    #[allow(unreachable_code)]
+    fn default() -> Self {
+        #[cfg(target_os = "macos")]
+        return Self::MacOs;
+
+        panic!("Unsupported Platform")
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Target(pub Arch, pub Platform);

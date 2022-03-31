@@ -37,7 +37,7 @@ fn func_dec() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 19..20),
+            span: Span::new_source(source, 19..20),
             data: TokenData::CloseParen,
         },
     ];
@@ -90,7 +90,7 @@ fn func_var_arg() {
             data: TokenData::VarArgs,
         },
         Token {
-            span: Span::new_source(source.clone(), 24..25),
+            span: Span::new_source(source, 24..25),
             data: TokenData::CloseParen,
         },
     ];
