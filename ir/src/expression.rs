@@ -122,6 +122,7 @@ impl Expression {
         }
     }
 
+    /// Returns the Type of the Expression
     pub fn ty(&self) -> Type {
         match self {
             Self::BinaryOp { left, .. } => left.ty(),

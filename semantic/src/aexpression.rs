@@ -941,30 +941,30 @@ impl AExpression {
     /// calculate some offest from it, like for a struct or array access
     pub fn ir_address(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Value {
         match self {
-            Self::Variable { name, ty, .. } => {
-                match ty.data.ty() {
-                    AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {}
-                    other => {
-                        dbg!(&other);
+            Self::Variable {
+                ref name, ref ty, ..
+            } => {
+                let var = block.definition(name, &|| ctx.next_tmp()).unwrap();
+                match ty.data.clone().ty() {
+                    AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {
+                        if var.global() {
+                            let next_var = var.next_gen();
+                            block.add_statement(ir::Statement::Assignment {
+                                target: next_var.clone(),
+                                value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
+                                    name: var.name,
+                                }),
+                            });
 
-                        todo!("Unexpected Variable")
+                            return Value::Variable(next_var);
+                        }
+
+                        ir::Value::Variable(var)
                     }
-                };
-                let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
-
-                if var.global() {
-                    let next_var = var.next_gen();
-                    block.add_statement(ir::Statement::Assignment {
-                        target: next_var.clone(),
-                        value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
-                            name: var.name,
-                        }),
-                    });
-
-                    return Value::Variable(next_var);
+                    _ => ir::Value::Expression(ir::Expression::AdressOf {
+                        base: ir::Operand::Variable(var),
+                    }),
                 }
-
-                ir::Value::Variable(var)
             }
             Self::ArrayAccess { base, ty, index } => {
                 let base_address = base.ir_address(block, ctx);
