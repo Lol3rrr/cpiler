@@ -8,7 +8,11 @@ use std::{
 use crate::debug_ctx::DebugContext;
 
 mod min;
+use ir::{InnerBlock, WeakBlockPtr};
 use min::min_algorithm;
+
+mod reload_list;
+use self::reload_list::ReloadList;
 
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
@@ -279,7 +283,7 @@ where
     }
 }
 
-fn reconstruct_ssa(block: &ir::BasicBlock, reloads: Vec<(ir::BasicBlock, Vec<Reload>)>) {
+fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
     let reloads: Vec<_> = reloads
         .into_iter()
         .flat_map(|(b, vars)| vars.into_iter().map(move |v| (b.clone(), v)))
@@ -332,6 +336,48 @@ struct BlockSpillingData {
     exit_spilled: BTreeSet<ir::Variable>,
 }
 
+fn connect_preds<'i, PI>(
+    pred_iter: PI,
+    pred_data: &BTreeMap<*const InnerBlock, BlockSpillingData>,
+    entry_vars: &BTreeSet<ir::Variable>,
+    entry_spilled: &BTreeSet<ir::Variable>,
+    reloads: &mut ReloadList,
+) where
+    PI: IntoIterator<Item = &'i WeakBlockPtr>,
+{
+    for pred in pred_iter {
+        let pred_block = pred.upgrade().unwrap();
+        let p_data = match pred_data.get(&pred.as_ptr()) {
+            Some(d) => d,
+            None => {
+                continue;
+            }
+        };
+
+        let to_reload = entry_vars.difference(&p_data.exit_vars);
+        let to_spill = (entry_spilled.difference(&p_data.exit_spilled))
+            .filter(|v| p_data.exit_vars.contains(v));
+
+        let pred_statements = pred_block.get_statements();
+
+        let pred_reloads: Vec<Reload> = to_reload
+            .into_iter()
+            .enumerate()
+            .map(|(i, r_var)| Reload {
+                previous: r_var.clone(),
+                var: r_var.next_gen(),
+                position: pred_statements.len(),
+            })
+            .collect();
+
+        reloads.add(pred_block, pred_reloads);
+
+        for s_var in to_spill {
+            todo!("Spill Variable: {:?}", s_var);
+        }
+    }
+}
+
 fn intialize_register_sets(
     func: &ir::FunctionDefinition,
     available_registers: usize,
@@ -347,8 +393,10 @@ fn intialize_register_sets(
         .collect();
     assert!(result.len() == 1);
 
-    let mut reloads = Vec::new();
+    let mut reloads = ReloadList::new();
     let mut pending_blocks = vec![root.clone()];
+
+    let mut update_blocks = Vec::new();
 
     loop {
         let (current, needs_update) = match pending_blocks.iter().find(|b| {
@@ -463,8 +511,10 @@ fn intialize_register_sets(
             // Fill entry_vars with more candidates to increase efficiency
             // TODO
             // Use different metric for refill-count, instead use max_vars - max-used-registers-in-loop
-            // let fill_count = max_vars.saturating_sub(entry_vars.len());
-            let fill_count = 0;
+
+            // This should be the Max-Number of used registers in the Loop itself
+            let max_used_registers = max_vars;
+            let fill_count = max_vars.saturating_sub(max_used_registers);
             for (_, ent) in (0..fill_count).zip(i_b) {
                 entry_vars.insert(ent);
             }
@@ -512,38 +562,16 @@ fn intialize_register_sets(
         // TODO
         // This does not work for loop headers yet because one of the Predecessor may not have been
         // processed yet
-        for pred in preds.iter() {
-            let pred_block = pred.upgrade().unwrap();
-            let p_data = match pred_data.get(&pred.as_ptr()) {
-                Some(d) => d,
-                None => {
-                    debug_assert!(needs_update);
-                    continue;
-                }
-            };
-            // println!("P-Data: {:?}", p_data);
+        connect_preds(
+            preds.iter(),
+            &pred_data,
+            &entry_vars,
+            &entry_spilled,
+            &mut reloads,
+        );
 
-            let to_reload = entry_vars.difference(&p_data.exit_vars);
-            let to_spill = (entry_spilled.difference(&p_data.exit_spilled))
-                .filter(|v| p_data.exit_vars.contains(v));
-
-            let pred_statements = pred_block.get_statements();
-
-            let pred_reloads: Vec<Reload> = to_reload
-                .into_iter()
-                .enumerate()
-                .map(|(i, r_var)| Reload {
-                    previous: r_var.clone(),
-                    var: r_var.next_gen(),
-                    position: pred_statements.len() + i,
-                })
-                .collect();
-
-            reloads.push((pred_block, pred_reloads));
-
-            for s_var in to_spill {
-                todo!("Spill Variable: {:?}", s_var);
-            }
+        if needs_update {
+            update_blocks.push(current.clone());
         }
 
         let mut exit_vars = entry_vars.clone();
@@ -565,7 +593,8 @@ fn intialize_register_sets(
             max_vars,
             next_use_distance,
         );
-        reloads.push((current.clone(), min_reloads));
+
+        reloads.add(current.clone(), min_reloads);
 
         result.insert(
             current.as_ptr(),
@@ -579,8 +608,29 @@ fn intialize_register_sets(
 
         pending_blocks.extend(current.successors().into_iter().map(|(_, b)| b));
         pending_blocks.retain(|b| !result.contains_key(&b.as_ptr()));
+    }
 
-        //dbg_ctx.add_state(&func);
+    for update_block in update_blocks {
+        let prev_spill_data = result.get(&update_block.as_ptr()).unwrap();
+
+        let preds = update_block.get_predecessors();
+        let pred_data: BTreeMap<_, _> = preds
+            .iter()
+            .filter_map(|p| {
+                let ptr = p.as_ptr();
+                let pred_vars = result.get(&ptr).cloned()?;
+
+                Some((ptr, pred_vars))
+            })
+            .collect();
+
+        connect_preds(
+            preds.iter(),
+            &pred_data,
+            &prev_spill_data.entry_vars,
+            &prev_spill_data.entry_spilled,
+            &mut reloads,
+        );
     }
 
     reconstruct_ssa(root, reloads);

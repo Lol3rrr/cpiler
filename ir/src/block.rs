@@ -493,6 +493,16 @@ impl BasicBlock {
 
                     live_vars.insert(target.clone());
                 }
+                Statement::Jump(target, _) => {
+                    if !visited.contains(&target.as_ptr()) {
+                        target.interference_graph(graph, live_vars, visited, update);
+                    }
+                }
+                Statement::JumpTrue(var, target, _) => {
+                    if !visited.contains(&target.as_ptr()) {
+                        target.interference_graph(graph, live_vars, visited, update);
+                    }
+                }
                 _ => {}
             };
         }
@@ -508,7 +518,7 @@ impl BasicBlock {
 
         if succs.len() == 1 {
             let (_, single_succ) = succs.into_iter().next().unwrap();
-            single_succ.interference_graph(graph, live_vars, visited, update);
+            //single_succ.interference_graph(graph, live_vars, visited, update);
             return;
         }
 
@@ -536,10 +546,10 @@ impl BasicBlock {
 
         visited.insert(end_block.as_ptr());
         let mut left_live = live_vars.clone();
-        left.interference_graph(graph, &mut left_live, visited, update);
+        //left.interference_graph(graph, &mut left_live, visited, update);
 
         let mut right_live = live_vars.clone();
-        right.interference_graph(graph, &mut right_live, visited, update);
+        //right.interference_graph(graph, &mut right_live, visited, update);
 
         let mut n_live = {
             let mut tmp = left_live;
