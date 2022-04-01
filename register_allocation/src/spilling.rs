@@ -360,13 +360,25 @@ fn connect_preds<'i, PI>(
 
         let pred_statements = pred_block.get_statements();
 
+        let pred_jump_index = pred_statements
+            .iter()
+            .enumerate()
+            .find(|(_, stmnt)| match stmnt {
+                ir::Statement::Jump(target, _) => target.as_ptr() == pred.as_ptr(),
+                ir::Statement::JumpTrue(_, target, _) => target.as_ptr() == pred.as_ptr(),
+                _ => false,
+            })
+            .map(|(i, _)| i + 1);
         let pred_reloads: Vec<Reload> = to_reload
             .into_iter()
-            .enumerate()
-            .map(|(i, r_var)| Reload {
+            .map(|r_var| Reload {
                 previous: r_var.clone(),
                 var: r_var.next_gen(),
-                position: pred_statements.len(),
+                position: pred_jump_index.unwrap_or_else(|| {
+                    // This case should probably never really be hit, but it is in certain test cases so its fine for now, I think
+                    dbg!("What");
+                    pred_statements.len()
+                }),
             })
             .collect();
 
