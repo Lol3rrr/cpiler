@@ -39,7 +39,8 @@ macro_rules! compile_testing {
                 let _ = comp_result.unwrap_err();
             }
 
-            let output = match std::process::Command::new(stringify!($name)).output() {
+            let exec_path = format!("./{}", stringify!($name));
+            let output = match std::process::Command::new(exec_path).output() {
                 Ok(o) => o,
                 Err(e) => {
                     println!("Process: {:?}", e);
