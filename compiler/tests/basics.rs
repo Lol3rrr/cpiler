@@ -10,19 +10,9 @@ macro_rules! compile_testing {
     ($name:ident, $path:expr, $compiles:expr, $ret_code:expr) => {
         #[test]
         fn $name() {
-            let handle = loop {
-                match SYNC.try_lock() {
-                    Some(h) => break h,
-                    None => {
-                        std::thread::yield_now();
-                        continue;
-                    }
-                }
-            };
-
             let base_path = Path::new("./tests/files/basics");
             let src_path = base_path.join($path);
-            let build_path = base_path.join(
+            let build_path = Path::new("./test-builds/basics").join(
                 PathBuf::from(($path).to_string())
                     .file_stem()
                     .unwrap()
@@ -60,8 +50,6 @@ macro_rules! compile_testing {
             };
 
             assert_eq!(Some($ret_code), output.status.code());
-
-            drop(handle);
         }
     };
 }
