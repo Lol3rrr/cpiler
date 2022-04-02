@@ -808,8 +808,6 @@ impl AStatement {
                 *block = end_block;
             }
             AStatement::WhileLoop { condition, body } => {
-                dbg!(&condition, &body);
-
                 let start_block = BasicBlock::new(vec![block.weak_ptr()], vec![]);
                 let inner_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
                 let end_block = BasicBlock::new(vec![start_block.weak_ptr()], vec![]);
@@ -876,8 +874,6 @@ impl AStatement {
                 body,
                 updates,
             } => {
-                dbg!(&condition, &body, &updates);
-
                 let while_statement = for_to_while::convert(condition, body, updates);
                 while_statement.to_ir(block, ctx);
             }
