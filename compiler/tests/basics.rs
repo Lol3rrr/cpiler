@@ -67,3 +67,4 @@ compile_testing!(pointer, "pointer.c", true, 0);
 compile_testing!(ptr_deref, "ptr_deref.c", true, 0);
 compile_testing!(simple, "simple.c", true, 0);
 compile_testing!(spill_var, "spill_vars.c", true, 0);
+compile_testing!(factorial, "factorial.c", true, 6);
