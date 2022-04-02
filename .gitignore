@@ -2,3 +2,4 @@ target/
 *.dot
 *.png
 compiler/code
+compiler/test-builds

@@ -137,7 +137,7 @@ impl Backend {
                             },
                         ]
                     }
-                    sh4a::Register::FloatingPoint(fp) => {
+                    sh4a::Register::FloatingPoint(_) => {
                         todo!()
                     }
                     sh4a::Register::PR => {

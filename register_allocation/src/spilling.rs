@@ -158,7 +158,27 @@ where
             todo!("Find Variable in Single Predecessor");
         }
         core::cmp::Ordering::Greater => {
-            todo!("Find Variable in Multiple Predecessors")
+            let found_vars = preds
+                .iter()
+                .map(|raw_pred| {
+                    let pred = raw_pred.upgrade().unwrap();
+
+                    let pred_preds = pred.get_predecessors();
+
+                    let pred_var = find_previous_definition(
+                        &pred_preds,
+                        pred.get_statements().into_iter(),
+                        var_name,
+                    );
+
+                    match pred_var {
+                        PrevDefinition::Single(var) => (var, pred),
+                        PrevDefinition::Mutliple(var) => panic!(""),
+                    }
+                })
+                .collect();
+
+            PrevDefinition::Mutliple(found_vars)
         }
         core::cmp::Ordering::Less => {
             todo!()
@@ -298,17 +318,22 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
         .map(|(_, r)| r.clone())
         .collect::<Vec<Reload>>());
 
+    // Iterate over the current block and all the blocks that can be reached from it
     for tmp_b in block.block_iter() {
         let preds = tmp_b.get_predecessors();
-        let search_statements = tmp_b.get_statements();
+        let mut search_statements = tmp_b.get_statements();
         let mut statements = tmp_b.get_statements();
 
-        for (index, stmnt) in statements.iter_mut().enumerate() {
+        let mut index = 0;
+        while let Some(stmnt) = statements.get_mut(index) {
             let s_vars = stmnt.used_vars();
             let s_re_vars = s_vars
                 .into_iter()
                 .filter(|v| reloaded_vars.contains(&v.name));
+
             for re_var in s_re_vars {
+                let stmnt = statements.get_mut(index).unwrap();
+
                 let prev_def = find_previous_definition(
                     &preds,
                     search_statements.iter().take(index).cloned(),
@@ -319,11 +344,35 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
                         replace_used_variables(stmnt, &re_var, &n_var);
                     }
                     PrevDefinition::Mutliple(vars) => {
-                        todo!()
+                        let n_var = vars.get(0).unwrap().0.next_gen();
+                        dbg!(&n_var);
+
+                        let n_var_assign = ir::Statement::Assignment {
+                            target: n_var.clone(),
+                            value: ir::Value::Phi {
+                                sources: vars
+                                    .iter()
+                                    .map(|(var, block)| ir::PhiEntry {
+                                        var: var.clone(),
+                                        block: block.weak_ptr(),
+                                    })
+                                    .collect(),
+                            },
+                        };
+
+                        replace_used_variables(stmnt, &re_var, &n_var);
+
+                        statements.insert(index, n_var_assign);
+                        search_statements = statements.clone();
+
+                        index += 1;
                     }
                 };
             }
+
+            index += 1;
         }
+
         tmp_b.set_statements(statements);
     }
 }
