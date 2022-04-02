@@ -1,7 +1,18 @@
 //! The Textual representation for the IR
 
-use crate::{Expression, FunctionDefinition, Operand, Statement, Value, Variable};
+use crate::{Expression, FunctionDefinition, Operand, Program, Statement, Value, Variable};
 
+/// Generates a basic textual represenatation for the given Program
+pub fn program_text_rep(prog: &Program) -> String {
+    // TODO
+    // Also somehow output the global stuff
+    prog.functions
+        .iter()
+        .map(|(_, f)| generate_text_rep(f))
+        .collect()
+}
+
+/// Generates a basic textual representation for the given Function
 pub fn generate_text_rep(func: &FunctionDefinition) -> String {
     let func_header = format!("fn {}() -> {:?}", func.name, func.return_ty);
 

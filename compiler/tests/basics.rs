@@ -1,4 +1,3 @@
-use parking_lot::FairMutex;
 use std::path::{Path, PathBuf};
 
 use compiler::Config;

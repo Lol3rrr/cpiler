@@ -466,7 +466,10 @@ impl Target for Backend {
             conf.target_file.as_deref().unwrap_or("./code"),
         );
 
-        std::fs::remove_file(asm_path).unwrap();
-        std::fs::remove_file(obj_path).unwrap();
+        /*
+            Keep the build artifacts around for easier debugging
+            std::fs::remove_file(asm_path).unwrap();
+            std::fs::remove_file(obj_path).unwrap();
+        */
     }
 }

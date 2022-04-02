@@ -31,6 +31,10 @@ pub fn codegen(program: ir::Program, conf: Config) {
         panic!("Creating Build-Directory: {:?}", e);
     }
 
+    let ir_path = target_conf.build_dir.join("ir.txt");
+    std::fs::write(ir_path, ir::text_rep::program_text_rep(&program))
+        .expect("Saving the IR in Text-Format should always work");
+
     target.generate(program, target_conf);
 }
 
