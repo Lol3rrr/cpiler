@@ -40,7 +40,7 @@ where
 
         for stmnt in statements {
             match stmnt {
-                ir::Statement::Assignment { target, .. } if !target.is_tmp() => {
+                ir::Statement::Assignment { target, .. } => {
                     result.insert(target.name, size_align(&target.ty));
                 }
                 _ => {}
