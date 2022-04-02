@@ -24,7 +24,6 @@ impl ArrayAccessTarget {
 
         let index_value = self.index.to_ir(block, ctx);
         let index_oper = AExpression::val_to_operand(index_value, block, ctx);
-        dbg!(&index_oper);
 
         let offset_exp = ir::Expression::BinaryOp {
             op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Multiply),
@@ -57,7 +56,6 @@ pub struct StructFieldTarget {
 impl StructFieldTarget {
     pub fn to_exp(self, block: &mut BasicBlock, ctx: &ConvertContext) -> ir::Expression {
         let (base_value, base_ty) = self.target.base_target_address(block, ctx);
-        dbg!(&base_value, &base_ty);
 
         let struct_def = match base_ty {
             AType::Struct { def, .. } => def,
@@ -352,7 +350,6 @@ impl AAssignTarget {
                 ty_info,
             }) => {
                 let (base_address_value, base_target_ty) = target.base_target_address(block, ctx);
-                dbg!(&base_address_value, &base_target_ty);
                 let base_address_oper = AExpression::val_to_operand(base_address_value, block, ctx);
 
                 let (struct_def, _) = base_target_ty.get_struct_def().unwrap();

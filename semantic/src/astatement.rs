@@ -222,7 +222,7 @@ impl AStatement {
                     if ret_ty != expected_ty {
                         return Err(SemanticError::MismatchedTypes {
                             expected: SpanData {
-                                span: name.0.span.clone(),
+                                span: name.0.span,
                                 data: expected_ty.clone(),
                             },
                             received: SpanData {
@@ -652,7 +652,7 @@ impl AStatement {
                         let tmp_value_var = ir::Variable::tmp(ctx.next_tmp(), value_ty.to_ir());
                         block.add_statement(ir::Statement::Assignment {
                             target: tmp_value_var.clone(),
-                            value: value_exp.clone(),
+                            value: value_exp,
                         });
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,
@@ -668,7 +668,7 @@ impl AStatement {
                         let tmp_value_var = ir::Variable::tmp(ctx.next_tmp(), value_ty.to_ir());
                         block.add_statement(ir::Statement::Assignment {
                             target: tmp_value_var.clone(),
-                            value: value_exp.clone(),
+                            value: value_exp,
                         });
                         block.add_statement(ir::Statement::WriteMemory {
                             target: target_oper,

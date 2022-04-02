@@ -542,7 +542,7 @@ mod tests {
 
         let target = AType::Pointer(Box::new(AType::Primitve(APrimitive::Int)));
 
-        assert_eq!(true, root.implicitly_castable(&target));
+        assert!(root.implicitly_castable(&target));
     }
 
     #[test]
@@ -556,7 +556,7 @@ mod tests {
                 },
             )))),
             modifier: SpanData {
-                span: Span::new_source(source.clone(), 0..5),
+                span: Span::new_source(source, 0..5),
                 data: Modifier::Const,
             },
         };
@@ -672,7 +672,7 @@ mod tests {
                         data: Modifier::Long,
                     },
                     base: Box::new(TypeToken::Primitive(SpanData {
-                        span: Span::new_source(input_source.clone(), 0..1),
+                        span: Span::new_source(input_source, 0..1),
                         data: DataType::Double,
                     })),
                 },

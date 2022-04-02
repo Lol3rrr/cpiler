@@ -167,7 +167,7 @@ mod tests {
             data: 123,
         }));
         let right_in = AExpression::Literal(Literal::Integer(SpanData {
-            span: Span::new_source(in_source.clone(), 6..9),
+            span: Span::new_source(in_source, 6..9),
             data: 234,
         }));
 
@@ -189,7 +189,7 @@ mod tests {
             data: 1.3,
         }));
         let right_in = AExpression::Literal(Literal::Integer(SpanData {
-            span: Span::new_source(in_source.clone(), 6..9),
+            span: Span::new_source(in_source, 6..9),
             data: 234,
         }));
 
@@ -215,7 +215,7 @@ mod tests {
         }));
         let right_in = AExpression::Cast {
             base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
-                span: Span::new_source(source.clone(), 0..12),
+                span: Span::new_source(source, 0..12),
                 data: 2,
             }))),
             target: AType::Primitve(APrimitive::UnsignedLongInt),
@@ -242,7 +242,7 @@ mod tests {
         }));
         let left_in = AExpression::Cast {
             base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
-                span: Span::new_source(source.clone(), 0..12),
+                span: Span::new_source(source, 0..12),
                 data: 2,
             }))),
             target: AType::Primitve(APrimitive::UnsignedLongInt),

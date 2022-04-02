@@ -74,7 +74,7 @@ fn convert_global(raw_global: AScope, mut ctx: ConvertContext) -> (BasicBlock, V
     let global_vars: HashMap<String, ir::Variable> = global_statements
         .into_iter()
         .filter_map(|stmnt| match stmnt {
-            ir::Statement::Assignment { target, .. } => Some(target.clone()),
+            ir::Statement::Assignment { target, .. } => Some(target),
             _ => None,
         })
         .map(|var| (var.name.clone(), var))

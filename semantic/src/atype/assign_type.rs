@@ -110,7 +110,7 @@ mod tests {
                 })),
                 (
                     &AType::Primitve(APrimitive::LongInt),
-                    &Span::new_source(input_source.clone(), 0..1)
+                    &Span::new_source(input_source, 0..1)
                 )
             )
         );
@@ -138,7 +138,7 @@ mod tests {
                 })),
                 (
                     &AType::Primitve(APrimitive::Int),
-                    &Span::new_source(input_source.clone(), 0..1)
+                    &Span::new_source(input_source, 0..1)
                 )
             )
         );

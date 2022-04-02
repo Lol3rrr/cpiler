@@ -108,7 +108,7 @@ mod tests {
         });
 
         let result = struct_def.find_member(&Identifier(SpanData {
-            span: Span::new_source(dummy_source.clone(), 0..1),
+            span: Span::new_source(dummy_source, 0..1),
             data: "t".to_string(),
         }));
 
@@ -137,7 +137,7 @@ mod tests {
                 },
                 StructMember {
                     name: Identifier(SpanData {
-                        span: Span::new_source(dummy_source.clone(), 2..3),
+                        span: Span::new_source(dummy_source, 2..3),
                         data: "s".to_string(),
                     }),
                     ty: AType::Primitve(APrimitive::Int),
@@ -172,7 +172,7 @@ mod tests {
                 },
                 StructMember {
                     name: Identifier(SpanData {
-                        span: Span::new_source(dummy_source.clone(), 2..3),
+                        span: Span::new_source(dummy_source, 2..3),
                         data: "s".to_string(),
                     }),
                     ty: AType::Primitve(APrimitive::Int),
@@ -207,7 +207,7 @@ mod tests {
                 },
                 StructMember {
                     name: Identifier(SpanData {
-                        span: Span::new_source(dummy_source.clone(), 2..3),
+                        span: Span::new_source(dummy_source, 2..3),
                         data: "s".to_string(),
                     }),
                     ty: AType::Primitve(APrimitive::Int),
