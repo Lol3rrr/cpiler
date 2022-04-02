@@ -227,7 +227,8 @@ impl AType {
                 todo!()
             })
             .collect();
-        dbg!(p_variants);
+        // TODO
+        let _ = p_variants;
 
         Ok(Self::Enum {
             def: EnumDefinition {},
@@ -274,10 +275,7 @@ impl AType {
                 }
             }
             (raw_ty, Modifier::Const) => {
-                dbg!(&raw_ty);
-
                 let ty = AType::parse(raw_ty, ty_defs, vars)?;
-                dbg!(&ty);
 
                 Ok(Self::Const(Box::new(ty)))
             }
@@ -427,8 +425,6 @@ impl AType {
                 members,
                 entire_span,
             } => {
-                dbg!(&name, &members);
-
                 let str_members: Vec<_> = members
                     .into_iter()
                     .filter_map(

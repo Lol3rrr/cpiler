@@ -255,7 +255,6 @@ impl AAssignTarget {
                         });
                     }
                 };
-                dbg!(&field_ty);
 
                 Ok(Self::StructField(StructFieldTarget {
                     target: Box::new(base_target),

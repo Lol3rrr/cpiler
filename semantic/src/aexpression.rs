@@ -498,8 +498,7 @@ impl AExpression {
                 })
             }
             Expression::ArrayLiteral { .. } => {
-                // dbg!(&parts);
-
+                // TODO
                 Err(SemanticError::NotImplemented {
                     ctx: "Array Literals".to_string(),
                 })
