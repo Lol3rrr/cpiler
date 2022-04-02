@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use general::arch::{Arch, Platform};
 
 use crate::Config;
@@ -9,6 +11,7 @@ mod x86_64_linux;
 #[derive(Debug)]
 pub struct TargetConfig {
     pub target_file: Option<String>,
+    pub build_dir: PathBuf,
 }
 
 pub trait Target {

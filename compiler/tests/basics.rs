@@ -1,5 +1,5 @@
 use parking_lot::FairMutex;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use compiler::Config;
 use preprocessor::loader::files::FileLoader;
@@ -21,19 +21,27 @@ macro_rules! compile_testing {
             };
 
             let base_path = Path::new("./tests/files/basics");
-            let path = base_path.join($path);
+            let src_path = base_path.join($path);
+            let build_path = base_path.join(
+                PathBuf::from(($path).to_string())
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+            );
 
-            dbg!(&path);
+            dbg!(&src_path, &build_path);
 
             let loader = FileLoader::new();
 
             let comp_result = compiler::run(
-                vec![path.to_str().unwrap().to_string()],
+                vec![src_path.to_str().unwrap().to_string()],
                 loader,
                 Config {
                     opt_level: 0,
                     target: general::arch::Target::default(),
                     target_file: Some(stringify!($name).to_string()),
+                    build_dir: build_path,
                 },
             );
 

@@ -456,15 +456,17 @@ impl Target for Backend {
             asm_text.push_str(&block_text);
         }
 
-        std::fs::write("./code.s", asm_text).unwrap();
+        let asm_path = conf.build_dir.join("code.s");
+        std::fs::write(&asm_path, asm_text).unwrap();
 
-        self.assemble("./code.s", "./code.o");
+        let obj_path = conf.build_dir.join("code.o");
+        self.assemble(asm_path.to_str().unwrap(), obj_path.to_str().unwrap());
         self.link(
-            &["./code.o"],
+            &[obj_path.to_str().unwrap()],
             conf.target_file.as_deref().unwrap_or("./code"),
         );
 
-        std::fs::remove_file("./code.s").unwrap();
-        std::fs::remove_file("./code.o").unwrap();
+        std::fs::remove_file(asm_path).unwrap();
+        std::fs::remove_file(obj_path).unwrap();
     }
 }

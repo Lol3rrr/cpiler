@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use optimizer::Optimization;
 use preprocessor::Loader;
 
@@ -7,6 +9,7 @@ pub use error::Error;
 pub struct Config {
     pub target: general::arch::Target,
     pub target_file: Option<String>,
+    pub build_dir: PathBuf,
     pub opt_level: u8,
 }
 
@@ -62,6 +65,7 @@ where
     if let Some(path) = config.target_file {
         backend_config.set_target_file(path);
     }
+    backend_config.set_build_dir(config.build_dir);
     backend::codegen(ir, backend_config);
 
     Ok(())
