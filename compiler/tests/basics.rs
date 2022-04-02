@@ -36,6 +36,7 @@ macro_rules! compile_testing {
                 let _ = comp_result.unwrap();
             } else {
                 let _ = comp_result.unwrap_err();
+                return;
             }
 
             let exec_path = format!("./{}", stringify!($name));
