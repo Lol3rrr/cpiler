@@ -1,5 +1,5 @@
 use compiler::{run, Config};
-use general::arch::{Arch, Platform, Target};
+use general::arch::Target;
 use preprocessor::loader::files::FileLoader;
 
 use clap::Parser;

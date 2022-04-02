@@ -51,10 +51,6 @@ macro_rules! compile_testing {
                 }
             };
 
-            println!("STD-Out: {:?}", String::from_utf8(output.stdout).unwrap());
-            println!("STD-Err: {:?}", String::from_utf8(output.stderr).unwrap());
-
-            // println!("Status: {:?}", output.status);
             assert_eq!(Some($ret_code), output.status.code());
 
             drop(handle);

@@ -10,7 +10,10 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
     match stmnt {
         Statement::SaveVariable { var } => {
             let src_reg = ctx.registers.get_reg(&var).unwrap();
-            let var_offset = *ctx.var.get(&var.name).unwrap();
+            let var_offset = match ctx.var.get(&var.name) {
+                Some(vo) => *vo,
+                None => panic!("Missing Variable Offset for {:?}", var),
+            };
             let offset = asm::Imm9Signed::new(var_offset as i16);
 
             match src_reg {
@@ -193,7 +196,7 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
             let cond_reg = ctx.registers.get_reg(&condition).unwrap();
             let c_reg = match cond_reg {
                 asm::Register::GeneralPurpose(n) => n,
-                asm::Register::FloatingPoint(n) => panic!("Not yet supported"),
+                asm::Register::FloatingPoint(_) => panic!("Not yet supported"),
             };
 
             instructions.push(asm::Instruction::BranchNonZeroLabel {

@@ -420,7 +420,7 @@ impl Target for Backend {
                     ir::Type::I32 | ir::Type::U32 => {
                         vec![
                             //asm::Instruction::Literal(".data".to_string()),
-                            asm::Instruction::Literal(format!(".long 0")),
+                            asm::Instruction::Literal(".long 0".to_string()),
                         ]
                     }
                     other => {
@@ -448,6 +448,7 @@ impl Target for Backend {
 
         asm_text.push_str(".data\n");
         for decl in g_var_decls {
+            dbg!(&decl);
             //asm_text.push_str(&format!(".global {}\n", &decl));
         }
         for block in g_var_blocks {
