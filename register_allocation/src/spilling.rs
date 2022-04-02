@@ -368,7 +368,7 @@ fn connect_preds<'i, PI>(
                 ir::Statement::JumpTrue(_, target, _) => target.as_ptr() == pred.as_ptr(),
                 _ => false,
             })
-            .map(|(i, _)| i + 1);
+            .map(|(i, _)| i);
         let pred_reloads: Vec<Reload> = to_reload
             .into_iter()
             .map(|r_var| Reload {
