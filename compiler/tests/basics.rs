@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use compiler::Config;
 use preprocessor::loader::files::FileLoader;
 
-static SYNC: FairMutex<()> = parking_lot::const_fair_mutex(());
-
 macro_rules! compile_testing {
     ($name:ident, $path:expr, $compiles:expr, $ret_code:expr) => {
         #[test]
@@ -41,7 +39,7 @@ macro_rules! compile_testing {
                 let _ = comp_result.unwrap_err();
             }
 
-            let output = match std::process::Command::new("./test").output() {
+            let output = match std::process::Command::new(stringify!($name)).output() {
                 Ok(o) => o,
                 Err(e) => {
                     println!("Process: {:?}", e);
