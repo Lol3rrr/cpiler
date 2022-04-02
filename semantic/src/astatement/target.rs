@@ -73,7 +73,6 @@ impl StructFieldTarget {
             .expect("Field does not exist");
 
         let base_oper = AExpression::val_to_operand(base_value, block, ctx);
-        dbg!(&base_oper);
 
         ir::Expression::BinaryOp {
             op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
@@ -294,59 +293,53 @@ impl AAssignTarget {
         ctx: &ConvertContext,
     ) -> (ir::Value, AType) {
         match self {
-            Self::Variable { name, src, ty_info } => {
-                dbg!(&ty_info);
-
-                match ty_info.data.ty() {
-                    AType::Struct { def, area } => {
-                        let var = AExpression::Variable {
-                            name,
-                            src,
-                            ty: SpanData {
-                                span: ty_info.span,
-                                data: AType::Struct {
-                                    def: def.clone(),
-                                    area: area.clone(),
-                                },
+            Self::Variable { name, src, ty_info } => match ty_info.data.ty() {
+                AType::Struct { def, area } => {
+                    let var = AExpression::Variable {
+                        name,
+                        src,
+                        ty: SpanData {
+                            span: ty_info.span,
+                            data: AType::Struct {
+                                def: def.clone(),
+                                area: area.clone(),
                             },
-                        };
+                        },
+                    };
 
-                        (var.to_ir(block, ctx), AType::Struct { def, area })
-                    }
-                    AType::Array(arr) => {
-                        let var = AExpression::Variable {
-                            name,
-                            src,
-                            ty: SpanData {
-                                span: ty_info.span,
-                                data: AType::Array(arr.clone()),
-                            },
-                        };
-
-                        (var.to_ir(block, ctx), AType::Array(arr))
-                    }
-                    AType::Pointer(base_ty) => {
-                        let var = AExpression::Variable {
-                            name,
-                            src,
-                            ty: SpanData {
-                                span: ty_info.span,
-                                data: AType::Pointer(base_ty.clone()),
-                            },
-                        };
-
-                        (var.to_ir(block, ctx), AType::Pointer(base_ty))
-                    }
-                    other => {
-                        dbg!(&other);
-
-                        todo!("Variable of different Type");
-                    }
+                    (var.to_ir(block, ctx), AType::Struct { def, area })
                 }
-            }
-            Self::ArrayAccess(arr_target) => {
-                dbg!(&arr_target);
+                AType::Array(arr) => {
+                    let var = AExpression::Variable {
+                        name,
+                        src,
+                        ty: SpanData {
+                            span: ty_info.span,
+                            data: AType::Array(arr.clone()),
+                        },
+                    };
 
+                    (var.to_ir(block, ctx), AType::Array(arr))
+                }
+                AType::Pointer(base_ty) => {
+                    let var = AExpression::Variable {
+                        name,
+                        src,
+                        ty: SpanData {
+                            span: ty_info.span,
+                            data: AType::Pointer(base_ty.clone()),
+                        },
+                    };
+
+                    (var.to_ir(block, ctx), AType::Pointer(base_ty))
+                }
+                other => {
+                    dbg!(&other);
+
+                    todo!("Variable of different Type");
+                }
+            },
+            Self::ArrayAccess(arr_target) => {
                 let target_ty = arr_target.ty_info.data.into_ty().clone();
 
                 let target_exp = arr_target.to_exp(block, ctx);
@@ -358,8 +351,6 @@ impl AAssignTarget {
                 field,
                 ty_info,
             }) => {
-                dbg!(&target, &field, &ty_info);
-
                 let (base_address_value, base_target_ty) = target.base_target_address(block, ctx);
                 dbg!(&base_address_value, &base_target_ty);
                 let base_address_oper = AExpression::val_to_operand(base_address_value, block, ctx);
