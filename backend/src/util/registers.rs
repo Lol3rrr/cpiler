@@ -48,11 +48,11 @@ mod tests {
 
         let input_function = ir::FunctionDefinition {
             name: "test".to_string(),
-            block: ir::BasicBlock::new(vec![], input_statements.clone()),
+            block: ir::BasicBlock::new(vec![], input_statements),
             arguments: vec![],
             return_ty: ir::Type::Void,
         };
 
-        let result = allocate_registers(&input_function, &input_register);
+        let _ = allocate_registers(&input_function, &input_register);
     }
 }

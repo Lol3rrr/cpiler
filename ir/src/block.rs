@@ -498,7 +498,7 @@ impl BasicBlock {
                         target.interference_graph(graph, live_vars, visited, update);
                     }
                 }
-                Statement::JumpTrue(var, target, _) => {
+                Statement::JumpTrue(_, target, _) => {
                     if !visited.contains(&target.as_ptr()) {
                         target.interference_graph(graph, live_vars, visited, update);
                     }
@@ -517,8 +517,6 @@ impl BasicBlock {
         }
 
         if succs.len() == 1 {
-            let (_, single_succ) = succs.into_iter().next().unwrap();
-            //single_succ.interference_graph(graph, live_vars, visited, update);
             return;
         }
 
@@ -545,10 +543,10 @@ impl BasicBlock {
         };
 
         visited.insert(end_block.as_ptr());
-        let mut left_live = live_vars.clone();
+        let left_live = live_vars.clone();
         //left.interference_graph(graph, &mut left_live, visited, update);
 
-        let mut right_live = live_vars.clone();
+        let right_live = live_vars.clone();
         //right.interference_graph(graph, &mut right_live, visited, update);
 
         let mut n_live = {
@@ -817,7 +815,7 @@ mod tests {
         predecessor_2.add_statement(Statement::Jump(block.clone(), JumpMetadata::Linear));
         predecessor_3.add_statement(Statement::Jump(block.clone(), JumpMetadata::Linear));
 
-        let expected = Some(test_var.clone());
+        let expected = Some(test_var);
         let expected_block_stmnts: Vec<Statement> = vec![];
 
         let result = block.definition("test", &|| 0);

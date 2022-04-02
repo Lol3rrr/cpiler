@@ -263,7 +263,7 @@ mod tests {
         let expected = DominanceTree {
             roots: vec![0],
             latest: Some(1),
-            nodes: vec![root_node, DominanceNode::new(second_var.clone(), Some(0))],
+            nodes: vec![root_node, DominanceNode::new(second_var, Some(0))],
         };
 
         assert_eq!(expected, tree);
@@ -286,13 +286,13 @@ mod tests {
         result_tree.append_tree(other_tree);
         dbg!(&result_tree);
 
-        let mut expected_root = DominanceNode::new(root.clone(), None);
+        let mut expected_root = DominanceNode::new(root, None);
         expected_root.add_child(1);
-        let mut expected_x = DominanceNode::new(x.clone(), Some(0));
+        let mut expected_x = DominanceNode::new(x, Some(0));
         expected_x.add_child(2);
         expected_x.add_child(3);
-        let expected_y = DominanceNode::new(y.clone(), Some(1));
-        let expected_z = DominanceNode::new(z.clone(), Some(1));
+        let expected_y = DominanceNode::new(y, Some(1));
+        let expected_z = DominanceNode::new(z, Some(1));
 
         let expected_tree = DominanceTree {
             roots: vec![0],
@@ -323,15 +323,15 @@ mod tests {
         result_tree.append_tree_to_node(&result_root_node, other_tree);
         dbg!(&result_tree);
 
-        let mut expected_root = DominanceNode::new(root.clone(), None);
+        let mut expected_root = DominanceNode::new(root, None);
         expected_root.add_child(1);
         expected_root.add_child(2);
-        let expected_root_2 = DominanceNode::new(root2.clone(), Some(0));
-        let mut expected_x = DominanceNode::new(x.clone(), Some(0));
+        let expected_root_2 = DominanceNode::new(root2, Some(0));
+        let mut expected_x = DominanceNode::new(x, Some(0));
         expected_x.add_child(3);
         expected_x.add_child(4);
-        let expected_y = DominanceNode::new(y.clone(), Some(2));
-        let expected_z = DominanceNode::new(z.clone(), Some(2));
+        let expected_y = DominanceNode::new(y, Some(2));
+        let expected_z = DominanceNode::new(z, Some(2));
 
         let expected_tree = DominanceTree {
             roots: vec![0],
@@ -368,8 +368,8 @@ mod tests {
             latest: Some(2),
             nodes: vec![
                 root_node,
-                DominanceNode::new(second_var.clone(), Some(0)),
-                DominanceNode::new(third_var.clone(), Some(0)),
+                DominanceNode::new(second_var, Some(0)),
+                DominanceNode::new(third_var, Some(0)),
             ],
         };
 
@@ -395,15 +395,15 @@ mod tests {
         result_tree.insert_tree_at_level(other_tree);
         dbg!(&result_tree);
 
-        let mut expected_root = DominanceNode::new(root.clone(), None);
+        let mut expected_root = DominanceNode::new(root, None);
         expected_root.add_child(1);
         expected_root.add_child(2);
-        let expected_root_2 = DominanceNode::new(root2.clone(), Some(0));
-        let mut expected_x = DominanceNode::new(x.clone(), Some(0));
+        let expected_root_2 = DominanceNode::new(root2, Some(0));
+        let mut expected_x = DominanceNode::new(x, Some(0));
         expected_x.add_child(3);
         expected_x.add_child(4);
-        let expected_y = DominanceNode::new(y.clone(), Some(2));
-        let expected_z = DominanceNode::new(z.clone(), Some(2));
+        let expected_y = DominanceNode::new(y, Some(2));
+        let expected_z = DominanceNode::new(z, Some(2));
 
         let expected_tree = DominanceTree {
             roots: vec![0],
@@ -435,7 +435,7 @@ mod tests {
             tmp
         };
         result_tree.append_tree_to_node(&root_node, other_tree.clone());
-        result_tree.append_tree_to_node(&root_node, other_tree.clone());
+        result_tree.append_tree_to_node(&root_node, other_tree);
 
         let expected = DominanceTree {
             roots: vec![0, 2],
@@ -452,12 +452,12 @@ mod tests {
                     children: vec![],
                 },
                 DominanceNode {
-                    var: x.clone(),
+                    var: x,
                     parent: None,
                     children: vec![3],
                 },
                 DominanceNode {
-                    var: y.clone(),
+                    var: y,
                     parent: Some(2),
                     children: vec![],
                 },

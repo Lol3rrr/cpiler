@@ -39,12 +39,9 @@ where
         let statements = block.get_statements();
 
         for stmnt in statements {
-            match stmnt {
-                ir::Statement::Assignment { target, .. } => {
-                    result.insert(target.name, size_align(&target.ty));
-                }
-                _ => {}
-            };
+            if let ir::Statement::Assignment { target, .. } = stmnt {
+                result.insert(target.name, size_align(&target.ty));
+            }
         }
     }
 
@@ -79,7 +76,9 @@ pub struct StackAllocation<I> {
     /// The Instructions that should be run before returning from the function to make sure that
     /// the Stack gets reset properly
     pub pre_return_instr: Vec<I>,
+    /// The Offsets for all the Variables by name
     pub var_offsets: HashMap<String, isize>,
+    /// The Offsets for certain Structures like arrays
     pub allocations: HashMap<ir::Variable, isize>,
 }
 
