@@ -1,5 +1,5 @@
 use compiler::{run, Config};
-use general::arch::Target;
+use general::arch::{Arch, Platform, Target};
 use preprocessor::loader::files::FileLoader;
 
 use clap::Parser;
@@ -37,11 +37,7 @@ where
 
 #[allow(unreachable_code)]
 fn current_target() -> Target {
-    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
-    return Target(Arch::AArch64, Platform::MacOs);
-
-    // This is needed if the current Target used for rust compilation is not supported by the Compiler
-    panic!("Unknown current Target")
+    Target(Arch::default(), Platform::default())
 }
 
 fn main() {
