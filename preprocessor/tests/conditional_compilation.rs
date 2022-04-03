@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use general::{Source, Span};
 use preprocessor::loader::files::FileLoader;
 use tokenizer::{DataType, Keyword, Token, TokenData};
@@ -29,7 +31,7 @@ fn ifdef_conditional() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -61,7 +63,7 @@ fn ifndef_conditional() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -93,7 +95,7 @@ fn nested_ifdefs() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -125,7 +127,7 @@ fn defined_condition() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -157,7 +159,7 @@ fn condition_else() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }
@@ -189,7 +191,7 @@ fn condition_ifelse_true() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file_name).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file_name).unwrap();
 
     assert_eq!(expected, result);
 }

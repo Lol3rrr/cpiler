@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use general::Source;
 use preprocessor::loader::files::FileLoader;
 
@@ -17,7 +19,7 @@ fn simple_include() {
 
     let expected: Vec<_> = other_tokens.chain(include_tokens).collect();
 
-    let result = preprocessor::preprocess(&loader, "./tests/files/include.c").unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), "./tests/files/include.c").unwrap();
 
     assert_eq!(expected, result);
 }

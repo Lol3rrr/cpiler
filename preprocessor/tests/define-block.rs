@@ -60,7 +60,8 @@ fn simple_define() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, "./tests/files/define-block.c").unwrap();
+    let result =
+        preprocessor::preprocess(Arc::new(loader), "./tests/files/define-block.c").unwrap();
 
     assert_eq!(expected, result);
 }

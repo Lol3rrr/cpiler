@@ -17,7 +17,7 @@ use debug_ctx::DebugContext;
 
 pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        todo!()
+        todo!("Saving Global")
     } else {
         ir::Statement::SaveVariable { var }
     }
@@ -25,7 +25,7 @@ pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
 
 pub(crate) fn load_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        todo!()
+        todo!("Loading Global")
     } else {
         ir::Statement::Assignment {
             target: var,

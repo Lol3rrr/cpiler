@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, str::FromStr, sync::Arc};
 
 use tokenizer::{tokenize, Token};
 
@@ -26,9 +26,9 @@ pub enum ProcessError<L> {
     Loading(L),
 }
 
-pub fn preprocess<L>(loader: &L, start: &str) -> Result<Vec<Token>, ProcessError<L::LoadError>>
+pub fn preprocess<L>(loader: Arc<L>, start: &str) -> Result<Vec<Token>, ProcessError<L::LoadError>>
 where
-    L: Loader,
+    L: Loader + 'static,
 {
     let start_path = PathBuf::from_str(start).unwrap();
     let start_load_directive = loader::LoadDirective {
@@ -47,14 +47,16 @@ where
     let mut state = state::State::new();
     state.defines.add_block("CPILER", Vec::new());
 
-    let processed = resolver::resolve(root_pir, loader, &mut state)?;
+    let processed = resolver::resolve(root_pir, loader, Rc::new(RefCell::new(state)));
 
-    let result = processed
-        .map(|p| match p {
-            PIR::Token(t) => t,
-            PIR::Directive(d) => panic!("Unresolved Compiler Directive: {:?}", d),
+    let result: Result<Vec<_>, _> = processed
+        .map(|rp| {
+            rp.map(|p| match p {
+                PIR::Token(t) => t,
+                PIR::Directive(d) => panic!("Unresolved Compiler Directive: {:?}", d),
+            })
         })
         .collect();
 
-    Ok(result)
+    result
 }

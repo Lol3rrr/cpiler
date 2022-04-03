@@ -55,7 +55,7 @@ fn nested_defines() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, define_file).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), define_file).unwrap();
 
     dbg!(&expected);
     dbg!(&result);

@@ -94,7 +94,7 @@ fn simple_function_define() {
         },
     ];
 
-    let result = preprocessor::preprocess(&loader, file).unwrap();
+    let result = preprocessor::preprocess(Arc::new(loader), file).unwrap();
 
     dbg!(&result);
 
