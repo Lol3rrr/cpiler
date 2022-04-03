@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use optimizer::Optimization;
 use preprocessor::Loader;
@@ -15,11 +15,12 @@ pub struct Config {
 
 pub fn run<L>(files: Vec<String>, loader: L, config: Config) -> Result<(), Error<L::LoadError>>
 where
-    L: Loader,
+    L: Loader + 'static,
 {
+    let loader = Arc::new(loader);
     let mut irs_iter = files.into_iter().map(|src_file| {
         let preprocessed =
-            preprocessor::preprocess(&loader, &src_file).map_err(Error::Preprocessor)?;
+            preprocessor::preprocess(loader.clone(), &src_file).map_err(Error::Preprocessor)?;
 
         let basic_ast = syntax::parse(preprocessed).map_err(Error::Syntax)?;
 
