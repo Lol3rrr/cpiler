@@ -345,14 +345,14 @@ impl ParseState {
                                     (_, _) => {
                                         return Err(SyntaxError::UnexpectedToken {
                                             expected: None,
-                                            got: span.clone(),
+                                            got: span,
                                         });
                                     }
                                 },
                                 (_, _) => {
                                     return Err(SyntaxError::UnexpectedToken {
                                         expected: None,
-                                        got: span.clone(),
+                                        got: span,
                                     })
                                 }
                             };

@@ -77,7 +77,7 @@ mod tests {
     fn empty_struct_def() {
         let input = "{}";
         let source = Source::new("test", input);
-        let input_span: Span = source.clone().into();
+        let input_span: Span = source.into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(StructMembers {
@@ -107,7 +107,7 @@ mod tests {
                     data: DataType::Int,
                 }),
                 Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 27..32),
+                    span: Span::new_source(source, 27..32),
                     data: "first".to_string(),
                 }),
             )],
@@ -148,7 +148,7 @@ mod tests {
                         data: DataType::Int,
                     }),
                     Identifier(SpanData {
-                        span: Span::new_source(source.clone(), 50..56),
+                        span: Span::new_source(source, 50..56),
                         data: "second".to_string(),
                     }),
                 ),

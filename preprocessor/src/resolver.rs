@@ -21,12 +21,12 @@ where
     I: Iterator<Item = PIR> + 's,
     L: Loader + 'static,
 {
-    return ResolveIterator {
+    ResolveIterator {
         loader,
         state,
         tmp: Box::new(std::iter::empty()),
         pir_iter: pir.into_iter().peekable(),
-    };
+    }
 }
 
 pub struct ResolveIterator<I, L>

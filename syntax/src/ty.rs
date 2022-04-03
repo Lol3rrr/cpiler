@@ -307,7 +307,7 @@ mod tests {
         let mut tokenized = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(TypeToken::Primitive(SpanData {
-            span: Span::new_source(source.clone(), 0..3),
+            span: Span::new_source(source, 0..3),
             data: DataType::Int,
         }));
 
@@ -326,7 +326,7 @@ mod tests {
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Primitive(
             SpanData {
-                span: Span::new_source(source.clone(), 0..3),
+                span: Span::new_source(source, 0..3),
                 data: DataType::Int,
             },
         ))));
@@ -346,7 +346,7 @@ mod tests {
 
         let expected = Ok(TypeToken::Pointer(Box::new(TypeToken::Pointer(Box::new(
             TypeToken::Primitive(SpanData {
-                span: Span::new_source(source.clone(), 0..3),
+                span: Span::new_source(source, 0..3),
                 data: DataType::Int,
             }),
         )))));
@@ -370,7 +370,7 @@ mod tests {
                 data: Modifier::Unsigned,
             },
             base: Box::new(TypeToken::Primitive(SpanData {
-                span: Span::new_source(source.clone(), 9..12),
+                span: Span::new_source(source, 9..12),
                 data: DataType::Int,
             })),
         });
@@ -390,7 +390,7 @@ mod tests {
 
         let expected = Ok(TypeToken::StructType {
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 7..14),
+                span: Span::new_source(source, 7..14),
                 data: "testing".to_string(),
             }),
         });
@@ -414,7 +414,7 @@ mod tests {
                 data: DataType::Int,
             }),
             Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..11),
+                span: Span::new_source(source, 4..11),
                 data: "testing".to_string(),
             }),
         ));
@@ -448,7 +448,7 @@ mod tests {
                 })),
             },
             Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..11),
+                span: Span::new_source(source, 4..11),
                 data: "testing".to_string(),
             }),
         ));

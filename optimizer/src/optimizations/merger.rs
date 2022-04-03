@@ -71,35 +71,28 @@ impl Merger {
         let mut statements = block.get_statements();
 
         for tmp in statements.iter_mut() {
-            match tmp {
-                Statement::Assignment {
-                    target,
-                    value: ir::Value::Phi { sources },
-                } => {
-                    let n_sources = sources
-                        .clone()
-                        .into_iter()
-                        .map(|s| {
-                            let mut last = s;
-                            loop {
-                                match mappings.get(&last.block.as_ptr()) {
-                                    Some(n) => {
-                                        last.block = n.clone();
-                                    }
-                                    None => break,
-                                };
-                            }
-                            last
-                        })
-                        .collect();
+            if let Statement::Assignment {
+                target,
+                value: ir::Value::Phi { sources },
+            } = tmp
+            {
+                let n_sources = sources
+                    .clone()
+                    .into_iter()
+                    .map(|s| {
+                        let mut last = s;
+                        while let Some(n) = mappings.get(&last.block.as_ptr()) {
+                            last.block = n.clone();
+                        }
+                        last
+                    })
+                    .collect();
 
-                    *tmp = Statement::Assignment {
-                        target: target.clone(),
-                        value: ir::Value::Phi { sources: n_sources },
-                    };
-                }
-                _ => {}
-            };
+                *tmp = Statement::Assignment {
+                    target: target.clone(),
+                    value: ir::Value::Phi { sources: n_sources },
+                };
+            }
         }
 
         block.set_statements(statements);

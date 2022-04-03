@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use general::Span;
 
 use crate::{
-    pir::{into_pir, PirIterator, PIR},
+    pir::{into_pir, PirIterator},
     state::State,
 };
 

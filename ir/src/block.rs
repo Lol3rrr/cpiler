@@ -280,8 +280,6 @@ impl BasicBlock {
         }
 
         let final_var = var.next_gen();
-        println!("Phi Node assignment for {:?}", final_var);
-        println!("Caller-Block: {:?}", caller_block);
         let tmp_stmnt = Statement::Assignment {
             target: final_var.clone(),
             value: Value::Phi { sources },

@@ -26,7 +26,7 @@ pub fn min_algorithm(
         let used_vars = stmnt.used_vars();
         let r: BTreeSet<ir::Variable> = used_vars
             .into_iter()
-            .filter(|v| !current_vars.contains(&v))
+            .filter(|v| !current_vars.contains(v))
             .collect();
 
         //dbg!(&r, &current_vars);

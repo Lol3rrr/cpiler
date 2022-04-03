@@ -123,8 +123,6 @@ where
                 .filter_map(|n| coloring.get(n.var()).cloned())
                 .collect();
 
-            dbg!(used_colors.len());
-
             let mut avail_colors = registers
                 .iter()
                 .filter(|r| r.reg_type().useable(&current.ty))

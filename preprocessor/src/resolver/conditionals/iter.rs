@@ -111,7 +111,7 @@ int second;
                 },
             }),
             PIR::Token(SpanData {
-                span: Span::new_source(source.clone(), 21..22),
+                span: Span::new_source(source, 21..22),
                 data: TokenData::Semicolon,
             }),
         ];
@@ -181,7 +181,7 @@ int second;
             }),
             PIR::Directive((
                 SpanData {
-                    span: Span::new_source(source.clone(), 37..42),
+                    span: Span::new_source(source, 37..42),
                     data: TokenData::CompilerDirective {
                         content: "endif".to_string(),
                     },

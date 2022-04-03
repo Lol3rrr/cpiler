@@ -110,7 +110,7 @@ mod tests {
 
         let expected = Ok(DefineDirective::Block {
             name: "TEST".to_string(),
-            body: Span::new_source(source.clone(), 5..6),
+            body: Span::new_source(source, 5..6),
         });
 
         let result = parse_define(&content);
@@ -126,7 +126,7 @@ mod tests {
         let expected = Ok(DefineDirective::Function {
             name: "TEST".to_string(),
             arguments: Vec::new(),
-            body: Span::new_source(source.clone(), 7..11),
+            body: Span::new_source(source, 7..11),
         });
 
         let result = parse_define(&content);
@@ -141,7 +141,7 @@ mod tests {
 
         let expected = Ok(DefineDirective::Block {
             name: "TEST".to_string(),
-            body: Span::new_source(source.clone(), 4..4),
+            body: Span::new_source(source, 4..4),
         });
 
         let result = parse_define(&content);

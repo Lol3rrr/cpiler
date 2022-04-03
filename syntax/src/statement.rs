@@ -125,7 +125,7 @@ impl Statement {
     where
         I: Iterator<Item = Token>,
     {
-        let peeked = tokens.peek().ok_or_else(|| SyntaxError::UnexpectedEOF {
+        let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
             ctx: EOFContext::Statement,
         })?;
 
@@ -495,12 +495,10 @@ impl Statement {
                     scope: inner_scope,
                 })
             }
-            _ => {
-                return Err(SyntaxError::UnexpectedToken {
-                    expected: None,
-                    got: tokens.next().unwrap().span,
-                });
-            }
+            _ => Err(SyntaxError::UnexpectedToken {
+                expected: None,
+                got: tokens.next().unwrap().span,
+            }),
         }
     }
 }
@@ -529,7 +527,7 @@ mod tests {
                     data: DataType::Int,
                 }),
                 name: Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 4..8),
+                    span: Span::new_source(source, 4..8),
                     data: "test".to_string(),
                 }),
                 arguments: Vec::new(),
@@ -570,7 +568,7 @@ mod tests {
                             data: "x".to_string(),
                         }),
                         ty: TypeToken::Primitive(SpanData {
-                            span: Span::new_source(source.clone(), 9..12),
+                            span: Span::new_source(source, 9..12),
                             data: DataType::Int,
                         }),
                     },
@@ -626,7 +624,7 @@ mod tests {
                     ),
                 ],
             },
-            definition: Span::new_source(source.clone(), 12..71),
+            definition: Span::new_source(source, 12..71),
         });
 
         let result = Statement::parse(&mut input_tokens, &Statement::default_terminaton());
@@ -648,7 +646,7 @@ mod tests {
                 data: DataType::Int,
             }),
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..8),
+                span: Span::new_source(source, 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -674,7 +672,7 @@ mod tests {
                 }),
             },
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 5..9),
+                span: Span::new_source(source, 5..9),
                 data: "test".to_string(),
             }),
         });
@@ -698,7 +696,7 @@ mod tests {
                 }),
             })),
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 6..10),
+                span: Span::new_source(source, 6..10),
                 data: "test".to_string(),
             }),
         });
@@ -730,7 +728,7 @@ mod tests {
                 })),
             },
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..8),
+                span: Span::new_source(source, 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -755,7 +753,7 @@ mod tests {
                 size: None,
             },
             name: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 4..8),
+                span: Span::new_source(source, 4..8),
                 data: "test".to_string(),
             }),
         });
@@ -789,7 +787,7 @@ mod tests {
                     span: Span::new_source(source.clone(), 13..16),
                     data: vec![Expression::Literal {
                         content: SpanData {
-                            span: Span::new_source(source.clone(), 14..15),
+                            span: Span::new_source(source, 14..15),
                             data: "1".to_string(),
                         },
                     }],
@@ -832,7 +830,7 @@ mod tests {
                         },
                         Expression::Literal {
                             content: SpanData {
-                                span: Span::new_source(source.clone(), 17..18),
+                                span: Span::new_source(source, 17..18),
                                 data: "2".to_string(),
                             },
                         },
@@ -860,7 +858,7 @@ mod tests {
             })),
             value: Expression::Literal {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 7..9),
+                    span: Span::new_source(source, 7..9),
                     data: "13".to_string(),
                 },
             },
@@ -892,7 +890,7 @@ mod tests {
             },
             value: Expression::Literal {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 10..12),
+                    span: Span::new_source(source, 10..12),
                     data: "13".to_string(),
                 },
             },
@@ -913,7 +911,7 @@ mod tests {
         let expected = Ok(Statement::SingleExpression(Expression::SingleOperation {
             base: Box::new(Expression::Identifier {
                 ident: Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 0..4),
+                    span: Span::new_source(source, 0..4),
                     data: "test".to_string(),
                 }),
             }),
@@ -940,7 +938,7 @@ mod tests {
             }),
             operation: SingleOperation::FuntionCall(vec![Expression::StringLiteral {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 5..14),
+                    span: Span::new_source(source, 5..14),
                     data: "literal".to_string(),
                 },
             }]),
@@ -968,7 +966,7 @@ mod tests {
             }),
             right: Box::new(Expression::Literal {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 12..13),
+                    span: Span::new_source(source, 12..13),
                     data: "2".to_string(),
                 },
             }),
@@ -983,7 +981,7 @@ mod tests {
     fn return_nothing() {
         let input_content = "return;";
         let source = Source::new("test", input_content);
-        let input_span: Span = source.clone().into();
+        let input_span: Span = source.into();
         let mut input_tokens = peek_nth(tokenizer::tokenize(input_span));
 
         let expected = Ok(Statement::Return(None));

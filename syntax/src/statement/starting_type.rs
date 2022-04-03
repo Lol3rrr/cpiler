@@ -118,7 +118,7 @@ where
         _ => ty_tokens,
     };
 
-    let peeked = tokens.peek().ok_or_else(|| SyntaxError::UnexpectedEOF {
+    let peeked = tokens.peek().ok_or(SyntaxError::UnexpectedEOF {
         ctx: EOFContext::Statement,
     })?;
 
@@ -213,12 +213,10 @@ where
                     })
                 }
                 TokenData::Semicolon => Ok(Statement::FunctionDeclaration(f_head)),
-                _ => {
-                    return Err(SyntaxError::UnexpectedToken {
-                        expected: Some(vec![ExpectedToken::OpenBrace, ExpectedToken::Semicolon]),
-                        got: next_tok.span,
-                    })
-                }
+                _ => Err(SyntaxError::UnexpectedToken {
+                    expected: Some(vec![ExpectedToken::OpenBrace, ExpectedToken::Semicolon]),
+                    got: next_tok.span,
+                }),
             }
         }
         TokenData::Assign(assign_type) => {

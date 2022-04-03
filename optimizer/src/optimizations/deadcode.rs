@@ -174,7 +174,7 @@ mod tests {
             vec![],
             vec![
                 Statement::Assignment {
-                    target: x0_var.clone(),
+                    target: x0_var,
                     value: ir::Value::Constant(Constant::I64(13)),
                 },
                 Statement::Assignment {
@@ -199,7 +199,7 @@ mod tests {
                     target: x1_var.clone(),
                     value: ir::Value::Constant(Constant::I64(23)),
                 },
-                Statement::Return(Some(x1_var.clone())),
+                Statement::Return(Some(x1_var)),
             ],
         );
         let expected_def = ir::FunctionDefinition {

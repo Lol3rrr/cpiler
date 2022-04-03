@@ -173,7 +173,7 @@ where
 
                     match pred_var {
                         PrevDefinition::Single(var) => (var, pred),
-                        PrevDefinition::Mutliple(var) => panic!(""),
+                        PrevDefinition::Mutliple(_) => todo!(""),
                     }
                 })
                 .collect();
@@ -207,7 +207,7 @@ fn replace_used_variables(
                         ir::Expression::Cast { base, .. } => {
                             replace_operand(base, previous, n_var);
                         }
-                        ir::Expression::UnaryOp { op, base } => {
+                        ir::Expression::UnaryOp { base, .. } => {
                             replace_operand(base, previous, n_var);
                         }
                         other => {
@@ -245,62 +245,6 @@ fn replace_used_variables(
             todo!()
         }
     };
-}
-
-fn reconstruct_ssa_statements<'s, SI>(statements: SI, previous: &ir::Variable, n_var: &ir::Variable)
-where
-    SI: Iterator<Item = &'s mut ir::Statement>,
-{
-    for stmnt in statements {
-        match stmnt {
-            ir::Statement::SaveVariable { var } if var == previous => {
-                *var = n_var.clone();
-            }
-            ir::Statement::SaveVariable { .. } => {}
-            ir::Statement::Assignment { value, .. } => {
-                match value {
-                    ir::Value::Expression(exp) => {
-                        match exp {
-                            ir::Expression::BinaryOp { left, right, .. } => {
-                                replace_operand(left, previous, n_var);
-                                replace_operand(right, previous, n_var);
-                            }
-                            other => {
-                                dbg!(other);
-                                todo!()
-                            }
-                        };
-                    }
-                    ir::Value::Variable(var) if var == previous => {
-                        *var = n_var.clone();
-                    }
-                    ir::Value::Variable(_) => {}
-                    ir::Value::Phi { sources } => {
-                        for src in sources.iter_mut() {
-                            if &src.var == previous {
-                                src.var = n_var.clone();
-                            }
-                        }
-                    }
-                    ir::Value::Constant(_) => {}
-                    ir::Value::Unknown => {}
-                };
-            }
-            ir::Statement::Return(Some(var)) if var == previous => {
-                *var = n_var.clone();
-            }
-            ir::Statement::Return(_) => {}
-            ir::Statement::Jump(_, _) => {}
-            ir::Statement::JumpTrue(var, _, _) if var == previous => {
-                *var = n_var.clone();
-            }
-            ir::Statement::JumpTrue(_, _, _) => {}
-            other => {
-                dbg!(&other);
-                todo!()
-            }
-        };
-    }
 }
 
 fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
@@ -620,9 +564,6 @@ fn intialize_register_sets(
         .cloned()
         .collect();
 
-        // TODO
-        // This does not work for loop headers yet because one of the Predecessor may not have been
-        // processed yet
         connect_preds(
             preds.iter(),
             &pred_data,
@@ -667,7 +608,8 @@ fn intialize_register_sets(
             },
         );
 
-        pending_blocks.extend(current.successors().into_iter().map(|(_, b)| b));
+        let succ_blocks = current.successors().into_iter().map(|(_, b)| b);
+        pending_blocks.extend(succ_blocks);
         pending_blocks.retain(|b| !result.contains_key(&b.as_ptr()));
     }
 
@@ -764,9 +706,6 @@ pub fn spill(
     available_registers: RegisterConfig,
     dbg_ctx: &mut DebugContext,
 ) {
-    //let n_use_distance = next_use_distances(&root);
-    //dbg!(&n_use_distance);
-
     // TODO
     // Handle the max register Count correctly
     intialize_register_sets(

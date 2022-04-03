@@ -115,7 +115,7 @@ mod tests {
         let input_tokens = tokenizer::tokenize(input_span);
 
         let expected = Ok(AssignTarget::Variable(Identifier(SpanData {
-            span: Span::new_source(source.clone(), 0..4),
+            span: Span::new_source(source, 0..4),
             data: "test".to_string(),
         })));
 
@@ -140,7 +140,7 @@ mod tests {
             }))),
             index: Expression::Literal {
                 content: SpanData {
-                    span: Span::new_source(source.clone(), 5..6),
+                    span: Span::new_source(source, 5..6),
                     data: "0".to_string(),
                 },
             },
@@ -166,7 +166,7 @@ mod tests {
                 data: "test".to_string(),
             }))),
             field: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 5..10),
+                span: Span::new_source(source, 5..10),
                 data: "field".to_string(),
             }),
         });
@@ -191,7 +191,7 @@ mod tests {
                 data: "test".to_string(),
             }))),
             field: Identifier(SpanData {
-                span: Span::new_source(source.clone(), 6..11),
+                span: Span::new_source(source, 6..11),
                 data: "field".to_string(),
             }),
         });
