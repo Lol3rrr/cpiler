@@ -206,7 +206,12 @@ impl BasicBlock {
     /// using a recursive look-up.
     /// Returns the Variable where it was defined, if there is only one definition or creates a new
     /// temporary Variable that combines the different definitions using a Phi-Node
-    pub fn definition<T>(&self, name: &str, tmp_numb: &T) -> Option<Variable>
+    pub fn definition<T>(
+        &self,
+        name: &str,
+        tmp_numb: &T,
+        caller_block: Option<*const InnerBlock>,
+    ) -> Option<Variable>
     where
         T: Fn() -> usize,
     {
@@ -219,7 +224,6 @@ impl BasicBlock {
         }
 
         let preds = self.0.predecessor.read().unwrap().clone();
-
         if preds.is_empty() {
             return None;
         }
@@ -227,7 +231,7 @@ impl BasicBlock {
         if preds.len() == 1 {
             let single_pred = preds.get(0).unwrap();
             match single_pred.upgrade() {
-                Some(pred) => return pred.definition(name, tmp_numb),
+                Some(pred) => return pred.definition(name, tmp_numb, Some(self.as_ptr())),
                 None => return None,
             };
         }
@@ -251,7 +255,7 @@ impl BasicBlock {
                 None => continue,
             };
 
-            if let Some(var) = pred.definition(name, tmp_numb) {
+            if let Some(var) = pred.definition(name, tmp_numb, Some(self.as_ptr())) {
                 sources.push(PhiEntry { var, block: c_pred });
             }
         }
@@ -265,15 +269,19 @@ impl BasicBlock {
             return None;
         }
 
-        let var = sources.get(0).unwrap().var.clone();
-        if sources.iter().all(|s| s.var == var) && sources.len() > 1 {
+        {
             let mut tmp = self.0.parts.write().unwrap();
             tmp.pop();
+        }
 
+        let var = sources.get(0).unwrap().var.clone();
+        if sources.iter().all(|s| s.var == var) && sources.len() > 1 {
             return Some(var);
         }
 
         let final_var = var.next_gen();
+        println!("Phi Node assignment for {:?}", final_var);
+        println!("Caller-Block: {:?}", caller_block);
         let tmp_stmnt = Statement::Assignment {
             target: final_var.clone(),
             value: Value::Phi { sources },
@@ -281,9 +289,23 @@ impl BasicBlock {
 
         {
             let mut tmp = self.0.parts.write().unwrap();
-            let last = tmp.last_mut().unwrap();
 
-            *last = tmp_stmnt;
+            let index = match caller_block {
+                Some(c_block) => tmp
+                    .iter()
+                    .enumerate()
+                    .find(|(_, s)| match s {
+                        Statement::Jump(b, _) | Statement::JumpTrue(_, b, _) => {
+                            b.as_ptr() == c_block
+                        }
+                        _ => false,
+                    })
+                    .map(|(i, _)| i)
+                    .unwrap_or_else(|| tmp.len()),
+                None => tmp.len(),
+            };
+
+            tmp.insert(index, tmp_stmnt);
         }
 
         Some(final_var)
@@ -314,7 +336,8 @@ impl BasicBlock {
                     None => continue,
                 };
 
-                if let Some(var) = pred.definition(&target.name, &|| panic!()) {
+                if let Some(var) = pred.definition(&target.name, &|| panic!(), Some(self.as_ptr()))
+                {
                     sources.push(PhiEntry { var, block: c_pred });
                 }
             }
@@ -689,7 +712,7 @@ mod tests {
 
         let expected = None;
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
 
         assert_eq!(expected, result);
     }
@@ -703,7 +726,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 0, Type::I8));
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
 
         assert_eq!(expected, result);
     }
@@ -723,7 +746,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 1, Type::I8));
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
 
         assert_eq!(expected, result);
     }
@@ -740,7 +763,7 @@ mod tests {
 
         let expected = Some(Variable::new_test("test", 0, Type::I8));
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
 
         assert_eq!(expected, result);
     }
@@ -781,7 +804,7 @@ mod tests {
             },
         }];
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
         dbg!(&result_block_stmnts);
 
@@ -818,7 +841,7 @@ mod tests {
         let expected = Some(test_var);
         let expected_block_stmnts: Vec<Statement> = vec![];
 
-        let result = block.definition("test", &|| 0);
+        let result = block.definition("test", &|| 0, None);
         dbg!(&result);
         let result_block_stmnts = block.0.parts.read().unwrap().clone();
         dbg!(&result_block_stmnts);

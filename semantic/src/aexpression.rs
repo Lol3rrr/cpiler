@@ -791,7 +791,7 @@ impl AExpression {
         match self {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
             AExpression::Variable { name, .. } => {
-                let var = block.definition(&name, &|| ctx.next_tmp()).unwrap();
+                let var = block.definition(&name, &|| ctx.next_tmp(), None).unwrap();
                 if var.global() {
                     let next_var = var.next_gen();
                     block.add_statement(ir::Statement::Assignment {
@@ -943,7 +943,7 @@ impl AExpression {
             Self::Variable {
                 ref name, ref ty, ..
             } => {
-                let var = block.definition(name, &|| ctx.next_tmp()).unwrap();
+                let var = block.definition(name, &|| ctx.next_tmp(), None).unwrap();
                 match ty.data.clone().ty() {
                     AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {
                         if var.global() {

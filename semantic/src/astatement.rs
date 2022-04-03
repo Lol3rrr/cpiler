@@ -580,7 +580,7 @@ impl AStatement {
 
                 match target {
                     AAssignTarget::Variable { name, ty_info, .. } => {
-                        let next_var = match block.definition(&name, &|| ctx.next_tmp()) {
+                        let next_var = match block.definition(&name, &|| ctx.next_tmp(), None) {
                             Some(var) => var.next_gen(),
                             None => {
                                 let target_ty = ty_info.data.to_ir();
@@ -626,7 +626,9 @@ impl AStatement {
                             if let ir::VariableMetadata::VarPointer { var: var_name } =
                                 target_var.meta()
                             {
-                                let var = block.definition(var_name, &|| ctx.next_tmp()).unwrap();
+                                let var = block
+                                    .definition(var_name, &|| ctx.next_tmp(), None)
+                                    .unwrap();
 
                                 let next_var = var.next_gen();
                                 let target_meta = value_exp.assign_meta(&next_var);
@@ -814,8 +816,9 @@ impl AStatement {
                 start_block.add_predecessor(inner_block.weak_ptr());
 
                 for var in condition.used_variables() {
-                    let definition: ir::Variable =
-                        start_block.definition(&var, &|| ctx.next_tmp()).unwrap();
+                    let definition: ir::Variable = start_block
+                        .definition(&var, &|| ctx.next_tmp(), None)
+                        .unwrap();
 
                     let target = definition.next_gen();
 
