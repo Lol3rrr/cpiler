@@ -425,7 +425,7 @@ fn connect_preds<'i, PI>(
                 var: r_var.next_gen(),
                 position: pred_jump_index.unwrap_or_else(|| {
                     // This case should probably never really be hit, but it is in certain test cases so its fine for now, I think
-                    dbg!("What");
+                    dbg!("Predecessor must be global", pred_block.as_ptr());
                     pred_statements.len()
                 }),
             })

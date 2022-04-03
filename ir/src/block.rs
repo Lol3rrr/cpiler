@@ -497,7 +497,7 @@ impl BasicBlock {
                 (tmp.next().unwrap(), tmp.next().unwrap())
             };
 
-            let end_block = match left.earliest_common_block(&right) {
+            let end_block = match left.earliest_common_block(right) {
                 Some(b) => b,
                 None => {
                     dbg!(&left, &right);
