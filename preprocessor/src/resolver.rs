@@ -116,7 +116,7 @@ where
                             };
 
                             self.tmp = Box::new(resolve(
-                                raw_included.into_iter(),
+                                raw_included,
                                 self.loader.clone(),
                                 self.state.clone(),
                             ));

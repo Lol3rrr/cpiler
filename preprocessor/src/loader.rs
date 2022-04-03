@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use general::Span;
 
 use crate::{
-    pir::{into_pir, PIR},
+    pir::{into_pir, PirIterator, PIR},
     state::State,
 };
 
@@ -23,7 +23,7 @@ pub trait Loader {
         &self,
         path: LoadDirective,
         state: &mut State,
-    ) -> Result<Vec<PIR>, Self::LoadError> {
+    ) -> Result<PirIterator<tokenizer::TokenIter>, Self::LoadError> {
         let span = self.load_file(path)?;
 
         state.add_included_file(span.source().name().to_string());
@@ -31,7 +31,7 @@ pub trait Loader {
         let tokens = tokenizer::tokenize(span);
 
         let pir = into_pir(tokens);
-        Ok(pir.collect())
+        Ok(pir)
     }
 }
 
