@@ -482,6 +482,37 @@ impl BasicBlock {
         let following_uses = self.following_uses();
         let statements = self.get_statements();
 
+        let succs: HashMap<_, _> = self
+            .successors()
+            .into_iter()
+            .filter(|(p, _)| !visited.contains(p))
+            .collect();
+        let mut succ_live_vars = Vec::new();
+
+        assert!(succs.len() <= 2);
+
+        let end_block = if succs.len() == 2 {
+            let (left, right) = {
+                let mut tmp = succs.iter().map(|(_, b)| b);
+                (tmp.next().unwrap(), tmp.next().unwrap())
+            };
+
+            let end_block = match left.earliest_common_block(&right) {
+                Some(b) => b,
+                None => {
+                    dbg!(&left, &right);
+
+                    todo!()
+                }
+            };
+
+            Some(end_block)
+        } else {
+            None
+        };
+
+        let end_block_ptr = end_block.as_ref().map(|b| b.as_ptr());
+
         for (index, stmnt) in statements.into_iter().enumerate() {
             update(live_vars, self, index);
 
@@ -518,65 +549,49 @@ impl BasicBlock {
                 }
                 Statement::Jump(target, _) => {
                     if !visited.contains(&target.as_ptr()) {
-                        target.interference_graph(graph, live_vars, visited, update);
+                        if let Some(ptr) = end_block_ptr {
+                            visited.insert(ptr);
+                        }
+
+                        let mut target_vars = live_vars.clone();
+                        target.interference_graph(graph, &mut target_vars, visited, update);
+
+                        succ_live_vars.push(target_vars);
+                    } else if Some(target.as_ptr()) == end_block_ptr {
+                        succ_live_vars.push(HashSet::new());
                     }
                 }
                 Statement::JumpTrue(_, target, _) => {
                     if !visited.contains(&target.as_ptr()) {
-                        target.interference_graph(graph, live_vars, visited, update);
+                        if let Some(ptr) = end_block_ptr {
+                            visited.insert(ptr);
+                        }
+
+                        let mut target_vars = live_vars.clone();
+                        target.interference_graph(graph, &mut target_vars, visited, update);
+
+                        succ_live_vars.push(target_vars);
+                    } else if Some(target.as_ptr()) == end_block_ptr {
+                        succ_live_vars.push(HashSet::new());
                     }
                 }
                 _ => {}
             };
         }
 
-        let succs: HashMap<_, _> = self
-            .successors()
+        assert_eq!(succs.len(), succ_live_vars.len());
+
+        if succ_live_vars.len() < 2 {
+            return;
+        }
+
+        let end_block = end_block.expect("We have 2 or more successors");
+
+        let mut n_live: HashSet<_> = succ_live_vars
             .into_iter()
-            .filter(|(p, _)| !visited.contains(p))
+            .flat_map(|l| l.into_iter())
             .collect();
-        if succs.is_empty() {
-            return;
-        }
 
-        if succs.len() == 1 {
-            return;
-        }
-
-        assert!(succs.len() == 2);
-        let (left, right) = {
-            let mut tmp = succs.into_iter().map(|(_, b)| b);
-            (tmp.next().unwrap(), tmp.next().unwrap())
-        };
-
-        let end_block = match left.earliest_common_block(&right) {
-            Some(b) => b,
-            None => {
-                dbg!(&left, &right);
-
-                for left_succ in left.block_iter() {
-                    dbg!(left_succ.as_ptr());
-                }
-                for right_succ in right.block_iter() {
-                    dbg!(right_succ.as_ptr());
-                }
-
-                todo!()
-            }
-        };
-
-        visited.insert(end_block.as_ptr());
-        let left_live = live_vars.clone();
-        //left.interference_graph(graph, &mut left_live, visited, update);
-
-        let right_live = live_vars.clone();
-        //right.interference_graph(graph, &mut right_live, visited, update);
-
-        let mut n_live = {
-            let mut tmp = left_live;
-            tmp.extend(right_live);
-            tmp
-        };
         end_block.interference_graph(graph, &mut n_live, visited, update);
     }
 
