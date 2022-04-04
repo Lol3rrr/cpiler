@@ -16,7 +16,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();
@@ -36,9 +36,7 @@ void test() {
                 target: x0_var.clone(),
                 value: Value::Constant(Constant::I64(0)),
             },
-            Statement::SaveVariable {
-                var: x0_var.clone(),
-            },
+            Statement::SaveVariable { var: x0_var },
         ],
     );
     expected_func_start.add_statement(Statement::Jump(
@@ -49,7 +47,7 @@ void test() {
     let expected_missing_block = BasicBlock::new(
         vec![expected_func_first.weak_ptr()],
         vec![Statement::Assignment {
-            target: tmp_var.clone(),
+            target: tmp_var,
             value: Value::Expression(Expression::Cast {
                 target: Type::I32,
                 base: Operand::Constant(Constant::I64(0)),
@@ -67,9 +65,7 @@ void test() {
                 target: x1_var.clone(),
                 value: Value::Constant(Constant::I64(1)),
             },
-            Statement::SaveVariable {
-                var: x1_var.clone(),
-            },
+            Statement::SaveVariable { var: x1_var },
         ],
     );
     expected_func_first.add_statement(Statement::Jump(

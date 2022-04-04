@@ -1,15 +1,11 @@
 int main() {
-	int content[10];
-	content[0] = 9;
+	int content[3];
 
-	for (int i = 1; i < 10; i++) {
-		content[i] = 1;
-	}
+	content[0] = 10;
+	content[1] = 10;
+	content[2] = 10;
 
-	int result = content[0];
-	for (int j = 1; j < 10; j++) {
-		result -= content[j];
-	}
+	content[1] = 0;
 
-	return result;
+	return content[1];
 }

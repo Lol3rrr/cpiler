@@ -10,8 +10,6 @@
 //! # General
 //! * Big-Endian Mode
 
-use crate::util;
-
 pub mod assembler;
 
 #[derive(Debug, PartialEq, Clone)]
