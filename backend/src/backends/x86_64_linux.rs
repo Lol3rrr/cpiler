@@ -1,47 +1,37 @@
+use std::collections::HashMap;
+
 use super::Target;
 use crate::{util, TargetConfig};
 
+use crate::isas::x86;
+
 pub struct Backend {}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Register {
-    GeneralPurpose(u8),
-    FloatingPoint(u8),
-}
-
-impl register_allocation::Register for Register {
-    fn reg_type(&self) -> register_allocation::RegisterType {
-        match self {
-            Self::GeneralPurpose(_) => register_allocation::RegisterType::GeneralPurpose,
-            Self::FloatingPoint(_) => register_allocation::RegisterType::FloatingPoint,
-        }
-    }
-
-    fn align_size(&self) -> (usize, usize) {
-        match self {
-            Self::GeneralPurpose(_) => (8, 8),
-            Self::FloatingPoint(_) => (8, 8),
-        }
-    }
-}
 
 impl Backend {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn all_registers() -> [Register; 9] {
+    pub fn all_registers() -> [x86::Register; 9] {
         [
-            Register::GeneralPurpose(0),
-            Register::GeneralPurpose(1),
-            Register::GeneralPurpose(2),
-            Register::GeneralPurpose(3),
-            Register::GeneralPurpose(4),
-            Register::GeneralPurpose(5),
-            Register::GeneralPurpose(6),
-            Register::GeneralPurpose(7),
-            Register::FloatingPoint(0),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(0)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(1)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(2)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(3)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(4)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(5)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(6)),
+            x86::Register::GeneralPurpose(x86::GeneralPurposeRegister::Double(7)),
+            x86::Register::FloatingPoint,
         ]
+    }
+
+    fn codegen(
+        &self,
+        func: &ir::FunctionDefinition,
+        registers: HashMap<ir::Variable, x86::Register>,
+    ) -> Vec<x86::Block> {
+        todo!("Codegen")
     }
 }
 
@@ -51,10 +41,14 @@ impl Target for Backend {
 
         let all_registers = Self::all_registers();
 
+        let mut blocks = Vec::new();
         for (_, func) in program.functions.iter() {
             let registers = util::registers::allocate_registers(func, &all_registers);
 
-            let _ = registers;
+            util::destructure::destructure_func(func);
+
+            let func_blocks = self.codegen(func, registers);
+            blocks.extend(func_blocks);
         }
 
         todo!("Generate")
