@@ -247,7 +247,7 @@ impl AType {
     {
         match (base, modifier.data) {
             (base, Modifier::Signed) => {
-                let base_ty = BaseTypes::parse(base).unwrap();
+                let base_ty = BaseTypes::parse(base).ok_or(SemanticError::InvalidType {})?;
 
                 match base_ty {
                     BaseTypes::Char => Ok(Self::Primitve(APrimitive::Char)),
