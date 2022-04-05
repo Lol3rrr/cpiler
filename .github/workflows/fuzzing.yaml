@@ -23,3 +23,26 @@ jobs:
       - name: Fuzz Syntax
         working-directory: syntax
         run: cargo fuzz run fuzz_target_1
+
+  semantic:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 90
+    concurrency:
+      group: fuzzing-semantic
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setting up Rust-Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: clippy
+          default: true
+          override: true
+      - name: Install Cargo-Fuzz
+        run: cargo install cargo-fuzz
+      - name: Fuzz Semantic
+        working-directory: semantic
+        run: cargo fuzz run fuzz_target_1
