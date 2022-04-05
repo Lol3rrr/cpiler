@@ -55,6 +55,7 @@ macro_rules! compile_testing {
 
 compile_testing!(address_of_array, "address_of_array.c", true, 0);
 compile_testing!(array, "array.c", true, 0);
+compile_testing!(array_and_loop, "array_and_loop.c", true, 0);
 compile_testing!(basic, "basic.c", true, 0);
 compile_testing!(final_, "final.c", true, 0);
 compile_testing!(floats, "floats.c", true, 0);
