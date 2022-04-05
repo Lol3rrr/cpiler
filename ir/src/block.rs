@@ -303,7 +303,7 @@ impl BasicBlock {
                 None => tmp.len(),
             };
             // TODO
-            // All the Phis should be at the beginning of a block
+            // Currently used for testing solutions to #12
             let index = 0;
 
             tmp.insert(index, tmp_stmnt);
