@@ -302,9 +302,6 @@ impl BasicBlock {
                     .unwrap_or_else(|| tmp.len()),
                 None => tmp.len(),
             };
-            // TODO
-            // Currently used for testing solutions to #12
-            let index = 0;
 
             tmp.insert(index, tmp_stmnt);
         }

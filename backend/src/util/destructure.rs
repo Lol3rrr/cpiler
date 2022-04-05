@@ -17,7 +17,7 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
             })
             .collect();
 
-        for (p_target, p_sources) in phis.into_iter().rev() {
+        for (p_target, p_sources) in phis {
             for source in p_sources {
                 let s_block = match source.block.upgrade() {
                     Some(b) => b,

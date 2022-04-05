@@ -373,7 +373,7 @@ impl AType {
                 let target_ty = match ty_defs.get_definition(&name) {
                     Some(t) => t,
                     None => {
-                        panic!("No known Type-Definition for the given Name");
+                        return Err(SemanticError::UnknownType { name });
                     }
                 };
 
@@ -452,9 +452,8 @@ impl AType {
             }
             TypeDefType::Type(inner_type) => {
                 let ty = Self::parse(inner_type, ty_defs, vars)?;
-                dbg!(&ty);
 
-                todo!()
+                Ok(ty)
             }
             TypeDefType::NamedStruct { name } => {
                 dbg!(&name);

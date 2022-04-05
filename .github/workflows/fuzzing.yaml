@@ -1,0 +1,26 @@
+name: Rust Fuzzing
+on: [push]
+jobs:
+  syntax:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 90
+    concurrency:
+      group: fuzzing-syntax
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setting up Rust-Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          default: true
+          override: true
+      - name: Install Cargo-Fuzz
+        run: cargo install cargo-fuzz
+      - name: Change to syntax
+        run: cd syntax
+      - name: Fuzz Syntax
+        run: cargo fuzz run fuzz_target_1
