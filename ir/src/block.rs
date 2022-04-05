@@ -302,6 +302,9 @@ impl BasicBlock {
                     .unwrap_or_else(|| tmp.len()),
                 None => tmp.len(),
             };
+            // TODO
+            // All the Phis should be at the beginning of a block
+            let index = 0;
 
             tmp.insert(index, tmp_stmnt);
         }

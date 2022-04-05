@@ -114,16 +114,14 @@ where
 
         let dominance_tree = func.dominance_tree();
 
-        let mut groups: phi_classes::Groups<R> = phi_classes::Groups::new();
+        //let mut groups: phi_classes::Groups<R> = phi_classes::Groups::new();
         let mut coloring = HashMap::new();
 
-        // TODO
-        // Respect phi-congruenz-classes
         for current in dominance_tree.post_order_iter() {
-            if let Some(reg) = groups.get_group(&current) {
-                coloring.insert(current, R::clone(reg));
-                continue;
-            }
+            //if let Some(reg) = groups.get_group(&current) {
+            //    coloring.insert(current, R::clone(reg));
+            //    continue;
+            //}
 
             let neighbours = interference_graph.neighbours(&current);
 
@@ -151,7 +149,7 @@ where
             };
 
             coloring.insert(current.clone(), used_color.clone());
-            groups.set_group(current, used_color.clone());
+            //groups.set_group(current, used_color.clone());
         }
 
         RegisterMapping { inner: coloring }
