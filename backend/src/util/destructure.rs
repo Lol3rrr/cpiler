@@ -9,18 +9,16 @@ use ir::{Statement, Value};
 pub fn destructure_func(func: &ir::FunctionDefinition) {
     for c_block in func.block.block_iter() {
         let statements = c_block.get_statements();
-        let phis: Vec<_> = statements
-            .iter()
-            .filter_map(|s| match s {
-                Statement::Assignment {
-                    target,
-                    value: Value::Phi { sources },
-                } => Some((target, sources)),
-                _ => None,
-            })
-            .collect();
+        let phis = statements.iter().filter_map(|s| match s {
+            Statement::Assignment {
+                target,
+                value: Value::Phi { sources },
+            } => Some((target, sources)),
+            _ => None,
+        });
 
         for (p_target, p_sources) in phis {
+            println!("Target: {:?}", p_target);
             for source in p_sources {
                 let s_block = match source.block.upgrade() {
                     Some(b) => b,
@@ -40,6 +38,8 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
                         _ => false,
                     })
                     .unwrap();
+
+                println!("Save-Variable: {:?}", source);
 
                 s_stmnts.insert(
                     assign_index,
