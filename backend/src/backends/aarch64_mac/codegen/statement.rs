@@ -18,7 +18,13 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
 
             match src_reg {
                 asm::Register::GeneralPurpose(gp) => match &var.ty {
-                    ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {}
+                    ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                        instructions.push(asm::Instruction::StoreRegisterUnscaled {
+                            reg: gp,
+                            base: asm::GpOrSpRegister::SP,
+                            offset,
+                        });
+                    }
                     ir::Type::I32 | ir::Type::U32 => {
                         instructions.push(asm::Instruction::StoreRegisterUnscaled {
                             reg: gp,
