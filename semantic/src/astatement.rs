@@ -521,9 +521,10 @@ impl AStatement {
                         let reserve_exp = ir::Expression::StackAlloc { size, alignment };
 
                         block.add_statement(ir::Statement::Assignment {
-                            target: target_var,
+                            target: target_var.clone(),
                             value: ir::Value::Expression(reserve_exp),
                         });
+                        block.add_statement(ir::Statement::SaveVariable { var: target_var });
                     }
                     AType::Struct {
                         def: struct_def, ..
@@ -541,9 +542,10 @@ impl AStatement {
                         let reserve_exp = ir::Expression::StackAlloc { size, alignment };
 
                         block.add_statement(ir::Statement::Assignment {
-                            target: target_var,
+                            target: target_var.clone(),
                             value: ir::Value::Expression(reserve_exp),
                         });
+                        block.add_statement(ir::Statement::SaveVariable { var: target_var });
                     }
                     AType::Primitve(_) => {
                         let ir_type = ty.to_ir();

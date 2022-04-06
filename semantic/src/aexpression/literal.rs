@@ -36,6 +36,9 @@ impl Literal {
                 };
 
                 block.add_statement(arr_decl);
+                block.add_statement(Statement::SaveVariable {
+                    var: arr_tmp.clone(),
+                });
 
                 for (index, tmp_byte) in data_bytes.enumerate() {
                     let offset_exp = Expression::BinaryOp {
