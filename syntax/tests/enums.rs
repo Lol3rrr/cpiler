@@ -39,7 +39,7 @@ enum test {
                         },
                         EnumVariant {
                             name: Identifier(SpanData {
-                                span: Span::new_source(source.clone(), 40..45),
+                                span: Span::new_source(source, 40..45),
                                 data: "third".to_string(),
                             }),
                             value: None,
@@ -98,7 +98,7 @@ enum test {
                         },
                         EnumVariant {
                             name: Identifier(SpanData {
-                                span: Span::new_source(source.clone(), 44..49),
+                                span: Span::new_source(source, 44..49),
                                 data: "third".to_string(),
                             }),
                             value: None,

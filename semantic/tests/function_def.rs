@@ -89,7 +89,7 @@ void test(int arg_1, int arg_2) {
                                         data: "arg_2".to_string(),
                                     }),
                                     ty: SpanData {
-                                        span: Span::new_source(input_source.clone(), 22..31),
+                                        span: Span::new_source(input_source, 22..31),
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 }),

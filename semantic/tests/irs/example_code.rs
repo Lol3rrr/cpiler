@@ -215,7 +215,7 @@ void addRemoveCourse() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -223,5 +223,5 @@ void addRemoveCourse() {
     let result = input.convert_to_ir(general::arch::Arch::X86_64);
     dbg!(&result);
 
-    assert!(false);
+    todo!()
 }

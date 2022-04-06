@@ -26,7 +26,7 @@ fn ifdef_conditional() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 35..36),
+            span: Span::new_source(source, 35..36),
             data: TokenData::Semicolon,
         },
     ];
@@ -58,7 +58,7 @@ fn ifndef_conditional() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 21..22),
+            span: Span::new_source(source, 21..22),
             data: TokenData::Semicolon,
         },
     ];
@@ -90,7 +90,7 @@ fn nested_ifdefs() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 64..65),
+            span: Span::new_source(source, 64..65),
             data: TokenData::Semicolon,
         },
     ];
@@ -122,7 +122,7 @@ fn defined_condition() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 57..58),
+            span: Span::new_source(source, 57..58),
             data: TokenData::Semicolon,
         },
     ];
@@ -154,7 +154,7 @@ fn condition_else() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 37..38),
+            span: Span::new_source(source, 37..38),
             data: TokenData::Semicolon,
         },
     ];
@@ -186,7 +186,7 @@ fn condition_ifelse_true() {
             },
         },
         Token {
-            span: Span::new_source(source.clone(), 44..45),
+            span: Span::new_source(source, 44..45),
             data: TokenData::Semicolon,
         },
     ];

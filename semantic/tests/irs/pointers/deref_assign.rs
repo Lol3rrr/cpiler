@@ -16,7 +16,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -46,11 +46,11 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(x_var.clone()),
-                value: Operand::Variable(t0_var.clone()),
+                target: Operand::Variable(x_var),
+                value: Operand::Variable(t0_var),
             },
             Statement::Return(None),
         ],
@@ -92,7 +92,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -125,7 +125,7 @@ void test() {
             Statement::Assignment {
                 target: x_var.clone(),
                 value: Value::Expression(Expression::AdressOf {
-                    base: Operand::Variable(y0_var.clone()),
+                    base: Operand::Variable(y0_var),
                 }),
             },
             Statement::SaveVariable { var: x_var.clone() },
@@ -134,14 +134,14 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(x_var.clone()),
-                value: Operand::Variable(t0_var.clone()),
+                target: Operand::Variable(x_var),
+                value: Operand::Variable(t0_var),
             },
             Statement::Assignment {
-                target: y1_var.clone(),
+                target: y1_var,
                 value: Value::Unknown,
             },
             Statement::Return(None),

@@ -132,7 +132,7 @@ int main() {
                                         data: "x".to_string(),
                                     }),
                                     ty: SpanData {
-                                        span: Span::new_source(input_source.clone(), 22..23),
+                                        span: Span::new_source(input_source, 22..23),
                                         data: AType::Primitve(APrimitive::Int),
                                     },
                                 }),

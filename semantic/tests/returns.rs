@@ -13,14 +13,14 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let input_span: Span = source.clone().into();
+    let input_span: Span = source.into();
     let tokens = tokenizer::tokenize(input_span);
     let input_ast = syntax::parse(tokens).unwrap();
 
     let result = semantic::parse(input_ast);
     dbg!(&result);
 
-    assert_eq!(true, result.is_ok());
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -38,14 +38,14 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let input_span: Span = source.clone().into();
+    let input_span: Span = source.into();
     let tokens = tokenizer::tokenize(input_span);
     let input_ast = syntax::parse(tokens).unwrap();
 
     let result = semantic::parse(input_ast);
     dbg!(&result);
 
-    assert_eq!(false, result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -63,12 +63,12 @@ int test() {
 }
         ";
     let source = Source::new("test", content);
-    let input_span: Span = source.clone().into();
+    let input_span: Span = source.into();
     let tokens = tokenizer::tokenize(input_span);
     let input_ast = syntax::parse(tokens).unwrap();
 
     let result = semantic::parse(input_ast);
     dbg!(&result);
 
-    assert_eq!(true, result.is_ok());
+    assert!(result.is_ok());
 }

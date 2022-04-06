@@ -10,9 +10,9 @@ fn simple_include() {
     let other_source = Source::new("./tests/files/other.c", include_str!("./files/other.c"));
     let include_source = Source::new("./tests/files/include.c", include_str!("./files/include.c"));
 
-    let other_tokens = tokenizer::tokenize(other_source.clone().into());
+    let other_tokens = tokenizer::tokenize(other_source.into());
     let include_tokens = {
-        let mut tmp = tokenizer::tokenize(include_source.clone().into());
+        let mut tmp = tokenizer::tokenize(include_source.into());
         tmp.next();
         tmp
     };

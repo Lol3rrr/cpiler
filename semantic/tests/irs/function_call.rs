@@ -3,7 +3,6 @@ use ir::{
     BasicBlock, Constant, Expression, FunctionDefinition, Operand, Statement, Type, Value,
     Variable, VariableMetadata,
 };
-use semantic::StructFieldTarget;
 
 #[test]
 fn function_call_no_args() {
@@ -16,7 +15,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -43,7 +42,7 @@ void test() {
                 target: x_var.clone(),
                 value: Value::Variable(t0_var),
             },
-            Statement::SaveVariable { var: x_var.clone() },
+            Statement::SaveVariable { var: x_var },
             Statement::Return(None),
         ],
     );
@@ -84,7 +83,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -121,17 +120,14 @@ void test() {
                 value: Value::Expression(Expression::FunctionCall {
                     name: "other".to_string(),
                     return_ty: Type::I32,
-                    arguments: vec![
-                        Operand::Variable(x_var.clone()),
-                        Operand::Variable(t0_var.clone()),
-                    ],
+                    arguments: vec![Operand::Variable(x_var), Operand::Variable(t0_var)],
                 }),
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t1_var.clone()),
+                value: Value::Variable(t1_var),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );
@@ -172,7 +168,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -203,18 +199,18 @@ void test() {
                 value: Value::Expression(Expression::FunctionCall {
                     name: "other".to_string(),
                     return_ty: Type::I32,
-                    arguments: vec![Operand::Variable(x_var.clone())],
+                    arguments: vec![Operand::Variable(x_var)],
                 }),
             },
             Statement::Assignment {
-                target: x_2_var.clone(),
+                target: x_2_var,
                 value: Value::Unknown,
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(t0_var.clone()),
+                value: Value::Variable(t0_var),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );
@@ -252,7 +248,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();

@@ -39,7 +39,7 @@ int main() {
     let ir = aast.convert_to_ir(general::arch::Arch::X86_64);
 
     let expected_ir =
-        semantic::parse(syntax::parse(tokenizer::tokenize(test_source.clone().into())).unwrap())
+        semantic::parse(syntax::parse(tokenizer::tokenize(test_source.into())).unwrap())
             .unwrap()
             .convert_to_ir(general::arch::Arch::X86_64);
     let expected_ir_func: ir::FunctionDefinition =
@@ -74,7 +74,7 @@ int main() {
 }
         ";
     let test_source = general::Source::new("test", test_program);
-    let test_span: general::Span = test_source.clone().into();
+    let test_span: general::Span = test_source.into();
     let tokens = tokenizer::tokenize(test_span);
     let ast = syntax::parse(tokens).unwrap();
     let aast = semantic::parse(ast).unwrap();
@@ -141,7 +141,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(x0.clone()),
-                    right: ir::Operand::Variable(y0.clone()),
+                    right: ir::Operand::Variable(y0),
                 }),
             },
             ir::Statement::SaveVariable { var: w0.clone() },
@@ -149,8 +149,8 @@ int main() {
                 target: tmp0.clone(),
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                    left: ir::Operand::Variable(x0.clone()),
-                    right: ir::Operand::Variable(z0.clone()),
+                    left: ir::Operand::Variable(x0),
+                    right: ir::Operand::Variable(z0),
                 }),
             },
             ir::Statement::Assignment {
@@ -158,7 +158,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(tmp0),
-                    right: ir::Operand::Variable(w0.clone()),
+                    right: ir::Operand::Variable(w0),
                 }),
             },
             ir::Statement::Assignment {
@@ -170,7 +170,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(tmp1),
-                    right: ir::Operand::Variable(y1.clone()),
+                    right: ir::Operand::Variable(y1),
                 }),
             },
             ir::Statement::Return(Some(tmp2)),
@@ -212,7 +212,7 @@ int main() {
 }
         ";
     let test_source = general::Source::new("test", test_program);
-    let test_span: general::Span = test_source.clone().into();
+    let test_span: general::Span = test_source.into();
     let tokens = tokenizer::tokenize(test_span);
     let ast = syntax::parse(tokens).unwrap();
     let aast = semantic::parse(ast).unwrap();
@@ -283,7 +283,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(x0.clone()),
-                    right: ir::Operand::Variable(y0.clone()),
+                    right: ir::Operand::Variable(y0),
                 }),
             },
             ir::Statement::SaveVariable { var: w0.clone() },
@@ -291,8 +291,8 @@ int main() {
                 target: tmp0.clone(),
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                    left: ir::Operand::Variable(x0.clone()),
-                    right: ir::Operand::Variable(z0.clone()),
+                    left: ir::Operand::Variable(x0),
+                    right: ir::Operand::Variable(z0),
                 }),
             },
             ir::Statement::Assignment {
@@ -300,7 +300,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(tmp0),
-                    right: ir::Operand::Variable(w0.clone()),
+                    right: ir::Operand::Variable(w0),
                 }),
             },
             ir::Statement::Assignment {
@@ -312,7 +312,7 @@ int main() {
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                     left: ir::Operand::Variable(tmp1),
-                    right: ir::Operand::Variable(y1.clone()),
+                    right: ir::Operand::Variable(y1),
                 }),
             },
             ir::Statement::SaveVariable { var: res0.clone() },
@@ -338,13 +338,11 @@ int main() {
                     target: ir::Type::I32,
                 }),
             },
-            ir::Statement::SaveVariable {
-                var: x0_true.clone(),
-            },
+            ir::Statement::SaveVariable { var: x0_true },
         ],
     );
     expected_ir_block2.add_statement(ir::Statement::JumpTrue(
-        tmp2.clone(),
+        tmp2,
         expected_ir_block4.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -360,9 +358,7 @@ int main() {
                     target: ir::Type::I32,
                 }),
             },
-            ir::Statement::SaveVariable {
-                var: x0_false.clone(),
-            },
+            ir::Statement::SaveVariable { var: x0_false },
         ],
     );
     expected_ir_block2.add_statement(ir::Statement::Jump(
@@ -376,9 +372,9 @@ int main() {
         vec![
             ir::Statement::Assignment {
                 target: tmp3.clone(),
-                value: ir::Value::Variable(res0.clone()),
+                value: ir::Value::Variable(res0),
             },
-            ir::Statement::Return(Some(tmp3.clone())),
+            ir::Statement::Return(Some(tmp3)),
         ],
     );
     expected_ir_block3.add_statement(ir::Statement::Jump(
@@ -386,7 +382,7 @@ int main() {
         ir::JumpMetadata::Linear,
     ));
     expected_ir_block4.add_statement(ir::Statement::Jump(
-        expected_ir_block5.clone(),
+        expected_ir_block5,
         ir::JumpMetadata::Linear,
     ));
 

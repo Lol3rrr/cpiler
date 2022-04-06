@@ -44,7 +44,7 @@ struct test {
                         ),
                     ],
                 },
-                definition: Span::new_source(source.clone(), 13..48),
+                definition: Span::new_source(source, 13..48),
             }],
         },
     });

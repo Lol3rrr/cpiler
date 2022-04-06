@@ -198,7 +198,7 @@ fn arithemtic() {
                             operation: SingleOperation::Negative,
                             base: Box::new(Expression::Identifier {
                                 ident: Identifier(SpanData {
-                                    span: Span::new_source(source.clone(), 133..134),
+                                    span: Span::new_source(source, 133..134),
                                     data: "b".to_string(),
                                 }),
                             }),

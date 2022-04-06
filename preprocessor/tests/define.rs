@@ -42,13 +42,13 @@ fn nested_defines() {
             },
         },
         Token {
-            span: Span::new_arc_source_og(arced_source.clone(), 332..335, Span::new_arc_source_og(arced_source.clone(), 332..335, Span::new_source(define_source.clone(), 47..57))),
+            span: Span::new_arc_source_og(arced_source.clone(), 332..335, Span::new_arc_source_og(arced_source, 332..335, Span::new_source(define_source.clone(), 47..57))),
             data: TokenData::StringLiteral {
                 content: "HI THERE".to_owned(),
             },
         },
         Token {
-            span: Span::new_source(define_source.clone(), 339..389),
+            span: Span::new_source(define_source, 339..389),
             data: TokenData::Comment {
                 content: " \"HI THERE\", because parameters are expanded first".to_owned(),
             },

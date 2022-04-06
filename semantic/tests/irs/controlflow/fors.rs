@@ -15,7 +15,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -70,7 +70,7 @@ void test() {
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
-                            var: var_i0.clone(),
+                            var: var_i0,
                             block: setup_block.weak_ptr(),
                         },
                         PhiEntry {
@@ -88,11 +88,7 @@ void test() {
                     right: Operand::Constant(Constant::I64(10)),
                 }),
             },
-            Statement::JumpTrue(
-                var_t0.clone(),
-                loop_inner_block.clone(),
-                ir::JumpMetadata::Linear,
-            ),
+            Statement::JumpTrue(var_t0, loop_inner_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     setup_block.add_statement(Statement::Jump(
@@ -105,21 +101,19 @@ void test() {
             target: var_x.clone(),
             value: Value::Variable(var_i1.clone()),
         },
-        Statement::SaveVariable { var: var_x.clone() },
+        Statement::SaveVariable { var: var_x },
         Statement::Assignment {
-            target: var_t1.clone(),
+            target: var_t1,
             value: Value::Variable(var_i1.clone()),
         },
         Statement::Assignment {
             target: var_i2.clone(),
             value: Value::Expression(Expression::UnaryOp {
                 op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
-                base: Operand::Variable(var_i1.clone()),
+                base: Operand::Variable(var_i1),
             }),
         },
-        Statement::SaveVariable {
-            var: var_i2.clone(),
-        },
+        Statement::SaveVariable { var: var_i2 },
         Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
     ]);
     loop_inner_block.add_predecessor(loop_cond_block.weak_ptr());
@@ -134,14 +128,14 @@ void test() {
     loop_end_block.add_statement(Statement::Jump(func_end_block, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
-        global: global.clone(),
+        global,
         functions: vec![(
             "test".to_string(),
             ir::FunctionDefinition {
                 name: "test".to_string(),
                 arguments: vec![],
                 return_ty: Type::Void,
-                block: func_start.clone(),
+                block: func_start,
             },
         )]
         .into_iter()
@@ -166,7 +160,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -174,5 +168,5 @@ void test() {
     let result = input.convert_to_ir(general::arch::Arch::X86_64);
     dbg!(&result);
 
-    assert!(false);
+    todo!()
 }

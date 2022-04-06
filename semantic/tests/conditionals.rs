@@ -106,7 +106,7 @@ void test() {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {
-                                            span: Span::new_source(source.clone(), 95..96),
+                                            span: Span::new_source(source, 95..96),
                                             data: 0,
                                         },
                                     ))),
@@ -257,7 +257,7 @@ void test() {
                                     target: AType::Primitve(APrimitive::Int),
                                     base: Box::new(AExpression::Literal(Literal::Integer(
                                         SpanData {
-                                            span: Span::new_source(source.clone(), 136..137),
+                                            span: Span::new_source(source, 136..137),
                                             data: 0,
                                         },
                                     ))),

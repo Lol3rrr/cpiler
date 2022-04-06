@@ -28,8 +28,8 @@ impl Backend {
 
     fn codegen(
         &self,
-        func: &ir::FunctionDefinition,
-        registers: HashMap<ir::Variable, x86::Register>,
+        _func: &ir::FunctionDefinition,
+        _registers: HashMap<ir::Variable, x86::Register>,
     ) -> Vec<x86::Block> {
         todo!("Codegen")
     }

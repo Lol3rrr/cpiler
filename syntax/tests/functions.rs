@@ -18,7 +18,7 @@ fn function_declarations() {
                     data: "src".to_string(),
                 }),
                 r_type: TypeToken::Primitive(SpanData {
-                    span: Span::new_source(input_source.clone(), 0..4),
+                    span: Span::new_source(input_source, 0..4),
                     data: DataType::Void,
                 }),
                 arguments: vec![],
@@ -59,7 +59,7 @@ fn function_declaration_pointer_arg() {
                             data: "first".to_string(),
                         }),
                         ty: TypeToken::Pointer(Box::new(TypeToken::Primitive(SpanData {
-                            span: Span::new_source(input_source.clone(), 9..12),
+                            span: Span::new_source(input_source, 9..12),
                             data: DataType::Int,
                         }))),
                     },
@@ -115,7 +115,7 @@ fn function_declaration_two_args() {
                                 data: "second".to_string(),
                             }),
                             ty: TypeToken::Primitive(SpanData {
-                                span: Span::new_source(input_source.clone(), 21..24),
+                                span: Span::new_source(input_source, 21..24),
                                 data: DataType::Int,
                             }),
                         },
@@ -158,7 +158,7 @@ fn function_declaration_with_var_args() {
                             data: "first".to_string(),
                         }),
                         ty: TypeToken::Pointer(Box::new(TypeToken::Primitive(SpanData {
-                            span: Span::new_source(input_source.clone(), 9..12),
+                            span: Span::new_source(input_source, 9..12),
                             data: DataType::Int,
                         }))),
                     },

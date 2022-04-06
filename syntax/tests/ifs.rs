@@ -28,7 +28,7 @@ if (13) {
                             data: DataType::Int,
                         }),
                         name: Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 19..20),
+                            span: Span::new_source(source, 19..20),
                             data: "x".to_string(),
                         }),
                     }],
@@ -85,7 +85,7 @@ if (13) {
                             data: DataType::Int,
                         }),
                         name: Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 39..40),
+                            span: Span::new_source(source, 39..40),
                             data: "y".to_string(),
                         }),
                     }],
@@ -163,7 +163,7 @@ if (13) {
                                     data: DataType::Int,
                                 }),
                                 name: Identifier(SpanData {
-                                    span: Span::new_source(source.clone(), 66..67),
+                                    span: Span::new_source(source, 66..67),
                                     data: "z".to_string(),
                                 }),
                             }],

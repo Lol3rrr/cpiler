@@ -1,5 +1,5 @@
 use crate::backends::aarch64_mac::{
-    asm::{self, Imm9Signed},
+    asm::{self},
     codegen::Context,
 };
 

@@ -55,7 +55,7 @@ fn simple_define() {
             data: TokenData::Semicolon,
         },
         Token {
-            span: Span::new_source(define_source.clone(), 43..44),
+            span: Span::new_source(define_source, 43..44),
             data: TokenData::CloseBrace,
         },
     ];

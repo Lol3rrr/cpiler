@@ -40,7 +40,7 @@ asm(\"mov ${out}, 13\", out);
                             data: "out".to_string(),
                         }),
                         SpanData {
-                            span: Span::new_source(source.clone(), 5..8),
+                            span: Span::new_source(source, 5..8),
                             data: AType::Primitve(APrimitive::Int),
                         },
                     )),
@@ -121,7 +121,7 @@ asm(\"mov ${out}, ${in}\", out, in);
                             data: "out".to_string(),
                         }),
                         SpanData {
-                            span: Span::new_source(source.clone(), 5..8),
+                            span: Span::new_source(source, 5..8),
                             data: AType::Primitve(APrimitive::Int),
                         },
                     )),

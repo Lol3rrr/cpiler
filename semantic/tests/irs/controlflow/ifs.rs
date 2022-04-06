@@ -19,7 +19,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -72,7 +72,7 @@ void test() {
         ],
     );
     function_first_block.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
+        t0_var,
         inner_if_block.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -86,26 +86,26 @@ void test() {
                     sources: vec![
                         PhiEntry {
                             block: function_first_block.weak_ptr(),
-                            var: x1_var.clone(),
+                            var: x1_var,
                         },
                         PhiEntry {
                             block: inner_if_block.weak_ptr(),
-                            var: x_var.clone(),
+                            var: x_var,
                         },
                     ],
                 },
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(x2_var.clone()),
+                value: Value::Variable(x2_var),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );
     function_first_block
         .add_statement(Statement::Jump(end_block.clone(), ir::JumpMetadata::Linear));
-    inner_if_block.add_statement(Statement::Jump(end_block.clone(), ir::JumpMetadata::Linear));
+    inner_if_block.add_statement(Statement::Jump(end_block, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,
@@ -148,7 +148,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -174,9 +174,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::SaveVariable {
-                var: x0_var.clone(),
-            },
+            Statement::SaveVariable { var: x0_var },
             Statement::Assignment {
                 target: t0_var.clone(),
                 value: Value::Constant(Constant::I64(2)),
@@ -204,7 +202,7 @@ void test() {
         ],
     );
     function_first.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
+        t0_var,
         true_block.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -238,20 +236,20 @@ void test() {
                     sources: vec![
                         PhiEntry {
                             block: true_block.weak_ptr(),
-                            var: x1_var.clone(),
+                            var: x1_var,
                         },
                         PhiEntry {
                             block: false_block.weak_ptr(),
-                            var: x2_var.clone(),
+                            var: x2_var,
                         },
                     ],
                 },
             },
             Statement::Assignment {
                 target: y_var.clone(),
-                value: Value::Variable(x3_var.clone()),
+                value: Value::Variable(x3_var),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );
@@ -260,10 +258,7 @@ void test() {
         function_second.clone(),
         ir::JumpMetadata::Linear,
     ));
-    false_block.add_statement(Statement::Jump(
-        function_second.clone(),
-        ir::JumpMetadata::Linear,
-    ));
+    false_block.add_statement(Statement::Jump(function_second, ir::JumpMetadata::Linear));
 
     let expected = Program {
         global: global_block,

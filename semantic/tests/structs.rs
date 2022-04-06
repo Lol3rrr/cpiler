@@ -55,7 +55,7 @@ var.first = 1;
                             ty_info: SpanData {
                                 span: Span::new_source(source.clone(), 44..47),
                                 data: AType::Struct {
-                                    def: struct_def.clone(),
+                                    def: struct_def,
                                     area: Span::new_source(source.clone(), 12..31),
                                 },
                             },
@@ -71,7 +71,7 @@ var.first = 1;
                     }),
                     value: AExpression::Cast {
                         base: Box::new(AExpression::Literal(Literal::Integer(SpanData {
-                            span: Span::new_source(source.clone(), 61..62),
+                            span: Span::new_source(source, 61..62),
                             data: 1,
                         }))),
                         target: AType::Primitve(APrimitive::Int),
@@ -119,7 +119,7 @@ var.second = 1;
             data: "second".to_string(),
         }),
         struct_def: SpanData {
-            span: Span::new_source(source.clone(), 12..31),
+            span: Span::new_source(source, 12..31),
             data: struct_def,
         },
     });

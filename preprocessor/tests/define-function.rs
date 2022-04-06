@@ -78,7 +78,7 @@ fn simple_function_define() {
         },
         Token {
             span: Span::new_arc_source_og(
-                arced_source.clone(),
+                arced_source,
                 46..50,
                 Span::new_source(define_source.clone(), 22..23),
             ),
@@ -89,7 +89,7 @@ fn simple_function_define() {
             data: TokenData::Semicolon,
         },
         Token {
-            span: Span::new_source(define_source.clone(), 56..57),
+            span: Span::new_source(define_source, 56..57),
             data: TokenData::CloseBrace,
         },
     ];

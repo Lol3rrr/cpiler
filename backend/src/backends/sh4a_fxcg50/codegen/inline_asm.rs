@@ -38,7 +38,7 @@ impl Argument {
     }
 }
 
-fn line_to_instr(line: &str, ctx: &Context) -> Vec<sh4a::Instruction> {
+fn line_to_instr(line: &str, _ctx: &Context) -> Vec<sh4a::Instruction> {
     let first_sep = line.find(' ').unwrap_or(line.len());
 
     let op = &line[..first_sep];

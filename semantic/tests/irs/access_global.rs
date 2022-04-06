@@ -11,7 +11,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -31,15 +31,12 @@ void test() {
         vec![
             Statement::Assignment {
                 target: x_var.clone(),
-                value: Value::Variable(tmp_var.clone()),
+                value: Value::Variable(tmp_var),
             },
-            Statement::SaveVariable { var: x_var.clone() },
+            Statement::SaveVariable { var: x_var },
         ],
     );
-    func_start.add_statement(Statement::Jump(
-        func_inner.clone(),
-        ir::JumpMetadata::Linear,
-    ));
+    func_start.add_statement(Statement::Jump(func_inner, ir::JumpMetadata::Linear));
 
     let expected = ir::Program {
         global: global_block,

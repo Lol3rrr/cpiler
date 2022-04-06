@@ -69,10 +69,7 @@ void other() {
                                         value: AExpression::Cast {
                                             base: Box::new(AExpression::Literal(Literal::Integer(
                                                 SpanData {
-                                                    span: Span::new_source(
-                                                        input_source.clone(),
-                                                        60..61,
-                                                    ),
+                                                    span: Span::new_source(input_source, 60..61),
                                                     data: 1,
                                                 },
                                             ))),
@@ -121,7 +118,7 @@ void other() {
             data: AType::Primitve(APrimitive::Int),
         },
         received: SpanData {
-            span: Span::new_source(input_source.clone(), 0..1),
+            span: Span::new_source(input_source, 0..1),
             data: AType::Primitve(APrimitive::Float),
         },
     });

@@ -16,7 +16,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -43,7 +43,7 @@ void test() {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
+                    left: Operand::Variable(x_var),
                     right: Operand::Constant(Constant::I64(5)),
                 }),
             },
@@ -52,20 +52,16 @@ void test() {
                 target: x1_var.clone(),
                 value: Value::Constant(Constant::I64(12)),
             },
-            Statement::SaveVariable {
-                var: x1_var.clone(),
-            },
+            Statement::SaveVariable { var: x1_var },
             Statement::Assignment {
                 target: y1_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
-                    left: Operand::Variable(y_var.clone()),
+                    left: Operand::Variable(y_var),
                     right: Operand::Constant(Constant::I64(1)),
                 }),
             },
-            Statement::SaveVariable {
-                var: y1_var.clone(),
-            },
+            Statement::SaveVariable { var: y1_var },
             Statement::Return(None),
         ],
     );
@@ -103,7 +99,7 @@ void test(int arg) {
 }
             ";
     let source = Source::new("test", input);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let ast = syntax::parse(tokens).unwrap();
     let aast = semantic::parse(ast).unwrap();
@@ -137,11 +133,11 @@ void test(int arg) {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(arg_var.clone()),
-                    right: Operand::Variable(x_var.clone()),
+                    left: Operand::Variable(arg_var),
+                    right: Operand::Variable(x_var),
                 }),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );

@@ -27,7 +27,7 @@ fn simple() {
                 body: Scope {
                     statements: vec![Statement::Return(Some(Expression::Literal {
                         content: SpanData {
-                            span: Span::new_source(source.clone(), 20..21),
+                            span: Span::new_source(source, 20..21),
                             data: "0".to_string(),
                         },
                     }))],

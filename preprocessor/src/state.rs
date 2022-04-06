@@ -16,7 +16,7 @@ impl State {
         }
     }
 
-    pub fn is_file_included(&mut self, path: &str) -> bool {
+    pub fn is_file_included(&self, path: &str) -> bool {
         self.included.contains(path)
     }
     pub fn add_included_file(&mut self, path: String) {

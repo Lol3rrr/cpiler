@@ -17,7 +17,6 @@ pub fn to_asm(
     // 4. move the result into the target
     // 5. restore previous arguments from stack
 
-    let mut offset = 0;
     let arg_regs = [
         asm::GPRegister::DWord(0),
         asm::GPRegister::DWord(1),
@@ -39,7 +38,6 @@ pub fn to_asm(
             offset: -16,
             base: asm::GpOrSpRegister::SP,
         });
-        offset += 16;
     }
 
     // 2.

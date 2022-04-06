@@ -42,7 +42,7 @@ fn oper_to_reg(
 }
 
 pub fn to_asm(
-    target_var: &ir::Variable,
+    _target_var: &ir::Variable,
     target: sh4a::Register,
     expression: ir::Expression,
     ctx: &Context,

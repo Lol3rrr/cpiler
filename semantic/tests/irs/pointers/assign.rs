@@ -13,7 +13,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -34,7 +34,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(123)),
                 }),
             },
-            Statement::SaveVariable { var: x_var.clone() },
+            Statement::SaveVariable { var: x_var },
             Statement::Return(None),
         ],
     );
@@ -72,7 +72,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -101,10 +101,10 @@ void test() {
             Statement::Assignment {
                 target: y_var.clone(),
                 value: Value::Expression(Expression::AdressOf {
-                    base: Operand::Variable(x_var.clone()),
+                    base: Operand::Variable(x_var),
                 }),
             },
-            Statement::SaveVariable { var: y_var.clone() },
+            Statement::SaveVariable { var: y_var },
             Statement::Return(None),
         ],
     );
@@ -144,7 +144,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -171,9 +171,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::SaveVariable {
-                var: y0_var.clone(),
-            },
+            Statement::SaveVariable { var: y0_var },
             Statement::Assignment {
                 target: x_var.clone(),
                 value: Value::Expression(Expression::Cast {
@@ -185,12 +183,10 @@ void test() {
             Statement::Assignment {
                 target: y1_var.clone(),
                 value: Value::Expression(Expression::AdressOf {
-                    base: Operand::Variable(x_var.clone()),
+                    base: Operand::Variable(x_var),
                 }),
             },
-            Statement::SaveVariable {
-                var: y1_var.clone(),
-            },
+            Statement::SaveVariable { var: y1_var },
             Statement::Assignment {
                 target: y2_var.clone(),
                 value: Value::Expression(Expression::Cast {
@@ -198,9 +194,7 @@ void test() {
                     base: Operand::Constant(Constant::I64(13)),
                 }),
             },
-            Statement::SaveVariable {
-                var: y2_var.clone(),
-            },
+            Statement::SaveVariable { var: y2_var },
             Statement::Return(None),
         ],
     );

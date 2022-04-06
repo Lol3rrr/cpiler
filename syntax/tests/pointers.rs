@@ -25,7 +25,7 @@ int* y = &x;
                     operation: SingleOperation::AddressOf,
                     base: Box::new(Expression::Identifier {
                         ident: Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 11..12),
+                            span: Span::new_source(source, 11..12),
                             data: "x".to_string(),
                         }),
                     }),
@@ -60,7 +60,7 @@ fn write_to_ptr() {
                 },
                 value: Expression::Literal {
                     content: SpanData {
-                        span: Span::new_source(source.clone(), 6..8),
+                        span: Span::new_source(source, 6..8),
                         data: "13".to_string(),
                     },
                 },

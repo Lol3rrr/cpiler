@@ -9,10 +9,7 @@ pub fn to_asm(
 ) {
     let base_reg = match base {
         ir::Operand::Variable(base_var) => match ctx.registers.get_reg(&base_var).unwrap() {
-            asm::Register::GeneralPurpose(gp) => match gp {
-                asm::GPRegister::DWord(n) => asm::GPRegister::DWord(n),
-                asm::GPRegister::Word(n) => asm::GPRegister::Word(n),
-            },
+            asm::Register::GeneralPurpose(gp) => gp,
             asm::Register::FloatingPoint(_) => {
                 todo!("Floating Point Registers")
             }

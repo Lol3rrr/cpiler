@@ -6,7 +6,7 @@ use crate::backends::aarch64_mac::{
 fn operand(
     oper: ir::Operand,
     ctx: &Context,
-    used: Option<asm::Register>,
+    _used: Option<asm::Register>,
 ) -> (asm::Register, Vec<asm::Instruction>) {
     match oper {
         ir::Operand::Variable(var) => {
@@ -60,7 +60,7 @@ pub fn to_asm(
                             asm::GPRegister::DWord(_) => (gp, asm::GPRegister::DWord(9)),
                             asm::GPRegister::Word(_) => (gp, asm::GPRegister::Word(9)),
                         },
-                        asm::Register::FloatingPoint(fp) => {
+                        asm::Register::FloatingPoint(_) => {
                             todo!()
                         }
                     };
@@ -84,8 +84,8 @@ pub fn to_asm(
                     });
                 }
                 (ir::Operand::Variable(l_var), ir::Operand::Variable(r_var)) => {
-                    let l_var_reg = ctx.registers.get_reg(&l_var).unwrap();
-                    let r_var_reg = ctx.registers.get_reg(&r_var).unwrap();
+                    let l_var_reg = ctx.registers.get_reg(l_var).unwrap();
+                    let r_var_reg = ctx.registers.get_reg(r_var).unwrap();
 
                     match (l_var_reg, r_var_reg) {
                         (
@@ -133,7 +133,7 @@ pub fn to_asm(
                         condition,
                     });
                 }
-                asm::Register::FloatingPoint(n) => panic!("Condition in FP-Register"),
+                asm::Register::FloatingPoint(_) => panic!("Condition in FP-Register"),
             };
         }
         ir::BinaryOp::Arith(arith_op) => {

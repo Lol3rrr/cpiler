@@ -20,7 +20,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -38,7 +38,7 @@ void test() {
         vec![func_initial.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: x_var.clone(),
+                target: x_var,
                 value: Value::Expression(Expression::StackAlloc {
                     size: 12,
                     alignment: 4,
@@ -91,7 +91,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -134,11 +134,11 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t0_var.clone()),
-                value: Operand::Variable(t4_var.clone()),
+                target: Operand::Variable(t0_var),
+                value: Operand::Variable(t4_var),
             },
             Statement::Assignment {
                 target: t1_var.clone(),
@@ -153,17 +153,17 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I8,
                     base: Operand::Constant(Constant::I64(23)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t1_var.clone()),
-                value: Operand::Variable(t5_var.clone()),
+                target: Operand::Variable(t1_var),
+                value: Operand::Variable(t5_var),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
+                    left: Operand::Variable(x_var),
                     right: Operand::Constant(Constant::I64(8)),
                 }),
             },
@@ -172,11 +172,11 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(33)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
-                value: Operand::Variable(t3_var.clone()),
+                target: Operand::Variable(t2_var),
+                value: Operand::Variable(t3_var),
             },
             Statement::Return(None),
         ],
@@ -222,7 +222,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -266,7 +266,7 @@ void test() {
             Statement::Assignment {
                 target: t1_var.clone(),
                 value: Value::Expression(Expression::ReadMemory {
-                    address: Operand::Variable(t0_var.clone()),
+                    address: Operand::Variable(t0_var),
                     read_ty: Type::I32,
                 }),
             },
@@ -274,7 +274,7 @@ void test() {
             Statement::Assignment {
                 target: t2_var.clone(),
                 value: Value::Expression(Expression::Cast {
-                    base: Operand::Variable(t1_var.clone()),
+                    base: Operand::Variable(t1_var),
                     target: Type::I64,
                 }),
             },
@@ -283,7 +283,7 @@ void test() {
                 target: t3_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(t2_var.clone()),
+                    left: Operand::Variable(t2_var),
                     right: Operand::Constant(Constant::I64(13)),
                 }),
             },
@@ -292,7 +292,7 @@ void test() {
                 target: t4_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
+                    left: Operand::Variable(x_var),
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
@@ -300,13 +300,13 @@ void test() {
                 target: t5_var.clone(),
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
-                    base: Operand::Variable(t3_var.clone()),
+                    base: Operand::Variable(t3_var),
                 }),
             },
             // Store the new Value back into the target Field
             Statement::WriteMemory {
-                target: Operand::Variable(t4_var.clone()),
-                value: Operand::Variable(t5_var.clone()),
+                target: Operand::Variable(t4_var),
+                value: Operand::Variable(t5_var),
             },
             Statement::Return(None),
         ],
@@ -351,7 +351,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -397,15 +397,15 @@ void test() {
                 target: t1_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
-                    right: Operand::Variable(t0_var.clone()),
+                    left: Operand::Variable(x_var),
+                    right: Operand::Variable(t0_var),
                 }),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(t1_var.clone()),
+                    left: Operand::Variable(t1_var),
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
@@ -414,11 +414,11 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
-                value: Operand::Variable(t3_var.clone()),
+                target: Operand::Variable(t2_var),
+                value: Operand::Variable(t3_var),
             },
             Statement::Return(None),
         ],
@@ -463,7 +463,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -509,28 +509,26 @@ void test() {
                 target: t1_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
-                    right: Operand::Variable(t0_var.clone()),
+                    left: Operand::Variable(x_var),
+                    right: Operand::Variable(t0_var),
                 }),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(t1_var.clone()),
+                    left: Operand::Variable(t1_var),
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
             Statement::Assignment {
                 target: tmp_var.clone(),
                 value: Value::Expression(Expression::ReadMemory {
-                    address: Operand::Variable(t2_var.clone()),
+                    address: Operand::Variable(t2_var),
                     read_ty: Type::I32,
                 }),
             },
-            Statement::SaveVariable {
-                var: tmp_var.clone(),
-            },
+            Statement::SaveVariable { var: tmp_var },
             Statement::Return(None),
         ],
     );
@@ -575,7 +573,7 @@ void test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -621,15 +619,15 @@ void test() {
                 target: t1_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(x_var.clone()),
-                    right: Operand::Variable(t0_var.clone()),
+                    left: Operand::Variable(x_var),
+                    right: Operand::Variable(t0_var),
                 }),
             },
             Statement::Assignment {
                 target: t2_var.clone(),
                 value: Value::Expression(Expression::BinaryOp {
                     op: BinaryOp::Arith(BinaryArithmeticOp::Add),
-                    left: Operand::Variable(t1_var.clone()),
+                    left: Operand::Variable(t1_var),
                     right: Operand::Constant(Constant::I64(0)),
                 }),
             },
@@ -638,11 +636,11 @@ void test() {
                 value: Value::Expression(Expression::Cast {
                     target: Type::I32,
                     base: Operand::Constant(Constant::I64(13)),
-                })
+                }),
             },
             Statement::WriteMemory {
-                target: Operand::Variable(t2_var.clone()),
-                value: ir::Operand::Variable(t3_var.clone()),
+                target: Operand::Variable(t2_var),
+                value: ir::Operand::Variable(t3_var),
             },
             Statement::Return(None),
         ],

@@ -24,7 +24,7 @@ long long int x;
                     })),
                 },
                 name: Identifier(SpanData {
-                    span: Span::new_source(source.clone(), 15..16),
+                    span: Span::new_source(source, 15..16),
                     data: "x".to_string(),
                 }),
             }],

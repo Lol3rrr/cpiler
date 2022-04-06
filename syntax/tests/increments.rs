@@ -47,7 +47,7 @@ fn literals() {
                 Statement::SingleExpression(Expression::SingleOperation {
                     base: Box::new(Expression::Identifier {
                         ident: Identifier(SpanData {
-                            span: Span::new_source(source.clone(), 40..43),
+                            span: Span::new_source(source, 40..43),
                             data: "tmp".to_string(),
                         }),
                     }),
@@ -140,7 +140,7 @@ fn arrays() {
                         }),
                         operation: SingleOperation::ArrayAccess(Box::new(Expression::Literal {
                             content: SpanData {
-                                span: Span::new_source(source.clone(), 53..54),
+                                span: Span::new_source(source, 53..54),
                                 data: "0".to_string(),
                             },
                         })),

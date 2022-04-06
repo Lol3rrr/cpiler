@@ -43,7 +43,7 @@ double double_1;
 long double double_2;
     ";
     let input_source = Source::new("test", input);
-    let input_span: Span = input_source.clone().into();
+    let input_span: Span = input_source.into();
     let input_tokens = tokenizer::tokenize(input_span);
     let input_ast = syntax::parse(input_tokens).unwrap();
 

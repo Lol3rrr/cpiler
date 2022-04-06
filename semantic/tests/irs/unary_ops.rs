@@ -13,7 +13,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -40,19 +40,17 @@ void test() {
                 var: var_i0.clone(),
             },
             Statement::Assignment {
-                target: var_t0.clone(),
+                target: var_t0,
                 value: Value::Variable(var_i0.clone()),
             },
             Statement::Assignment {
                 target: var_i1.clone(),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
-                    base: Operand::Variable(var_i0.clone()),
+                    base: Operand::Variable(var_i0),
                 }),
             },
-            Statement::SaveVariable {
-                var: var_i1.clone(),
-            },
+            Statement::SaveVariable { var: var_i1 },
         ],
     );
     func_start.add_statement(Statement::Jump(func_content, ir::JumpMetadata::Linear));
@@ -87,7 +85,7 @@ void test() {
 }
             ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -122,17 +120,15 @@ void test() {
                 target: var_i1.clone(),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Increment),
-                    base: Operand::Variable(var_i0.clone()),
+                    base: Operand::Variable(var_i0),
                 }),
             },
-            Statement::SaveVariable {
-                var: var_i1.clone(),
-            },
+            Statement::SaveVariable { var: var_i1 },
             Statement::Assignment {
                 target: var_x.clone(),
-                value: Value::Variable(var_t0.clone()),
+                value: Value::Variable(var_t0),
             },
-            Statement::SaveVariable { var: var_x.clone() },
+            Statement::SaveVariable { var: var_x },
         ],
     );
     func_start.add_statement(Statement::Jump(func_content, ir::JumpMetadata::Linear));

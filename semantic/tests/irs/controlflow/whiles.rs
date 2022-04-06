@@ -18,7 +18,7 @@ void test() {
 }
         ";
     let source = Source::new("test", input);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -58,14 +58,12 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::SaveVariable {
-                var: x0_var.clone(),
-            },
+            Statement::SaveVariable { var: x0_var },
             Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
+        t0_var,
         loop_inner_block.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -75,13 +73,10 @@ void test() {
         vec![loop_cond_block.weak_ptr()],
         vec![Statement::Return(None)],
     );
-    loop_cond_block.add_statement(Statement::Jump(
-        func_end_block.clone(),
-        ir::JumpMetadata::Linear,
-    ));
+    loop_cond_block.add_statement(Statement::Jump(func_end_block, ir::JumpMetadata::Linear));
 
     let expected = Program {
-        global: global.clone(),
+        global,
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
@@ -129,7 +124,7 @@ void test() {
 }
         ";
     let source = Source::new("test", input);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -176,7 +171,7 @@ void test() {
                 value: Value::Phi {
                     sources: vec![
                         PhiEntry {
-                            var: x0_var.clone(),
+                            var: x0_var,
                             block: func_first_block.weak_ptr(),
                         },
                         PhiEntry {
@@ -194,7 +189,7 @@ void test() {
                 target: x2_var.clone(),
                 value: Value::Expression(Expression::UnaryOp {
                     op: UnaryOp::Arith(UnaryArithmeticOp::Decrement),
-                    base: Operand::Variable(x1_var.clone()),
+                    base: Operand::Variable(x1_var),
                 }),
             },
             Statement::SaveVariable {
@@ -202,13 +197,9 @@ void test() {
             },
             Statement::Assignment {
                 target: t1_var.clone(),
-                value: Value::Variable(t0_var.clone()),
+                value: Value::Variable(t0_var),
             },
-            Statement::JumpTrue(
-                t1_var.clone(),
-                loop_inner_block.clone(),
-                ir::JumpMetadata::Linear,
-            ),
+            Statement::JumpTrue(t1_var, loop_inner_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     func_first_block.add_statement(Statement::Jump(
@@ -222,14 +213,14 @@ void test() {
             target: t2_var.clone(),
             value: Value::Expression(Expression::Cast {
                 target: Type::I64,
-                base: Operand::Variable(x2_var.clone()),
+                base: Operand::Variable(x2_var),
             }),
         },
         Statement::Assignment {
             target: t3_var.clone(),
             value: Value::Expression(Expression::BinaryOp {
                 op: BinaryOp::Arith(BinaryArithmeticOp::Sub),
-                left: Operand::Variable(t2_var.clone()),
+                left: Operand::Variable(t2_var),
                 right: Operand::Constant(Constant::I64(1)),
             }),
         },
@@ -237,12 +228,10 @@ void test() {
             target: x3_var.clone(),
             value: Value::Expression(Expression::Cast {
                 target: Type::I32,
-                base: Operand::Variable(t3_var.clone()),
+                base: Operand::Variable(t3_var),
             }),
         },
-        Statement::SaveVariable {
-            var: x3_var.clone(),
-        },
+        Statement::SaveVariable { var: x3_var },
         Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
     ]);
     loop_cond_block.add_predecessor(loop_inner_block.weak_ptr());
@@ -251,13 +240,10 @@ void test() {
         vec![loop_cond_block.weak_ptr()],
         vec![Statement::Return(None)],
     );
-    loop_cond_block.add_statement(Statement::Jump(
-        func_end_block.clone(),
-        ir::JumpMetadata::Linear,
-    ));
+    loop_cond_block.add_statement(Statement::Jump(func_end_block, ir::JumpMetadata::Linear));
 
     let expected = Program {
-        global: global.clone(),
+        global,
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
@@ -304,7 +290,7 @@ void test() {
 }
         ";
     let source = Source::new("test", input);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -346,15 +332,13 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::SaveVariable {
-                var: x0_var.clone(),
-            },
+            Statement::SaveVariable { var: x0_var },
             Statement::Jump(func_end_block.clone(), ir::JumpMetadata::Linear),
             Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
+        t0_var,
         loop_inner_block.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -368,7 +352,7 @@ void test() {
     func_end_block.add_predecessor(loop_inner_block.weak_ptr());
 
     let expected = Program {
-        global: global.clone(),
+        global,
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {
@@ -417,7 +401,7 @@ void test() {
 }
         ";
     let source = Source::new("test", input);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let input = semantic::parse(syntax_ast).unwrap();
@@ -459,15 +443,13 @@ void test() {
                     base: Operand::Constant(Constant::I64(0)),
                 }),
             },
-            Statement::SaveVariable {
-                var: x0_var.clone(),
-            },
+            Statement::SaveVariable { var: x0_var },
             Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
             Statement::Jump(loop_cond_block.clone(), ir::JumpMetadata::Linear),
         ],
     );
     loop_cond_block.add_statement(Statement::JumpTrue(
-        t0_var.clone(),
+        t0_var,
         loop_inner_block.clone(),
         ir::JumpMetadata::Linear,
     ));
@@ -480,7 +462,7 @@ void test() {
     func_end_block.add_predecessor(loop_cond_block.weak_ptr());
 
     let expected = Program {
-        global: global.clone(),
+        global,
         functions: vec![(
             "test".to_string(),
             FunctionDefinition {

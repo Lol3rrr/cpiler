@@ -47,7 +47,7 @@ char casted = (char) first;
                         }),
                         exp: Box::new(Expression::Identifier {
                             ident: Identifier(SpanData {
-                                span: Span::new_source(source.clone(), 39..44),
+                                span: Span::new_source(source, 39..44),
                                 data: "first".to_string(),
                             }),
                         }),

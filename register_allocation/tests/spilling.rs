@@ -44,7 +44,7 @@ int main() {
 }
         ";
         let test_source = general::Source::new("test", test_program);
-        let test_span: general::Span = test_source.clone().into();
+        let test_span: general::Span = test_source.into();
         let tokens = tokenizer::tokenize(test_span);
         let ast = syntax::parse(tokens).unwrap();
         let aast = semantic::parse(ast).unwrap();
@@ -102,7 +102,7 @@ int main() {
                         target: ir::Type::I32,
                     }),
                 },
-                ir::Statement::SaveVariable { var: w0.clone() },
+                ir::Statement::SaveVariable { var: w0 },
                 ir::Statement::Assignment {
                     target: x0.clone(),
                     value: ir::Value::Expression(ir::Expression::Cast {
@@ -194,7 +194,7 @@ int main() {
                     }),
                 },
                 ir::Statement::SaveVariable { var: w2.clone() },
-                ir::Statement::SaveVariable { var: x0.clone() },
+                ir::Statement::SaveVariable { var: x0 },
             ],
         );
         expected_ir_block2.add_statement(ir::Statement::Jump(
@@ -214,11 +214,11 @@ int main() {
                     value: ir::Value::Phi {
                         sources: vec![
                             ir::PhiEntry {
-                                var: z1.clone(),
+                                var: z1,
                                 block: expected_ir_block_true.weak_ptr(),
                             },
                             ir::PhiEntry {
-                                var: z0.clone(),
+                                var: z0,
                                 block: expected_ir_block4.weak_ptr(),
                             },
                         ],
@@ -229,11 +229,11 @@ int main() {
                     value: ir::Value::Phi {
                         sources: vec![
                             ir::PhiEntry {
-                                var: w1.clone(),
+                                var: w1,
                                 block: expected_ir_block_true.weak_ptr(),
                             },
                             ir::PhiEntry {
-                                var: w2.clone(),
+                                var: w2,
                                 block: expected_ir_block4.weak_ptr(),
                             },
                         ],
@@ -243,8 +243,8 @@ int main() {
                     target: t5.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                        left: ir::Operand::Variable(z2.clone()),
-                        right: ir::Operand::Variable(w3.clone()),
+                        left: ir::Operand::Variable(z2),
+                        right: ir::Operand::Variable(w3),
                     }),
                 },
                 ir::Statement::Assignment {
@@ -256,7 +256,7 @@ int main() {
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Variable(t5),
-                        right: ir::Operand::Variable(x1.clone()),
+                        right: ir::Operand::Variable(x1),
                     }),
                 },
                 ir::Statement::Return(Some(t6)),
@@ -267,7 +267,7 @@ int main() {
             ir::JumpMetadata::Linear,
         ));
         expected_ir_block4.add_statement(ir::Statement::Jump(
-            expected_ir_block5.clone(),
+            expected_ir_block5,
             ir::JumpMetadata::Linear,
         ));
 
@@ -303,7 +303,7 @@ int main() {
 }
         ";
         let test_source = general::Source::new("test", test_program);
-        let test_span: general::Span = test_source.clone().into();
+        let test_span: general::Span = test_source.into();
         let tokens = tokenizer::tokenize(test_span);
         let ast = syntax::parse(tokens).unwrap();
         let aast = semantic::parse(ast).unwrap();
@@ -367,12 +367,12 @@ int main() {
                         target: ir::Type::I32,
                     }),
                 },
-                ir::Statement::SaveVariable { var: w0.clone() },
+                ir::Statement::SaveVariable { var: w0 },
                 ir::Statement::Assignment {
                     target: tmp0.clone(),
                     value: ir::Value::Constant(ir::Constant::I64(1)),
                 },
-                ir::Statement::SaveVariable { var: z0.clone() },
+                ir::Statement::SaveVariable { var: z0 },
                 // JumpTrue tmp0
                 // Jump
             ],
@@ -441,13 +441,13 @@ int main() {
                         right: ir::Operand::Variable(w1.clone()),
                     }),
                 },
-                ir::Statement::SaveVariable { var: w1.clone() },
+                ir::Statement::SaveVariable { var: w1 },
                 ir::Statement::Assignment {
                     target: tmp4.clone(),
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Variable(tmp3),
-                        right: ir::Operand::Variable(i1_0.clone()),
+                        right: ir::Operand::Variable(i1_0),
                     }),
                 },
                 ir::Statement::Assignment {
@@ -455,10 +455,10 @@ int main() {
                     value: ir::Value::Expression(ir::Expression::BinaryOp {
                         op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
                         left: ir::Operand::Variable(tmp4),
-                        right: ir::Operand::Variable(i2_0.clone()),
+                        right: ir::Operand::Variable(i2_0),
                     }),
                 },
-                ir::Statement::SaveVariable { var: t1.clone() },
+                ir::Statement::SaveVariable { var: t1 },
                 ir::Statement::Assignment {
                     target: w4.clone(),
                     value: ir::Value::Unknown,
@@ -490,7 +490,7 @@ int main() {
                         target: ir::Type::I32,
                     }),
                 },
-                ir::Statement::SaveVariable { var: w2.clone() },
+                ir::Statement::SaveVariable { var: w2 },
                 // Jump to After-Block
             ],
         );
@@ -520,11 +520,11 @@ int main() {
                 value: ir::Value::Phi {
                     sources: vec![
                         ir::PhiEntry {
-                            var: z1.clone(),
+                            var: z1,
                             block: expected_ir_block_true.weak_ptr(),
                         },
                         ir::PhiEntry {
-                            var: z3.clone(),
+                            var: z3,
                             block: expected_ir_block_after.weak_ptr(),
                         },
                     ],
@@ -542,7 +542,7 @@ int main() {
                             block: expected_ir_block_true.weak_ptr(),
                         },
                         ir::PhiEntry {
-                            var: w4.clone(),
+                            var: w4,
                             block: expected_ir_block_false.weak_ptr(),
                         },
                     ],
@@ -552,8 +552,8 @@ int main() {
                 target: tmp6.clone(),
                 value: ir::Value::Expression(ir::Expression::BinaryOp {
                     op: ir::BinaryOp::Arith(ir::BinaryArithmeticOp::Add),
-                    left: ir::Operand::Variable(z2.clone()),
-                    right: ir::Operand::Variable(w3.clone()),
+                    left: ir::Operand::Variable(z2),
+                    right: ir::Operand::Variable(w3),
                 }),
             },
             ir::Statement::Return(Some(tmp6)),
@@ -563,7 +563,7 @@ int main() {
             ir::JumpMetadata::Linear,
         ));
         expected_ir_block_false.add_statement(ir::Statement::Jump(
-            expected_ir_block_after.clone(),
+            expected_ir_block_after,
             ir::JumpMetadata::Linear,
         ));
 
@@ -600,7 +600,7 @@ int main() {
 }
         ";
         let test_source = general::Source::new("test", test_program);
-        let test_span: general::Span = test_source.clone().into();
+        let test_span: general::Span = test_source.into();
         let tokens = tokenizer::tokenize(test_span);
         let ast = syntax::parse(tokens).unwrap();
         let aast = semantic::parse(ast).unwrap();
@@ -643,7 +643,7 @@ int main() {
 }
         ";
         let test_source = general::Source::new("test", test_program);
-        let test_span: general::Span = test_source.clone().into();
+        let test_span: general::Span = test_source.into();
         let tokens = tokenizer::tokenize(test_span);
         let ast = syntax::parse(tokens).unwrap();
         let aast = semantic::parse(ast).unwrap();

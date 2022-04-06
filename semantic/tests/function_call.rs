@@ -25,7 +25,7 @@ void other() {
             data: 1,
         },
         received: SpanData {
-            span: Span::new_source(input_source.clone(), 45..52),
+            span: Span::new_source(input_source, 45..52),
             data: 0,
         },
     });
@@ -57,7 +57,7 @@ void other() {
             data: AType::Primitve(APrimitive::Int),
         },
         received: SpanData {
-            span: Span::new_source(input_source.clone(), 53..56),
+            span: Span::new_source(input_source, 53..56),
             data: AType::Primitve(APrimitive::Float),
         },
     });
@@ -103,7 +103,7 @@ void other() {
                                     data: "testing".to_string(),
                                 }),
                                 arguments: vec![AExpression::Literal(Literal::Integer(SpanData {
-                                    span: Span::new_source(input_source.clone(), 58..60),
+                                    span: Span::new_source(input_source, 58..60),
                                     data: 13,
                                 }))],
                                 result_ty: AType::Primitve(APrimitive::Void),
