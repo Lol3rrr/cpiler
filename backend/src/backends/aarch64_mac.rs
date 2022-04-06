@@ -404,6 +404,9 @@ impl Target for Backend {
             blocks.extend(func_blocks);
         }
 
+        let post_reg_ir = conf.build_dir.join("reg-ir.s");
+        std::fs::write(&post_reg_ir, ir::text_rep::program_text_rep(&program)).unwrap();
+
         let mut asm_text = "
 .global _start
 .align 2
