@@ -398,14 +398,17 @@ impl Target for Backend {
         for (_, func) in program.functions.iter() {
             let registers = util::registers::allocate_registers(func, &all_registers);
 
+            let reg_ir = conf.build_dir.join(format!("reg-{}-ir.s", func.name));
+            std::fs::write(&reg_ir, ir::text_rep::generate_text_rep(func)).unwrap();
+
             util::destructure::destructure_func(func);
 
             let func_blocks = self.codegen(func, registers);
             blocks.extend(func_blocks);
         }
 
-        let post_reg_ir = conf.build_dir.join("reg-ir.s");
-        std::fs::write(&post_reg_ir, ir::text_rep::program_text_rep(&program)).unwrap();
+        let post_dest_ir = conf.build_dir.join("dest-ir.s");
+        std::fs::write(&post_dest_ir, ir::text_rep::program_text_rep(&program)).unwrap();
 
         let mut asm_text = "
 .global _start
