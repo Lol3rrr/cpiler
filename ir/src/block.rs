@@ -557,6 +557,9 @@ impl BasicBlock {
                         succ_live_vars.push(target_vars);
                     } else if Some(target.as_ptr()) == end_block_ptr {
                         succ_live_vars.push(HashSet::new());
+                    } else {
+                        dbg!(&end_block_ptr, target.as_ptr(), succs.len());
+                        // todo!("Successor was already visited");
                     }
                 }
                 Statement::JumpTrue(_, target, _) => {
@@ -571,13 +574,17 @@ impl BasicBlock {
                         succ_live_vars.push(target_vars);
                     } else if Some(target.as_ptr()) == end_block_ptr {
                         succ_live_vars.push(HashSet::new());
+                    } else {
+                        dbg!(&end_block_ptr, target.as_ptr());
+                        // todo!("Successor was already visited");
                     }
                 }
                 _ => {}
             };
         }
 
-        assert_eq!(succs.len(), succ_live_vars.len());
+        dbg!(succs.keys());
+        assert!(succs.len().abs_diff(succ_live_vars.len()) <= 1);
 
         if succ_live_vars.len() < 2 {
             return;
