@@ -27,7 +27,11 @@ pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
 
 pub(crate) fn load_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        todo!("Loading Global")
+        let global_name = var.name.clone();
+        ir::Statement::Assignment {
+            target: var,
+            value: ir::Value::Expression(ir::Expression::ReadGlobalVariable { name: global_name }),
+        }
     } else {
         ir::Statement::Assignment {
             target: var,

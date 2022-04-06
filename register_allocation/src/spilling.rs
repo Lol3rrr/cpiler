@@ -247,6 +247,10 @@ fn replace_used_variables(
             *var = n_var.clone();
         }
         ir::Statement::JumpTrue(_, _, _) => {}
+        ir::Statement::SaveGlobalVariable { var } if var == previous => {
+            *var = n_var.clone();
+        }
+        ir::Statement::SaveGlobalVariable { .. } => {}
         other => {
             dbg!(&other);
             todo!()
