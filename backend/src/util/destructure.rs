@@ -3,6 +3,9 @@
 use ir::{Statement, Value};
 
 /// Destructures a Function in SSA form into a non SSA form and resolves thinks like Phi Functions
+///
+/// TODO
+/// Currently replaces the Phis with a save and load
 pub fn destructure_func(func: &ir::FunctionDefinition) {
     for c_block in func.block.block_iter() {
         let statements = c_block.get_statements();
@@ -40,9 +43,8 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
 
                 s_stmnts.insert(
                     assign_index,
-                    Statement::Assignment {
-                        target: p_target.clone(),
-                        value: Value::Variable(source.var.clone()),
+                    Statement::SaveVariable {
+                        var: source.var.clone(),
                     },
                 );
 
@@ -53,14 +55,15 @@ pub fn destructure_func(func: &ir::FunctionDefinition) {
         c_block.set_statements(
             statements
                 .into_iter()
-                .filter(|s| {
-                    !matches!(
-                        s,
-                        Statement::Assignment {
-                            value: Value::Phi { .. },
-                            ..
-                        }
-                    )
+                .map(|s| match s {
+                    Statement::Assignment {
+                        target,
+                        value: Value::Phi { .. },
+                    } => Statement::Assignment {
+                        target,
+                        value: Value::Unknown,
+                    },
+                    o => o,
                 })
                 .collect(),
         );
