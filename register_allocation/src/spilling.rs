@@ -226,6 +226,13 @@ fn replace_used_variables(
                             src.var = n_var.clone();
                         }
                     }
+
+                    let first = sources.first().expect("");
+                    if sources.iter().all(|v| first.var == v.var) {
+                        let var = first.var.clone();
+
+                        *value = ir::Value::Variable(var);
+                    }
                 }
                 ir::Value::Constant(_) => {}
                 ir::Value::Unknown => {}
