@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::{load_statement, save_statement};
 
-use super::{limit, Reload};
+use super::{limit, RegisterConfig, Reload};
 
 #[derive(Debug)]
 enum MinAction {
@@ -14,7 +14,7 @@ pub fn min_algorithm(
     block: &ir::BasicBlock,
     current_vars: &mut BTreeSet<ir::Variable>,
     spilled: &mut BTreeSet<ir::Variable>,
-    max_vars: usize,
+    max_vars: RegisterConfig,
     across_distance: HashMap<ir::Variable, usize>,
 ) -> Vec<Reload> {
     let statements = block.get_statements();
@@ -43,17 +43,35 @@ pub fn min_algorithm(
         let spill_first = limit(
             current_vars,
             spilled,
-            &statements,
-            index,
+            &statements[index..],
             max_vars,
             &across_distance,
         );
+
+        let used_vars = definition
+            .as_ref()
+            .map(|v| {
+                if v.ty.is_float() {
+                    RegisterConfig {
+                        general_purpose_count: 0,
+                        floating_point_count: 1,
+                    }
+                } else {
+                    RegisterConfig {
+                        general_purpose_count: 1,
+                        floating_point_count: 0,
+                    }
+                }
+            })
+            .unwrap_or(RegisterConfig {
+                general_purpose_count: 0,
+                floating_point_count: 0,
+            });
         let spill_second = limit(
             current_vars,
             spilled,
-            &statements,
-            index + 1,
-            max_vars - definition.as_ref().map(|_| 1).unwrap_or(0),
+            &statements[index + 1..],
+            max_vars - used_vars,
             &across_distance,
         );
 

@@ -2,6 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    ops::Sub,
     vec,
 };
 
@@ -13,6 +14,9 @@ use min::min_algorithm;
 
 mod reload_list;
 use self::reload_list::ReloadList;
+
+mod limit;
+use limit::limit;
 
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
@@ -396,8 +400,7 @@ fn connect_preds<'i, PI>(
 
 fn intialize_register_sets(
     func: &ir::FunctionDefinition,
-    available_registers: usize,
-    max_vars: usize,
+    max_vars: RegisterConfig,
     dbg_ctx: &mut DebugContext,
 ) {
     let root = &func.block;
@@ -521,7 +524,7 @@ fn intialize_register_sets(
 
             let candidates: BTreeSet<_> = i_b.intersection(&vars_used_in_loop).cloned().collect();
 
-            assert!(candidates.len() <= max_vars);
+            assert!(candidates.len() <= max_vars.total());
 
             let mut entry_vars = candidates;
             // Fill entry_vars with more candidates to increase efficiency
@@ -529,8 +532,10 @@ fn intialize_register_sets(
             // Use different metric for refill-count, instead use max_vars - max-used-registers-in-loop
 
             // This should be the Max-Number of used registers in the Loop itself
-            let max_used_registers = max_vars;
-            let fill_count = max_vars.saturating_sub(max_used_registers);
+            let max_used_registers = max_vars.general_purpose_count;
+            let fill_count = max_vars
+                .general_purpose_count
+                .saturating_sub(max_used_registers);
             for (_, ent) in (0..fill_count).zip(i_b) {
                 entry_vars.insert(ent);
             }
@@ -555,7 +560,11 @@ fn intialize_register_sets(
 
             let mut entry_vars = all;
             // Fill entry_vars with more variables for better efficiency
-            for (_, ent) in (0..(max_vars.saturating_sub(entry_vars.len()))).zip(some) {
+            for (_, ent) in (0..(max_vars
+                .general_purpose_count
+                .saturating_sub(entry_vars.len())))
+                .zip(some)
+            {
                 entry_vars.insert(ent);
             }
 
@@ -652,64 +661,27 @@ fn intialize_register_sets(
     assert!(pending_blocks.is_empty());
 }
 
-fn limit(
-    current_vars: &mut BTreeSet<ir::Variable>,
-    spilled: &mut BTreeSet<ir::Variable>,
-    instructions: &[ir::Statement],
-    current: usize,
-    max_vars: usize,
-    across_distance: &HashMap<ir::Variable, usize>,
-) -> Vec<ir::Variable> {
-    let local_distance: BTreeMap<_, _> = instructions
-        .iter()
-        .skip(current)
-        .enumerate()
-        .rev()
-        .flat_map(|(i, s)| s.used_vars().into_iter().zip(std::iter::repeat(i)))
-        .collect();
-
-    let max_local_distance = local_distance.values().cloned().max().unwrap_or(0);
-    let max_across_distance = across_distance
-        .values()
-        .cloned()
-        .map(|v| v + max_local_distance)
-        .max()
-        .unwrap_or(0)
-        .max(local_distance.values().cloned().max().unwrap_or(0));
-
-    let mut sorted_current = current_vars
-        .iter()
-        .cloned()
-        .map(|var| match local_distance.get(&var) {
-            Some(dist) => (var, *dist),
-            None => match across_distance.get(&var) {
-                Some(ad) => (var, *ad + max_local_distance),
-                None => (var, max_across_distance + 3),
-            },
-        })
-        .collect::<Vec<_>>();
-    sorted_current.sort_by_key(|(_, d)| *d);
-
-    let mut result = Vec::new();
-    for (tmp, dist) in sorted_current.iter().skip(max_vars) {
-        if !spilled.contains(tmp) && *dist < max_across_distance + 2 {
-            result.push(tmp.clone());
-        }
-
-        spilled.remove(tmp);
-    }
-
-    *current_vars = sorted_current
-        .into_iter()
-        .take(max_vars)
-        .map(|(v, _)| v)
-        .collect();
-    result
-}
-
+#[derive(Debug, Clone, Copy)]
 pub struct RegisterConfig {
     pub general_purpose_count: usize,
     pub floating_point_count: usize,
+}
+
+impl Sub for RegisterConfig {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            general_purpose_count: self.general_purpose_count - other.general_purpose_count,
+            floating_point_count: self.floating_point_count - other.floating_point_count,
+        }
+    }
+}
+
+impl RegisterConfig {
+    pub fn total(&self) -> usize {
+        self.general_purpose_count + self.floating_point_count
+    }
 }
 
 pub fn spill(
@@ -719,10 +691,5 @@ pub fn spill(
 ) {
     // TODO
     // Handle the max register Count correctly
-    intialize_register_sets(
-        func,
-        available_registers.general_purpose_count,
-        available_registers.general_purpose_count,
-        dbg_ctx,
-    );
+    intialize_register_sets(func, available_registers, dbg_ctx);
 }
