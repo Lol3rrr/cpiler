@@ -75,17 +75,33 @@ impl DefaultInterferenceGraph {
     pub fn to_dot(&self) -> String {
         let mut graph = graphviz::RootGraph::new();
 
+        let mut cons = HashMap::new();
+
         for node in self.nodes.iter() {
             let name = format!("{}_{}", node.var.name, node.var.generation());
 
             graph.add_node(graphviz::Node::new(name));
+
+            cons.insert(node.clone(), HashSet::new());
         }
 
         for (first, second) in self.edges.iter() {
+            let second_targets = cons.get(second).unwrap();
+            if second_targets.contains(first) {
+                continue;
+            }
+
+            let first_targets = cons.get_mut(first).unwrap();
+            if first_targets.contains(second) {
+                continue;
+            }
+
             let first_name = format!("{}_{}", first.var.name, first.var.generation());
             let second_name = format!("{}_{}", second.var.name, second.var.generation());
 
             graph.add_edge(graphviz::Edge::new(&first_name, &second_name).add_label("dir", "none"));
+
+            first_targets.insert(second.clone());
         }
 
         graph.finalize()

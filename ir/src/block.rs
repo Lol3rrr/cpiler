@@ -480,36 +480,7 @@ impl BasicBlock {
         let following_uses = self.following_uses();
         let statements = self.get_statements();
 
-        let succs: HashMap<_, _> = self
-            .successors()
-            .into_iter()
-            .filter(|(p, _)| !visited.contains(p))
-            .collect();
-        let mut succ_live_vars = Vec::new();
-
-        assert!(succs.len() <= 2);
-
-        let end_block = if succs.len() == 2 {
-            let (left, right) = {
-                let mut tmp = succs.iter().map(|(_, b)| b);
-                (tmp.next().unwrap(), tmp.next().unwrap())
-            };
-
-            let end_block = match left.earliest_common_block(right) {
-                Some(b) => b,
-                None => {
-                    dbg!(&left, &right);
-
-                    todo!()
-                }
-            };
-
-            Some(end_block)
-        } else {
-            None
-        };
-
-        let end_block_ptr = end_block.as_ref().map(|b| b.as_ptr());
+        let mut live_var_jumps = Vec::new();
 
         for (index, stmnt) in statements.into_iter().enumerate() {
             update(live_vars, self, index);
@@ -546,57 +517,66 @@ impl BasicBlock {
                     live_vars.insert(target.clone());
                 }
                 Statement::Jump(target, _) => {
-                    if !visited.contains(&target.as_ptr()) {
-                        if let Some(ptr) = end_block_ptr {
-                            visited.insert(ptr);
-                        }
-
-                        let mut target_vars = live_vars.clone();
-                        target.interference_graph(graph, &mut target_vars, visited, update);
-
-                        succ_live_vars.push(target_vars);
-                    } else if Some(target.as_ptr()) == end_block_ptr {
-                        succ_live_vars.push(HashSet::new());
-                    } else {
-                        dbg!(&end_block_ptr, target.as_ptr(), succs.len());
-                        // todo!("Successor was already visited");
-                    }
+                    live_var_jumps.push((target.clone(), live_vars.clone()));
                 }
                 Statement::JumpTrue(_, target, _) => {
-                    if !visited.contains(&target.as_ptr()) {
-                        if let Some(ptr) = end_block_ptr {
-                            visited.insert(ptr);
-                        }
-
-                        let mut target_vars = live_vars.clone();
-                        target.interference_graph(graph, &mut target_vars, visited, update);
-
-                        succ_live_vars.push(target_vars);
-                    } else if Some(target.as_ptr()) == end_block_ptr {
-                        succ_live_vars.push(HashSet::new());
-                    } else {
-                        dbg!(&end_block_ptr, target.as_ptr());
-                        // todo!("Successor was already visited");
-                    }
+                    live_var_jumps.push((target.clone(), live_vars.clone()));
                 }
                 _ => {}
             };
         }
 
-        dbg!(succs.keys());
-        assert!(succs.len().abs_diff(succ_live_vars.len()) <= 1);
-
-        if succ_live_vars.len() < 2 {
+        let succs: Vec<_> = live_var_jumps
+            .into_iter()
+            .filter(|(p, _)| !visited.contains(&p.as_ptr()))
+            .collect();
+        if succs.is_empty() {
             return;
         }
 
-        let end_block = end_block.expect("We have 2 or more successors");
+        if succs.len() == 1 {
+            let (single_succ, mut s_vars) = succs.into_iter().next().unwrap();
+            single_succ.interference_graph(graph, &mut s_vars, visited, update);
+            return;
+        }
 
-        let mut n_live: HashSet<_> = succ_live_vars
-            .into_iter()
-            .flat_map(|l| l.into_iter())
-            .collect();
+        assert!(succs.len() == 2);
+        let (left, right) = {
+            let mut tmp = succs.into_iter();
+            (tmp.next().unwrap(), tmp.next().unwrap())
+        };
 
+        let end_block = match left.0.earliest_common_block(&right.0) {
+            Some(b) => b,
+            None => {
+                dbg!(&left, &right);
+
+                for left_succ in left.0.block_iter() {
+                    dbg!(left_succ.as_ptr());
+                }
+                for right_succ in right.0.block_iter() {
+                    dbg!(right_succ.as_ptr());
+                }
+
+                todo!()
+            }
+        };
+
+        visited.insert(end_block.as_ptr());
+        let mut left_live = left.1;
+        left.0
+            .interference_graph(graph, &mut left_live, visited, update);
+
+        let mut right_live = right.1;
+        right
+            .0
+            .interference_graph(graph, &mut right_live, visited, update);
+
+        let mut n_live = {
+            let mut tmp = left_live;
+            tmp.extend(right_live);
+            tmp
+        };
         end_block.interference_graph(graph, &mut n_live, visited, update);
     }
 

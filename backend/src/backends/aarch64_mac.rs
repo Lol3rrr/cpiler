@@ -248,6 +248,7 @@ impl Backend {
     fn global_init(
         &self,
         global: ir::BasicBlock,
+        ctx: &TargetConfig,
     ) -> (String, Vec<asm::Block>, Vec<(String, ir::Type)>) {
         let global_vars: HashMap<String, ir::Type> = global
             .get_statements()
@@ -270,7 +271,11 @@ impl Backend {
         let leading_block = ir::BasicBlock::new(Vec::new(), Vec::new());
         global.add_predecessor(leading_block.weak_ptr());
 
-        let registers = util::registers::allocate_registers(&tmp_func, &Self::registers());
+        let registers = util::registers::allocate_registers(
+            &tmp_func,
+            &Self::registers(),
+            Some(ctx.build_dir.clone()),
+        );
         util::destructure::destructure_func(&tmp_func);
 
         let func_blocks = self.codegen(&tmp_func, registers);
@@ -316,7 +321,7 @@ impl Backend {
         }
     }
 
-    fn asm_start_func(&self, init_name: &str) -> Vec<asm::Block> {
+    fn asm_start_func(&self, init_name: &str, ctx: &TargetConfig) -> Vec<asm::Block> {
         let lead_block = ir::BasicBlock::new(vec![], vec![]);
 
         let res_var = ir::Variable::new("main_res", ir::Type::I32);
@@ -346,7 +351,11 @@ impl Backend {
             block: raw_block,
         };
 
-        let registers = util::registers::allocate_registers(&raw_func, &Self::registers());
+        let registers = util::registers::allocate_registers(
+            &raw_func,
+            &Self::registers(),
+            Some(ctx.build_dir.clone()),
+        );
 
         util::destructure::destructure_func(&raw_func);
 
@@ -391,12 +400,17 @@ impl register_allocation::Register for ArmRegister {
 
 impl Target for Backend {
     fn generate(&self, program: ir::Program, conf: TargetConfig) {
-        let (g_init_name, global_blocks, global_vars) = self.global_init(program.global.clone());
+        let (g_init_name, global_blocks, global_vars) =
+            self.global_init(program.global.clone(), &conf);
 
         let all_registers = Self::registers();
         let mut blocks = Vec::new();
         for (_, func) in program.functions.iter() {
-            let registers = util::registers::allocate_registers(func, &all_registers);
+            let registers = util::registers::allocate_registers(
+                func,
+                &all_registers,
+                Some(conf.build_dir.clone()),
+            );
 
             let reg_ir = conf.build_dir.join(format!("reg-{}-ir.s", func.name));
             std::fs::write(&reg_ir, ir::text_rep::generate_text_rep(func)).unwrap();
@@ -445,7 +459,7 @@ impl Target for Backend {
             })
             .unzip();
 
-        let start_block = self.asm_start_func(&g_init_name);
+        let start_block = self.asm_start_func(&g_init_name, &conf);
 
         for block in start_block.into_iter().chain(global_blocks).chain(blocks) {
             let block_text = block.to_text();

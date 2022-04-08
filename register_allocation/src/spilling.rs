@@ -247,6 +247,10 @@ fn replace_used_variables(
             *var = n_var.clone();
         }
         ir::Statement::SaveGlobalVariable { .. } => {}
+        ir::Statement::WriteMemory { target, value } => {
+            replace_operand(target, previous, n_var);
+            replace_operand(value, previous, n_var);
+        }
         other => {
             dbg!(&other);
             todo!()

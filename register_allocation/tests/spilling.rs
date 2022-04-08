@@ -21,7 +21,7 @@ impl register_allocation::Register for TestRegister {
 }
 
 mod conditional {
-    use register_allocation::RegisterMapping;
+    use register_allocation::{AllocationCtx, RegisterMapping};
 
     use super::*;
 
@@ -61,6 +61,7 @@ int main() {
                 TestRegister::GeneralPurpose(3),
                 TestRegister::GeneralPurpose(4),
             ],
+            AllocationCtx { build_path: None },
         );
 
         dbg!(&main_func);
@@ -322,6 +323,7 @@ int main() {
                 TestRegister::GeneralPurpose(3),
                 TestRegister::GeneralPurpose(4),
             ],
+            AllocationCtx { build_path: None },
         );
         dbg!(&result_allocation);
 
@@ -579,7 +581,7 @@ int main() {
 }
 
 mod loops {
-    use register_allocation::RegisterMapping;
+    use register_allocation::{AllocationCtx, RegisterMapping};
 
     use super::*;
 
@@ -619,6 +621,7 @@ int main() {
                 TestRegister::GeneralPurpose(3),
                 TestRegister::GeneralPurpose(4),
             ],
+            AllocationCtx { build_path: None },
         );
         dbg!(&result_allocation);
 
@@ -661,6 +664,7 @@ int main() {
                 TestRegister::GeneralPurpose(2),
                 TestRegister::GeneralPurpose(3),
             ],
+            AllocationCtx { build_path: None },
         );
         dbg!(&result_allocation);
 

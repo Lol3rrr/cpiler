@@ -7,6 +7,7 @@
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
+    path::PathBuf,
 };
 
 use spilling::RegisterConfig;
@@ -74,6 +75,10 @@ pub trait Register {
     fn align_size(&self) -> (usize, usize);
 }
 
+pub struct AllocationCtx {
+    pub build_path: Option<PathBuf>,
+}
+
 /// The Mapping of Variables to Registers
 #[derive(Debug, PartialEq, Clone)]
 pub struct RegisterMapping<R> {
@@ -85,7 +90,7 @@ where
     R: Clone + Hash + PartialEq + Eq + Register,
 {
     /// Actually performs the Register allocation
-    pub fn allocate(func: &ir::FunctionDefinition, registers: &[R]) -> Self {
+    pub fn allocate(func: &ir::FunctionDefinition, registers: &[R], ctx: AllocationCtx) -> Self {
         let mut debug_context = DebugContext::new();
         debug_context.add_state(func);
 
@@ -147,6 +152,15 @@ where
                     dbg!(current);
 
                     eprintln!("{}", ir::text_rep::generate_text_rep(func));
+
+                    if let Some(dbg_path) = ctx.build_path {
+                        let mut debug_interference_g = ir::DefaultInterferenceGraph::new();
+                        func.interference_graph(&mut debug_interference_g, |_, _, _| {});
+
+                        let graph_dot = debug_interference_g.to_dot();
+                        let graph_path = dbg_path.join("reg-int.dot");
+                        std::fs::write(graph_path, graph_dot).unwrap();
+                    }
 
                     todo!("Not enough Registers available")
                 }

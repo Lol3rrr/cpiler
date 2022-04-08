@@ -181,7 +181,11 @@ impl Target for Backend {
         let all_registers = Self::avail_registers();
         let mut blocks = Vec::new();
         for (_, func) in program.functions.iter() {
-            let registers = util::registers::allocate_registers(func, &all_registers);
+            let registers = util::registers::allocate_registers(
+                func,
+                &all_registers,
+                Some(conf.build_dir.clone()),
+            );
 
             util::destructure::destructure_func(func);
 

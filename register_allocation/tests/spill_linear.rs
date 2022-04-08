@@ -1,4 +1,4 @@
-use register_allocation::RegisterMapping;
+use register_allocation::{AllocationCtx, RegisterMapping};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 enum TestRegister {
@@ -54,6 +54,7 @@ int main() {
             TestRegister::GeneralPurpose(1),
             TestRegister::GeneralPurpose(2),
         ],
+        AllocationCtx { build_path: None },
     );
     dbg!(&result_allocation);
 
@@ -91,6 +92,7 @@ int main() {
             TestRegister::GeneralPurpose(1),
             TestRegister::GeneralPurpose(2),
         ],
+        AllocationCtx { build_path: None },
     );
     dbg!(&result_allocation);
 
@@ -229,6 +231,7 @@ int main() {
             TestRegister::GeneralPurpose(1),
             TestRegister::GeneralPurpose(2),
         ],
+        AllocationCtx { build_path: None },
     );
     dbg!(&result_allocation);
 
