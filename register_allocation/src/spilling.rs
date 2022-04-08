@@ -86,14 +86,6 @@ fn next_use_distances(
                 tmp_dist.into_iter().map(|(k, v)| (k, v + max_root + 1)),
             );
         }
-        /*
-        if preds.len() == 1 {
-
-        } else {
-
-            todo!("Loop")
-        }
-        */
     } else {
         todo!("More than 2 Successors")
     }
@@ -385,6 +377,8 @@ fn connect_preds<'i, PI>(
                 position: pred_jump_index.unwrap_or_else(|| {
                     // This case should probably never really be hit, but it is in certain test cases so its fine for now, I think
                     dbg!("Predecessor must be global", pred_block.as_ptr());
+                    // TODO
+                    // Figure out what to do here
                     pred_statements.len()
                 }),
             })
