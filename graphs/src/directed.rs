@@ -1,3 +1,5 @@
+//! Contains an implementation for a DirectedGraph
+
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
@@ -80,6 +82,7 @@ where
         }
     }
 
+    /// Returns a Chain like [`chain_iter`], which starts at the Node with the given id
     pub fn chain_from<'g, 'c>(&'g self, id: N::Id) -> DirectedChain<'c, N>
     where
         'g: 'c,
@@ -93,6 +96,16 @@ where
     }
 }
 
+impl<N> Default for DirectedGraph<N>
+where
+    N: GraphNode,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A Chain that can be used to Iterate over a Chain of Entries in Graph
 pub struct DirectedChain<'g, N>
 where
     N: GraphNode,
@@ -117,13 +130,19 @@ where
     /// The Control-Flow has split into multiple Branches, contains a Vec of all the Chains to go over
     /// all the Entries in their respective Chains
     Branched {
+        /// The Head of the Branch, i.e. the last shared Node before the Graph split
         head: N::Id,
+        /// The two Sides of the Branch
         sides: (DirectedChain<'n, N>, DirectedChain<'n, N>),
     },
     /// The Graph has encountered a Cycle, contains the Chain to go over all the Entries in the
     /// Body of the Cycle
     Cycle {
+        /// The Head of the Cycle, i.e. the last shared Node between the inner Chain and the Rest of
+        /// the Graph
         head: N::Id,
+        /// The Chain for the Body of the Cycle, without the Head, so starting with the Node just
+        /// after the Head and ending with the last Node before jumping back to the Head
         inner: DirectedChain<'n, N>,
     },
 }
@@ -132,6 +151,8 @@ impl<'g, N> DirectedChain<'g, N>
 where
     N: GraphNode,
 {
+    /// Overwrites the End of the Chain with the given Id, the End is exclusive so it wont be
+    /// returned when iterating over the Chain
     #[must_use]
     pub fn set_end(mut self, end: N::Id) -> Self {
         self.end = Some(end);
@@ -185,7 +206,7 @@ where
 
                 Some(ChainEntry::Node(next_node))
             }
-            Some(SuccType::Cycle { inner, following }) => {
+            Some(SuccType::Cycle { following, .. }) => {
                 self.next = Some(following);
 
                 Some(ChainEntry::Node(next_node))
