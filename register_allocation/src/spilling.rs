@@ -300,7 +300,7 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
                     }
                     PrevDefinition::Mutliple(vars) => {
                         let n_var = vars.get(0).unwrap().0.next_gen();
-                        dbg!(&n_var);
+                        dbg!(&n_var, &vars);
 
                         let n_var_assign = ir::Statement::Assignment {
                             target: n_var.clone(),

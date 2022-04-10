@@ -213,6 +213,79 @@ where
             }
         }
     }
+
+    /// This creates a new identical Chain that returns the same Entries as the original Chain
+    /// will return without modifying any of the original Chain's state
+    pub fn duplicate(&self) -> Self {
+        Self {
+            previous: self.previous,
+            next: self.next,
+            end: self.end,
+            graph: self.graph,
+        }
+    }
+}
+
+pub struct DirectedFlatChain<'g, N>
+where
+    N: GraphNode,
+{
+    root_chain: DirectedChain<'g, N>,
+    graph: &'g DirectedGraph<N>,
+    pending: Vec<N::Id>,
+}
+
+impl<'g, N> DirectedFlatChain<'g, N>
+where
+    N: GraphNode,
+{
+    pub fn new(chain: DirectedChain<'g, N>) -> Self {
+        Self {
+            graph: chain.graph,
+            root_chain: chain,
+            pending: Vec::new(),
+        }
+    }
+
+    pub fn next_entry(&mut self) -> Option<&'_ N> {
+        if let Some(pended) = self.pending.pop() {
+            return self.graph.get_node(&pended);
+        }
+
+        let raw_next = self.root_chain.next_entry()?;
+
+        match raw_next {
+            ChainEntry::Node(n) => return Some(n),
+            ChainEntry::Branched {
+                sides: (left, right),
+                ..
+            } => {
+                let mut left_flat = DirectedFlatChain::new(left);
+                while let Some(b) = left_flat.next_entry() {
+                    self.pending.push(b.id());
+                }
+
+                let mut right_flat = DirectedFlatChain::new(right);
+                while let Some(b) = right_flat.next_entry() {
+                    self.pending.push(b.id());
+                }
+
+                self.pending
+                    .pop()
+                    .map(|id| self.graph.get_node(&id).unwrap())
+            }
+            ChainEntry::Cycle { head, inner } => {
+                let mut inner_flat = DirectedFlatChain::new(inner);
+                while let Some(b) = inner_flat.next_entry() {
+                    self.pending.push(b.id());
+                }
+
+                self.pending
+                    .pop()
+                    .map(|id| self.graph.get_node(&id).unwrap())
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

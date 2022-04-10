@@ -423,6 +423,7 @@ name = "ir"
 version = "0.1.0"
 dependencies = [
  "general",
+ "graphs",
  "graphviz",
  "optimizer",
  "semantic",
@@ -784,6 +785,7 @@ version = "0.1.0"
 dependencies = [
  "general",
  "ir",
+ "optimizer",
  "semantic",
  "syntax",
  "tokenizer",

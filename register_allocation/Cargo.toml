@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 general = { path = "../general" }
 ir = { path = "../ir" }
+optimizer = { path = "../optimizer" }
 
 [dev-dependencies]
 tokenizer = { path = "../tokenizer" }

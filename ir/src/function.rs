@@ -5,6 +5,8 @@ use crate::{BasicBlock, DominanceTree, InterferenceGraph, ToDot, Type, Variable}
 mod debug;
 use debug::DebugBlocks;
 
+mod interference;
+
 /// A definition of a Function
 #[derive(Clone, PartialEq)]
 pub struct FunctionDefinition {
@@ -68,6 +70,10 @@ impl FunctionDefinition {
         T: InterferenceGraph,
         F: FnMut(&HashSet<Variable>, &BasicBlock, usize),
     {
+        let g = self.to_directed_graph();
+        interference::construct(g, graph);
+        return;
+
         self.block
             .interference_graph(graph, &mut HashSet::new(), &mut HashSet::new(), &mut update);
     }
@@ -75,5 +81,16 @@ impl FunctionDefinition {
     /// Generates the Dominance Tree for this Function
     pub fn dominance_tree(&self) -> DominanceTree {
         self.block.dominance_tree(&mut HashSet::new())
+    }
+
+    /// Converts the Function to a Directed Graph for easier Processing and handling
+    pub fn to_directed_graph(&self) -> graphs::directed::DirectedGraph<BasicBlock> {
+        let mut graph = graphs::directed::DirectedGraph::new();
+
+        for block in self.block.block_iter() {
+            graph.add_node(block);
+        }
+
+        graph
     }
 }

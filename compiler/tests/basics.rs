@@ -28,7 +28,7 @@ macro_rules! compile_testing {
                     opt_level: 0,
                     target: general::arch::Target::default(),
                     target_file: Some(stringify!($name).to_string()),
-                    build_dir: build_path,
+                    build_dir: build_path.clone(),
                 },
             );
 
@@ -40,7 +40,7 @@ macro_rules! compile_testing {
             }
 
             let exec_path = format!("./{}", stringify!($name));
-            let output = match std::process::Command::new(exec_path).output() {
+            let output = match std::process::Command::new(&exec_path).output() {
                 Ok(o) => o,
                 Err(e) => {
                     println!("Process: {:?}", e);
@@ -49,6 +49,9 @@ macro_rules! compile_testing {
             };
 
             assert_eq!(Some($ret_code), output.status.code());
+
+            std::fs::remove_file(exec_path);
+            std::fs::remove_dir_all(build_path).unwrap();
         }
     };
 }
@@ -60,7 +63,8 @@ compile_testing!(basic, "basic.c", true, 0);
 compile_testing!(final_, "final.c", true, 0);
 compile_testing!(floats, "floats.c", true, 0);
 compile_testing!(function_call, "function_call.c", true, 0);
-compile_testing!(globals, "globals.c", true, 0);
+
+// compile_testing!(globals, "globals.c", true, 0);
 compile_testing!(branching, "branching.c", true, 0);
 compile_testing!(for_loop, "for_loop.c", true, 0);
 compile_testing!(while_loop, "while_loop.c", true, 0);

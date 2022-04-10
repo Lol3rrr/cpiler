@@ -3,3 +3,4 @@
 #![warn(missing_docs)]
 
 pub mod directed;
+pub mod undirected;

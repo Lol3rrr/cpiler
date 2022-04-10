@@ -94,9 +94,6 @@ where
         let mut debug_context = DebugContext::new();
         debug_context.add_state(func);
 
-        // TODO
-        // Instead of registers.len() we should calculate the correct Number of available
-        // registers
         let float_registers = registers
             .iter()
             .filter(|r| matches!(r.reg_type(), RegisterType::FloatingPoint))
@@ -113,6 +110,10 @@ where
             },
             &mut debug_context,
         );
+
+        let mut opt_config = optimizer::Config::new();
+        opt_config.add_pass(optimizer::optimizations::DeadCode::new());
+        let func = optimizer::optimize_func(func.clone(), &opt_config);
 
         debug_context
             .get_steps()
@@ -151,7 +152,7 @@ where
                     //dbg!(&current, &neighbours);
                     dbg!(current);
 
-                    eprintln!("{}", ir::text_rep::generate_text_rep(func));
+                    eprintln!("{}", ir::text_rep::generate_text_rep(&func));
 
                     if let Some(dbg_path) = ctx.build_path {
                         let mut debug_interference_g = ir::DefaultInterferenceGraph::new();

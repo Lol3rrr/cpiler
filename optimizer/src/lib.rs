@@ -41,6 +41,15 @@ pub trait OptimizationPass {
 
 impl<T> Optimization for T where T: OptimizationPass {}
 
+pub fn optimize_func(func: ir::FunctionDefinition, config: &Config) -> ir::FunctionDefinition {
+    let mut result = func;
+    for pass in config.passes.iter() {
+        result = pass.pass_function(result);
+    }
+
+    result
+}
+
 /// This will actually apply the given Optimization Config to the Program
 pub fn optimize(ir: Program, config: Config) -> Program {
     let mut result = Program {

@@ -98,6 +98,19 @@ impl CompareGraph for BasicBlock {
     }
 }
 
+impl graphs::directed::GraphNode for BasicBlock {
+    type Id = *const InnerBlock;
+    type SuccessorIterator = std::collections::btree_map::IntoKeys<Self::Id, Self>;
+
+    fn id(&self) -> Self::Id {
+        self.as_ptr()
+    }
+
+    fn successors(&self) -> Self::SuccessorIterator {
+        self.successors().into_keys()
+    }
+}
+
 impl From<Arc<InnerBlock>> for BasicBlock {
     fn from(inner: Arc<InnerBlock>) -> Self {
         Self(inner)
