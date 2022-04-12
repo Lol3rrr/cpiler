@@ -142,6 +142,11 @@ impl Backend {
                 ir::Type::I64 => (8, 8),
                 ir::Type::Pointer(_) => (8, 8),
                 ir::Type::Float => (4, 4),
+                ir::Type::Void => {
+                    // TODO
+                    // This should probably not happen
+                    (1, 1)
+                }
                 other => {
                     dbg!(&other);
                     todo!()

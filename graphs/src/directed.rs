@@ -105,6 +105,15 @@ where
     }
 }
 
+impl<'g, N> From<&'g DirectedGraph<N>> for DirectedChain<'g, N>
+where
+    N: GraphNode,
+{
+    fn from(other: &'g DirectedGraph<N>) -> Self {
+        other.chain_iter()
+    }
+}
+
 /// A Chain that can be used to Iterate over a Chain of Entries in Graph
 pub struct DirectedChain<'g, N>
 where
@@ -160,7 +169,7 @@ where
     }
 
     /// Gets the next Entry in the current Chain of Nodes, which may be an actual Node or a Split in the Control-Flow
-    pub fn next_entry(&mut self) -> Option<ChainEntry<'_, N>> {
+    pub fn next_entry(&mut self) -> Option<ChainEntry<'g, N>> {
         let next_id = self.next.take()?;
 
         if let Some(prev) = self.previous.take() {
@@ -224,8 +233,31 @@ where
             graph: self.graph,
         }
     }
+
+    /// The Graph to which this chain belongs
+    pub fn graph(&self) -> &'g DirectedGraph<N> {
+        self.graph
+    }
+
+    /// Turns the current Chain into a flattened Chain
+    pub fn flatten(self) -> DirectedFlatChain<'g, N> {
+        DirectedFlatChain::new(self)
+    }
 }
 
+impl<'g, N> Iterator for DirectedChain<'g, N>
+where
+    N: GraphNode,
+{
+    type Item = ChainEntry<'g, N>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_entry()
+    }
+}
+
+/// A Chain that Flattens all control Structures in its root chain and therefore only returns
+/// entries
 pub struct DirectedFlatChain<'g, N>
 where
     N: GraphNode,
@@ -239,6 +271,7 @@ impl<'g, N> DirectedFlatChain<'g, N>
 where
     N: GraphNode,
 {
+    /// Creates a new Flat-Chain based on the given Chain
     pub fn new(chain: DirectedChain<'g, N>) -> Self {
         Self {
             graph: chain.graph,
@@ -247,7 +280,8 @@ where
         }
     }
 
-    pub fn next_entry(&mut self) -> Option<&'_ N> {
+    /// Obtains the next Entry in the Chain
+    pub fn next_entry(&mut self) -> Option<&'g N> {
         if let Some(pended) = self.pending.pop() {
             return self.graph.get_node(&pended);
         }
@@ -255,7 +289,7 @@ where
         let raw_next = self.root_chain.next_entry()?;
 
         match raw_next {
-            ChainEntry::Node(n) => return Some(n),
+            ChainEntry::Node(n) => Some(n),
             ChainEntry::Branched {
                 sides: (left, right),
                 ..
@@ -274,7 +308,7 @@ where
                     .pop()
                     .map(|id| self.graph.get_node(&id).unwrap())
             }
-            ChainEntry::Cycle { head, inner } => {
+            ChainEntry::Cycle { inner, .. } => {
                 let mut inner_flat = DirectedFlatChain::new(inner);
                 while let Some(b) = inner_flat.next_entry() {
                     self.pending.push(b.id());
@@ -285,6 +319,17 @@ where
                     .map(|id| self.graph.get_node(&id).unwrap())
             }
         }
+    }
+}
+
+impl<'g, N> Iterator for DirectedFlatChain<'g, N>
+where
+    N: GraphNode,
+{
+    type Item = &'g N;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_entry()
     }
 }
 
@@ -363,6 +408,65 @@ where
     }
 
     unreachable!()
+}
+
+enum InnerChained {
+    First,
+    Second,
+    Done,
+}
+
+/// Used to Chain 2 chains together
+pub struct DirectedChainedChain<'g1, 'g2, N>
+where
+    N: GraphNode,
+{
+    state: InnerChained,
+    first: DirectedChain<'g1, N>,
+    second: DirectedChain<'g2, N>,
+}
+
+impl<'g1, 'g2, N> DirectedChainedChain<'g1, 'g2, N>
+where
+    N: GraphNode,
+{
+    /// Creates a new Chain from the given Chains
+    pub fn new(first: DirectedChain<'g1, N>, second: DirectedChain<'g2, N>) -> Self {
+        Self {
+            state: InnerChained::First,
+            first,
+            second,
+        }
+    }
+
+    /// Gets the next Entry
+    pub fn next_entry(&mut self) -> Option<ChainEntry<'_, N>> {
+        match self.state {
+            InnerChained::First => {
+                if let Some(e) = self.first.next_entry() {
+                    return Some(e);
+                }
+
+                self.state = InnerChained::Second;
+
+                if let Some(e) = self.second.next_entry() {
+                    return Some(e);
+                }
+
+                None
+            }
+            InnerChained::Second => {
+                if let Some(e) = self.second.next_entry() {
+                    return Some(e);
+                }
+
+                self.state = InnerChained::Done;
+
+                None
+            }
+            InnerChained::Done => None,
+        }
+    }
 }
 
 mod mocks {

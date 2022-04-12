@@ -24,7 +24,7 @@ mod block;
 pub use block::*;
 
 mod function;
-pub use function::*;
+pub use function::FunctionDefinition;
 
 mod statement;
 pub use statement::*;

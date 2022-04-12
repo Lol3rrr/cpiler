@@ -91,6 +91,10 @@ pub fn load(
                 _ => {}
             };
         }
+        ir::Type::Void => {
+            // TODO
+            // We cant load a Void Type
+        }
         other => {
             dbg!(&other);
 

@@ -194,3 +194,98 @@ impl Default for DefaultInterferenceGraph {
         Self::new()
     }
 }
+
+/// An Interference Graph Datastructure that also keeps track of the largets Clique in the Graph,
+/// which makes it a bit slower as the [`DefaultInterferenceGraph`] but this difference should
+/// not be too dramatic in most cases
+#[derive(Debug, PartialEq)]
+pub struct MaxInterferenceGraph {
+    nodes: HashSet<NodeId>,
+    edges: HashMap<NodeId, HashSet<NodeId>>,
+    largest: Option<(NodeId, usize)>,
+}
+
+impl MaxInterferenceGraph {
+    /// Creates a new empty Graph Instance
+    pub fn new() -> Self {
+        Self {
+            nodes: HashSet::new(),
+            edges: HashMap::new(),
+            largest: None,
+        }
+    }
+
+    /// Returns an Iterator over the Nodes of the Graph
+    pub fn nodes_iter(&self) -> impl Iterator<Item = &NodeId> + '_ {
+        self.nodes.iter()
+    }
+
+    /// Returns an Iterator over all the Neighbouring Nodes of the given Node
+    pub fn neighbours<N>(&self, node: N) -> Option<impl Iterator<Item = &NodeId> + '_>
+    where
+        N: Into<NodeId>,
+    {
+        let id = node.into();
+        let entries = self.edges.get(&id)?;
+
+        Some(entries.iter())
+    }
+}
+
+impl InterferenceGraph for MaxInterferenceGraph {
+    fn add_node<N>(&mut self, name: N)
+    where
+        N: Into<NodeId>,
+    {
+        let id = name.into();
+        self.nodes.insert(id.clone());
+        self.edges.insert(id, HashSet::new());
+    }
+
+    fn add_edge<F, S>(&mut self, first: F, second: S)
+    where
+        F: Into<NodeId>,
+        S: Into<NodeId>,
+    {
+        let first_id = first.into();
+        let second_id = second.into();
+
+        let first_entry = self.edges.entry(first_id.clone());
+        let first_edges = first_entry.or_insert_with(HashSet::new);
+        first_edges.insert(second_id.clone());
+
+        match self.largest.as_mut() {
+            Some((var, count)) => {
+                if first_edges.len() > *count {
+                    *count = first_edges.len();
+                    *var = first_id.clone();
+                }
+            }
+            None => {
+                self.largest = Some((first_id.clone(), first_edges.len()));
+            }
+        };
+
+        let second_entry = self.edges.entry(second_id.clone());
+        let second_edges = second_entry.or_insert_with(HashSet::new);
+        second_edges.insert(first_id.clone());
+
+        match self.largest.as_mut() {
+            Some((var, count)) => {
+                if second_edges.len() > *count {
+                    *count = second_edges.len();
+                    *var = second_id;
+                }
+            }
+            None => {
+                self.largest = Some((first_id, second_edges.len()));
+            }
+        };
+    }
+}
+
+impl Default for MaxInterferenceGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -41,6 +41,7 @@ pub trait OptimizationPass {
 
 impl<T> Optimization for T where T: OptimizationPass {}
 
+/// This is used to optimize a single Function with the given Configuration
 pub fn optimize_func(func: ir::FunctionDefinition, config: &Config) -> ir::FunctionDefinition {
     let mut result = func;
     for pass in config.passes.iter() {

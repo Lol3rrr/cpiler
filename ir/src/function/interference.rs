@@ -1,8 +1,8 @@
-use std::{collections::HashMap, env::VarError, panic};
+use std::{collections::HashMap, panic};
 
 use graphs::directed::{ChainEntry, DirectedChain, DirectedFlatChain, DirectedGraph};
 
-use crate::{BasicBlock, DefaultInterferenceGraph, InterferenceGraph, Statement, Variable};
+use crate::{BasicBlock, InterferenceGraph, Statement, Variable};
 
 #[derive(Debug, PartialEq, Clone)]
 struct LiveVars {
@@ -144,8 +144,8 @@ fn construct_chain<'c, I>(
                 }
             }
             ChainEntry::Branched {
-                head,
                 sides: (mut left, mut right),
+                ..
             } => {
                 let uses_func = |var: &Variable| {
                     let mut check_chain = prev_chain.duplicate();
@@ -162,7 +162,7 @@ fn construct_chain<'c, I>(
 
                 live_vars.merge_branched(left_vars, right_vars);
             }
-            ChainEntry::Cycle { head, mut inner } => {
+            ChainEntry::Cycle { mut inner, .. } => {
                 let uses_func = |var: &Variable| {
                     let mut check_chain = prev_chain.duplicate();
                     let _ = check_chain.next_entry();
@@ -182,10 +182,12 @@ fn construct_chain<'c, I>(
 }
 
 /// Constructs the Interference Graph for the given Graph
-pub fn construct(graph: DirectedGraph<BasicBlock>, result: &mut impl InterferenceGraph) {
-    let mut root_chain = graph.chain_iter();
-    let mut live_vars = LiveVars {
-        vars: HashMap::new(),
-    };
-    construct_chain(&graph, &mut root_chain, result, &mut live_vars, &|_| 0);
+pub fn construct<'g, C>(graph: C, result: &mut impl InterferenceGraph)
+where
+    C: Into<DirectedChain<'g, BasicBlock>>,
+{
+    let mut root_chain = graph.into();
+    let graph = root_chain.graph();
+    let mut live_vars = LiveVars::new();
+    construct_chain(graph, &mut root_chain, result, &mut live_vars, &|_| 0);
 }

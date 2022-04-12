@@ -784,6 +784,7 @@ name = "register_allocation"
 version = "0.1.0"
 dependencies = [
  "general",
+ "graphs",
  "ir",
  "optimizer",
  "semantic",

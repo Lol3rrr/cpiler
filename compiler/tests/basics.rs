@@ -40,6 +40,7 @@ macro_rules! compile_testing {
             }
 
             let exec_path = format!("./{}", stringify!($name));
+            println!("Running: {:?}", exec_path);
             let output = match std::process::Command::new(&exec_path).output() {
                 Ok(o) => o,
                 Err(e) => {
@@ -50,7 +51,7 @@ macro_rules! compile_testing {
 
             assert_eq!(Some($ret_code), output.status.code());
 
-            std::fs::remove_file(exec_path);
+            std::fs::remove_file(exec_path).unwrap();
             std::fs::remove_dir_all(build_path).unwrap();
         }
     };
@@ -68,6 +69,7 @@ compile_testing!(function_call, "function_call.c", true, 0);
 compile_testing!(branching, "branching.c", true, 0);
 compile_testing!(for_loop, "for_loop.c", true, 0);
 compile_testing!(while_loop, "while_loop.c", true, 0);
+compile_testing!(nested_loops, "nested_loops.c", true, 0);
 compile_testing!(missing_include, "missing_include.c", false, 0);
 compile_testing!(pointer, "pointer.c", true, 0);
 compile_testing!(simple, "simple.c", true, 0);

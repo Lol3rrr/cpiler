@@ -9,6 +9,7 @@ edition = "2021"
 general = { path = "../general" }
 ir = { path = "../ir" }
 optimizer = { path = "../optimizer" }
+graphs = { path = "../graphs" }
 
 [dev-dependencies]
 tokenizer = { path = "../tokenizer" }

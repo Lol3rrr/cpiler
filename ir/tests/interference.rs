@@ -23,7 +23,7 @@ long test() {
     let ir_func: &FunctionDefinition = ir.functions.get("test").unwrap();
 
     let mut result_graph = DefaultInterferenceGraph::new();
-    ir_func.interference_graph(&mut result_graph, |_, _, _| {});
+    ir_func.interference_graph(&mut result_graph);
     dbg!(&result_graph);
 
     let x_var = Variable::new("x_17563920617334630623", Type::I64);
@@ -75,7 +75,7 @@ long test() {
     let ir_func: &FunctionDefinition = ir.functions.get("test").unwrap();
 
     let mut result_graph = DefaultInterferenceGraph::new();
-    ir_func.interference_graph(&mut result_graph, |_, _, _| {});
+    ir_func.interference_graph(&mut result_graph);
     dbg!(&result_graph);
 
     let var_x = Variable::new("x_17563920617334630623", Type::I64);
@@ -160,7 +160,7 @@ long test() {
     dbg!(&ir_func);
 
     let mut result_graph = DefaultInterferenceGraph::new();
-    ir_func.interference_graph(&mut result_graph, |_, _, _| {});
+    ir_func.interference_graph(&mut result_graph);
     dbg!(&result_graph);
 
     std::fs::write("./if_graph.dot", result_graph.to_dot()).unwrap();

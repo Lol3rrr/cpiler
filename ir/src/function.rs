@@ -1,11 +1,11 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use crate::{BasicBlock, DominanceTree, InterferenceGraph, ToDot, Type, Variable};
+use crate::{BasicBlock, DominanceTree, InterferenceGraph, ToDot, Type};
 
 mod debug;
 use debug::DebugBlocks;
 
-mod interference;
+pub mod interference;
 
 /// A definition of a Function
 #[derive(Clone, PartialEq)]
@@ -65,17 +65,12 @@ impl ToDot for FunctionDefinition {
 
 impl FunctionDefinition {
     /// This is used generate the Interference Graph for a given Function
-    pub fn interference_graph<T, F>(&self, graph: &mut T, mut update: F)
+    pub fn interference_graph<T>(&self, graph: &mut T)
     where
         T: InterferenceGraph,
-        F: FnMut(&HashSet<Variable>, &BasicBlock, usize),
     {
         let g = self.to_directed_graph();
-        interference::construct(g, graph);
-        return;
-
-        self.block
-            .interference_graph(graph, &mut HashSet::new(), &mut HashSet::new(), &mut update);
+        interference::construct(&g, graph);
     }
 
     /// Generates the Dominance Tree for this Function

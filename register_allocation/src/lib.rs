@@ -13,14 +13,14 @@ use std::{
 use spilling::RegisterConfig;
 mod spilling;
 
-mod phi_classes;
+// mod phi_classes;
 
 mod debug_ctx;
 use debug_ctx::DebugContext;
 
 pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        todo!("Saving Global")
+        ir::Statement::SaveGlobalVariable { var }
     } else {
         ir::Statement::SaveVariable { var }
     }
@@ -75,7 +75,10 @@ pub trait Register {
     fn align_size(&self) -> (usize, usize);
 }
 
+/// Provides a Context to the Register Allocator to pass around different Information that may
+/// be needed
 pub struct AllocationCtx {
+    /// The Build-Path for the current compilation
     pub build_path: Option<PathBuf>,
 }
 
@@ -120,7 +123,7 @@ where
             .for_each(|s| println!("{:?}\n", s));
 
         let mut interference_graph = ir::DefaultInterferenceGraph::new();
-        func.interference_graph(&mut interference_graph, |_, _, _| {});
+        func.interference_graph(&mut interference_graph);
 
         let dominance_tree = func.dominance_tree();
 
@@ -156,7 +159,7 @@ where
 
                     if let Some(dbg_path) = ctx.build_path {
                         let mut debug_interference_g = ir::DefaultInterferenceGraph::new();
-                        func.interference_graph(&mut debug_interference_g, |_, _, _| {});
+                        func.interference_graph(&mut debug_interference_g);
 
                         let graph_dot = debug_interference_g.to_dot();
                         let graph_path = dbg_path.join("reg-int.dot");

@@ -32,8 +32,9 @@ pub fn codegen(program: ir::Program, conf: Config) {
     }
 
     let ir_path = target_conf.build_dir.join("ir.txt");
-    std::fs::write(ir_path, ir::text_rep::program_text_rep(&program))
-        .expect("Saving the IR in Text-Format should always work");
+    if let Err(e) = std::fs::write(&ir_path, ir::text_rep::program_text_rep(&program)) {
+        eprintln!("Saving IR to File({:?}): {:?}", ir_path, e);
+    }
 
     target.generate(program, target_conf);
 }

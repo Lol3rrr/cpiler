@@ -18,6 +18,8 @@ use self::reload_list::ReloadList;
 mod limit;
 use limit::limit;
 
+mod loop_max_pressure;
+
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
     (
@@ -156,7 +158,7 @@ where
         core::cmp::Ordering::Greater => {
             let found_vars = preds
                 .iter()
-                .map(|raw_pred| {
+                .flat_map(|raw_pred| {
                     let pred = raw_pred.upgrade().unwrap();
 
                     let pred_preds = pred.get_predecessors();
@@ -168,8 +170,8 @@ where
                     );
 
                     match pred_var {
-                        PrevDefinition::Single(var) => (var, pred),
-                        PrevDefinition::Mutliple(_) => todo!(""),
+                        PrevDefinition::Single(var) => vec![(var, pred)],
+                        PrevDefinition::Mutliple(vars) => vars,
                     }
                 })
                 .collect();
@@ -205,6 +207,11 @@ fn replace_used_variables(
                         }
                         ir::Expression::UnaryOp { base, .. } => {
                             replace_operand(base, previous, n_var);
+                        }
+                        ir::Expression::FunctionCall { arguments, .. } => {
+                            for arg in arguments {
+                                replace_operand(arg, previous, n_var);
+                            }
                         }
                         other => {
                             dbg!(other);
@@ -250,6 +257,11 @@ fn replace_used_variables(
         ir::Statement::WriteMemory { target, value } => {
             replace_operand(target, previous, n_var);
             replace_operand(value, previous, n_var);
+        }
+        ir::Statement::Call { arguments, .. } => {
+            for arg in arguments.iter_mut() {
+                replace_operand(arg, previous, n_var);
+            }
         }
         other => {
             dbg!(&other);
@@ -499,7 +511,9 @@ fn intialize_register_sets(
 
                 let mut result = BTreeSet::new();
                 let mut pending = vec![loop_block];
+                let mut visited = BTreeSet::new();
                 while let Some(pend) = pending.pop() {
+                    visited.insert(pend.as_ptr());
                     result.extend(pend.get_statements().into_iter().flat_map(|s| {
                         let mut tmp = s.used_vars();
                         if let ir::Statement::Assignment { target, .. } = s {
@@ -513,28 +527,51 @@ fn intialize_register_sets(
                         pend.successors()
                             .into_iter()
                             .filter(|(_, s)| s.as_ptr() != current.as_ptr())
-                            .map(|(_, s)| s),
+                            .filter(|(_, s)| !visited.contains(&s.as_ptr()))
+                            .map(|(_, s)| s)
+                            .inspect(|p| {
+                                println!("Pending: {:p}", p.as_ptr());
+                            }),
                     );
                 }
 
                 result
             };
 
+            // The Candidates are the highest Priority to NOT spill
             let candidates: BTreeSet<_> = i_b.intersection(&vars_used_in_loop).cloned().collect();
 
             assert!(candidates.len() <= max_vars.total());
 
             let mut entry_vars = candidates;
-            // Fill entry_vars with more candidates to increase efficiency
-            // TODO
-            // Use different metric for refill-count, instead use max_vars - max-used-registers-in-loop
 
-            // This should be the Max-Number of used registers in the Loop itself
-            let max_used_registers = max_vars.general_purpose_count;
-            let fill_count = max_vars
-                .general_purpose_count
-                .saturating_sub(max_used_registers);
-            for (_, ent) in (0..fill_count).zip(i_b) {
+            // Fill entry_vars with more candidates to increase efficiency
+            // let max_used_registers = loop_max_pressure::max_pressure(func, current.as_ptr());
+
+            // The number of still available Registers for other Variables to avoid spilling them
+            //
+            // This is currently not used because for some reason it does not really work as intended
+            // and needs more investigation on why that is the case
+            // let mut fill_count = max_vars - max_used_registers;
+            let mut fill_count = RegisterConfig {
+                general_purpose_count: 0,
+                floating_point_count: 0,
+            };
+
+            // This closure will return true for Variables as long as they will fit into the "Budget"
+            // defined using the fill_count variable
+            let filter_closure = |v: &ir::Variable| {
+                if v.ty.is_float() {
+                    let prev = fill_count.floating_point_count;
+                    fill_count.floating_point_count = prev.saturating_sub(1);
+                    prev > 0
+                } else {
+                    let prev = fill_count.general_purpose_count;
+                    fill_count.general_purpose_count = prev.saturating_sub(1);
+                    prev > 0
+                }
+            };
+            for ent in i_b.into_iter().filter(filter_closure) {
                 entry_vars.insert(ent);
             }
 
@@ -670,8 +707,12 @@ impl Sub for RegisterConfig {
 
     fn sub(self, other: Self) -> Self {
         Self {
-            general_purpose_count: self.general_purpose_count - other.general_purpose_count,
-            floating_point_count: self.floating_point_count - other.floating_point_count,
+            general_purpose_count: self
+                .general_purpose_count
+                .saturating_sub(other.general_purpose_count),
+            floating_point_count: self
+                .floating_point_count
+                .saturating_sub(other.floating_point_count),
         }
     }
 }

@@ -32,6 +32,10 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                             offset,
                         });
                     }
+                    ir::Type::Void => {
+                        // TODO
+                        // We should never have to save a Void-Variable
+                    }
                     other => {
                         dbg!(&other);
                         todo!()
