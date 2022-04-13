@@ -1,9 +1,11 @@
 //! Contains an implementation for a DirectedGraph
 
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 mod successor;
 use successor::{succ_type, SuccType};
+
+mod mocks;
 
 /// A simple Directed Graph Datastructure
 pub struct DirectedGraph<N>
@@ -21,7 +23,7 @@ pub trait GraphNode {
     /// The Iterator over the Successors of a Node
     type SuccessorIterator: Iterator<Item = Self::Id>;
     /// The ID of a single Node
-    type Id: Eq + Hash + Clone + Copy;
+    type Id: Eq + Hash + Clone + Copy + Debug;
 
     /// The ID of the current Node
     fn id(&self) -> Self::Id;
@@ -78,6 +80,7 @@ where
             previous: None,
             next: self.initial,
             end: None,
+            head: None,
             graph: self,
         }
     }
@@ -91,6 +94,7 @@ where
             previous: None,
             next: Some(id),
             end: None,
+            head: None,
             graph: self,
         }
     }
@@ -125,6 +129,8 @@ where
     next: Option<N::Id>,
     /// The ID up until which  we should return Entries (exclusive)
     end: Option<N::Id>,
+    /// The ID of the Head if we are in a Cycle
+    head: Option<N::Id>,
     /// The HashMap of Nodes in the Graph
     graph: &'g DirectedGraph<N>,
 }
@@ -156,6 +162,24 @@ where
     },
 }
 
+impl<'g, N> Debug for ChainEntry<'g, N>
+where
+    N: GraphNode,
+    N::Id: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Node(n) => {
+                write!(f, "Node({:?})", n.id())
+            }
+            Self::Branched { head, sides } => {
+                write!(f, "Branched")
+            }
+            Self::Cycle { head, inner } => f.debug_struct("Cycle").field("head", head).finish(),
+        }
+    }
+}
+
 impl<'g, N> DirectedChain<'g, N>
 where
     N: GraphNode,
@@ -168,17 +192,29 @@ where
         self
     }
 
+    #[must_use]
+    pub fn set_head(mut self, head: N::Id) -> Self {
+        self.head = Some(head);
+        self
+    }
+
     /// Gets the next Entry in the current Chain of Nodes, which may be an actual Node or a Split in the Control-Flow
     pub fn next_entry(&mut self) -> Option<ChainEntry<'g, N>> {
-        let next_id = self.next.take()?;
+        let next_id = self.next.take();
+
+        let context = if let Some(end) = self.end {
+            successor::Context::OuterGraph { head: end }
+        } else {
+            successor::Context::None
+        };
 
         if let Some(prev) = self.previous.take() {
             let prev_node = self.graph.get_node(&prev)?;
-            match succ_type(prev_node, self.graph, self.end) {
+            match succ_type(prev_node, self.graph, context) {
                 None => {}
                 Some(SuccType::Single(_)) => {}
                 Some(SuccType::Branched { sides, end }) => {
-                    self.next = Some(next_id);
+                    self.next = next_id;
                     return Some(ChainEntry::Branched {
                         head: prev,
                         sides: (
@@ -188,20 +224,23 @@ where
                     });
                 }
                 Some(SuccType::Cycle { inner, .. }) => {
-                    self.next = Some(next_id);
+                    self.next = next_id;
 
-                    return Some(ChainEntry::Cycle {
-                        head: prev,
-                        inner: self.graph.chain_from(inner).set_end(prev),
-                    });
+                    let mut inner = self.graph.chain_from(inner).set_end(prev);
+                    if let Some(head) = self.end {
+                        inner = inner.set_head(head);
+                    }
+
+                    return Some(ChainEntry::Cycle { head: prev, inner });
                 }
             };
         }
 
+        let next_id = next_id?;
         self.previous = Some(next_id);
 
         let next_node = self.graph.get_node(&next_id)?;
-        match succ_type(next_node, self.graph, self.end) {
+        match succ_type(next_node, self.graph, context) {
             None => Some(ChainEntry::Node(next_node)),
             Some(SuccType::Single(succ_id)) => {
                 if Some(succ_id) != self.end {
@@ -216,7 +255,7 @@ where
                 Some(ChainEntry::Node(next_node))
             }
             Some(SuccType::Cycle { following, .. }) => {
-                self.next = Some(following);
+                self.next = following;
 
                 Some(ChainEntry::Node(next_node))
             }
@@ -230,6 +269,7 @@ where
             previous: self.previous,
             next: self.next,
             end: self.end,
+            head: self.head,
             graph: self.graph,
         }
     }
@@ -391,31 +431,9 @@ where
     }
 }
 
-mod mocks {
-    use super::GraphNode;
-
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct MockNode {
-        pub id: usize,
-        pub successors: Vec<usize>,
-    }
-
-    impl GraphNode for MockNode {
-        type Id = usize;
-        type SuccessorIterator = std::vec::IntoIter<usize>;
-
-        fn id(&self) -> Self::Id {
-            self.id
-        }
-
-        fn successors(&self) -> Self::SuccessorIterator {
-            self.successors.clone().into_iter()
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -455,7 +473,11 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
+        let result = succ_type(
+            graph.get_node(&0).unwrap(),
+            &graph,
+            successor::Context::None,
+        );
         assert_eq!(Some(SuccType::Single(1)), result);
 
         let mut chain = graph.chain_iter();
@@ -496,7 +518,11 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
+        let result = succ_type(
+            graph.get_node(&0).unwrap(),
+            &graph,
+            successor::Context::None,
+        );
         assert_eq!(
             Some(SuccType::Branched {
                 sides: (1, 2),
@@ -565,11 +591,15 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
+        let result = succ_type(
+            graph.get_node(&0).unwrap(),
+            &graph,
+            successor::Context::None,
+        );
         assert_eq!(
             Some(SuccType::Cycle {
                 inner: 1,
-                following: 2
+                following: Some(2)
             }),
             result
         );
@@ -632,11 +662,15 @@ mod tests {
             successors: vec![0],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
+        let result = succ_type(
+            graph.get_node(&0).unwrap(),
+            &graph,
+            successor::Context::None,
+        );
         assert_eq!(
             Some(SuccType::Cycle {
                 inner: 2,
-                following: 1
+                following: Some(1)
             }),
             result
         );
@@ -679,6 +713,100 @@ mod tests {
         }
         {
             let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_none());
+        }
+    }
+
+    #[test]
+    fn nested_cycle() {
+        let mut graph = DirectedGraph::new();
+
+        graph.add_node(mocks::MockNode {
+            id: 0,
+            successors: vec![1, 3],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 1,
+            successors: vec![0, 2],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 2,
+            successors: vec![1],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 3,
+            successors: vec![],
+        });
+
+        let mut outer_chain = graph.chain_iter();
+
+        {
+            println!("First Node");
+            let raw_entry = outer_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
+        }
+        {
+            println!("Outer Chain");
+            let raw_entry = outer_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Cycle { .. }));
+
+            let mut first_inner = match entry {
+                ChainEntry::Cycle { inner, .. } => inner,
+                _ => unreachable!(""),
+            };
+
+            {
+                println!("Outer Chain - First Node");
+                let raw_entry = first_inner.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 1));
+            }
+            {
+                println!("Outer Chain - Inner Chain");
+                let raw_entry = first_inner.next_entry();
+                assert!(raw_entry.is_some());
+                dbg!(&raw_entry);
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Cycle { .. }));
+
+                let mut second_inner = match entry {
+                    ChainEntry::Cycle { inner, head } => {
+                        dbg!(head, inner.end, inner.next, inner.head);
+                        inner
+                    }
+                    _ => unreachable!(""),
+                };
+
+                {
+                    println!("Outer Chain - Inner Chain - First Node");
+                    let raw_entry = second_inner.next_entry();
+                    assert!(raw_entry.is_some());
+                }
+                {
+                    let raw_entry = second_inner.next_entry();
+                    dbg!(&raw_entry);
+                    assert!(raw_entry.is_none());
+                }
+            }
+            {
+                let raw_entry = first_inner.next_entry();
+                dbg!(&raw_entry);
+                assert!(raw_entry.is_none());
+            }
+        }
+        {
+            let raw_entry = outer_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 3));
+        }
+        {
+            let raw_entry = outer_chain.next_entry();
             assert!(raw_entry.is_none());
         }
     }

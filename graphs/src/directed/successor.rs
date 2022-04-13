@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Debug};
 
 use super::{DirectedGraph, GraphNode};
 
@@ -6,7 +6,13 @@ use super::{DirectedGraph, GraphNode};
 pub enum SuccType<I> {
     Single(I),
     Branched { sides: (I, I), end: I },
-    Cycle { inner: I, following: I },
+    Cycle { inner: I, following: Option<I> },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Context<I> {
+    None,
+    OuterGraph { head: I },
 }
 
 /// Used to determine the Type of Successors
@@ -16,19 +22,13 @@ pub enum SuccType<I> {
 pub fn succ_type<N>(
     start_node: &N,
     graph: &DirectedGraph<N>,
-    end: Option<N::Id>,
+    ctx: Context<N::Id>,
 ) -> Option<SuccType<N::Id>>
 where
     N: GraphNode,
 {
     let start = start_node.id();
     let mut successors = start_node.successors();
-
-    let mut visited: HashSet<N::Id> = HashSet::new();
-    visited.insert(start);
-    if let Some(end) = end {
-        visited.insert(end);
-    }
 
     let first = successors.next()?;
 
@@ -49,7 +49,10 @@ where
             remaining.extend(
                 tmp.successors()
                     .filter(|i| !first_ids.contains(i))
-                    .filter(|i| Some(*i) != end),
+                    .filter(|i| match ctx {
+                        Context::None => true,
+                        Context::OuterGraph { head } => *i != head,
+                    }),
             );
         }
     }
@@ -61,10 +64,27 @@ where
         while let Some(id) = remaining.pop() {
             if first_ids.contains(&id) {
                 if id == start {
-                    return Some(SuccType::Cycle {
-                        inner: first,
-                        following: second,
-                    });
+                    match ctx {
+                        Context::None => {
+                            return Some(SuccType::Cycle {
+                                inner: first,
+                                following: Some(second),
+                            });
+                        }
+                        Context::OuterGraph { head } => {
+                            if head == first {
+                                return Some(SuccType::Cycle {
+                                    inner: second,
+                                    following: None,
+                                });
+                            }
+
+                            return Some(SuccType::Cycle {
+                                inner: first,
+                                following: Some(second),
+                            });
+                        }
+                    };
                 }
 
                 return Some(SuccType::Branched {
@@ -76,14 +96,36 @@ where
             let tmp = graph.get_node(&id).unwrap();
             visited.insert(id);
 
-            remaining.extend(tmp.successors().filter(|i| !visited.contains(i)));
+            remaining.extend(tmp.successors().filter(|i| !visited.contains(i)).filter(
+                |i| match ctx {
+                    Context::None => true,
+                    Context::OuterGraph { head } => *i != head,
+                },
+            ));
         }
 
         if visited.contains(&start) {
-            return Some(SuccType::Cycle {
-                inner: second,
-                following: first,
-            });
+            match ctx {
+                Context::None => {
+                    return Some(SuccType::Cycle {
+                        inner: second,
+                        following: Some(first),
+                    });
+                }
+                Context::OuterGraph { head } => {
+                    if head == second {
+                        return Some(SuccType::Cycle {
+                            inner: first,
+                            following: None,
+                        });
+                    }
+
+                    return Some(SuccType::Cycle {
+                        inner: second,
+                        following: Some(first),
+                    });
+                }
+            };
         }
     }
 
