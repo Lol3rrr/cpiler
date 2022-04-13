@@ -94,6 +94,8 @@ where
 {
     /// Actually performs the Register allocation
     pub fn allocate(func: &ir::FunctionDefinition, registers: &[R], ctx: AllocationCtx) -> Self {
+        println!("Allocating Function: {:?}", func.name);
+
         let mut debug_context = DebugContext::new();
         debug_context.add_state(func);
 
@@ -118,13 +120,23 @@ where
         opt_config.add_pass(optimizer::optimizations::DeadCode::new());
         let func = optimizer::optimize_func(func.clone(), &opt_config);
 
+        if let Some(dbg_path) = ctx.build_path.as_ref() {
+            let func_ir_text = ir::text_rep::generate_text_rep(&func);
+            let func_opt_path = dbg_path.join(format!("opt-{}-ir.ir", func.name));
+            std::fs::write(func_opt_path, func_ir_text).expect("Save optimized spilled IR to text");
+        }
+
+        /*
         debug_context
             .get_steps()
             .for_each(|s| println!("{:?}\n", s));
+            */
 
+        println!("After spilling");
         let mut interference_graph = ir::DefaultInterferenceGraph::new();
         func.interference_graph(&mut interference_graph);
 
+        println!("Dominance Tree");
         let dominance_tree = func.dominance_tree();
 
         //let mut groups: phi_classes::Groups<R> = phi_classes::Groups::new();

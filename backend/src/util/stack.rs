@@ -39,8 +39,8 @@ where
         let statements = block.get_statements();
 
         for stmnt in statements {
-            if let ir::Statement::Assignment { target, .. } = stmnt {
-                result.insert(target.name, size_align(&target.ty));
+            if let ir::Statement::SaveVariable { var } = stmnt {
+                result.insert(var.name, size_align(&var.ty));
             }
         }
     }
