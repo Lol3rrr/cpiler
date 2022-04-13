@@ -1,9 +1,9 @@
 //! Contains an implementation for a DirectedGraph
 
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::{collections::HashMap, hash::Hash};
+
+mod successor;
+use successor::{succ_type, SuccType};
 
 /// A simple Directed Graph Datastructure
 pub struct DirectedGraph<N>
@@ -174,7 +174,7 @@ where
 
         if let Some(prev) = self.previous.take() {
             let prev_node = self.graph.get_node(&prev)?;
-            match succ_type(prev_node, self.graph) {
+            match succ_type(prev_node, self.graph, self.end) {
                 None => {}
                 Some(SuccType::Single(_)) => {}
                 Some(SuccType::Branched { sides, end }) => {
@@ -201,7 +201,7 @@ where
         self.previous = Some(next_id);
 
         let next_node = self.graph.get_node(&next_id)?;
-        match succ_type(next_node, self.graph) {
+        match succ_type(next_node, self.graph, self.end) {
             None => Some(ChainEntry::Node(next_node)),
             Some(SuccType::Single(succ_id)) => {
                 if Some(succ_id) != self.end {
@@ -332,84 +332,6 @@ where
         self.next_entry()
     }
 }
-
-#[derive(Debug, PartialEq)]
-enum SuccType<I> {
-    Single(I),
-    Branched { sides: (I, I), end: I },
-    Cycle { inner: I, following: I },
-}
-
-/// Used to determine the Type of Successors
-/// * Single
-/// * Branched
-/// * Cycle
-fn succ_type<N>(start_node: &N, graph: &DirectedGraph<N>) -> Option<SuccType<N::Id>>
-where
-    N: GraphNode,
-{
-    let start = start_node.id();
-    let mut successors = start_node.successors();
-
-    let mut visited: HashSet<N::Id> = HashSet::new();
-    visited.insert(start);
-
-    let first = successors.next()?;
-
-    let second = match successors.next() {
-        Some(s) => s,
-        None => return Some(SuccType::Single(first)),
-    };
-
-    assert!(successors.next().is_none());
-
-    let mut first_ids: HashSet<N::Id> = HashSet::new();
-    {
-        let mut remaining = vec![first];
-        while let Some(id) = remaining.pop() {
-            let tmp = graph.get_node(&id).unwrap();
-
-            first_ids.insert(id);
-            remaining.extend(tmp.successors().filter(|i| !first_ids.contains(i)));
-        }
-    }
-
-    {
-        let mut remaining = vec![start];
-        let mut visited = HashSet::new();
-        visited.insert(first);
-        while let Some(id) = remaining.pop() {
-            if first_ids.contains(&id) {
-                if id == start {
-                    return Some(SuccType::Cycle {
-                        inner: first,
-                        following: second,
-                    });
-                }
-
-                return Some(SuccType::Branched {
-                    sides: (first, second),
-                    end: id,
-                });
-            }
-
-            let tmp = graph.get_node(&id).unwrap();
-            visited.insert(id);
-
-            remaining.extend(tmp.successors().filter(|i| !visited.contains(i)));
-        }
-
-        if visited.contains(&start) {
-            return Some(SuccType::Cycle {
-                inner: second,
-                following: first,
-            });
-        }
-    }
-
-    unreachable!()
-}
-
 enum InnerChained {
     First,
     Second,
@@ -533,7 +455,7 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph);
+        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
         assert_eq!(Some(SuccType::Single(1)), result);
 
         let mut chain = graph.chain_iter();
@@ -574,7 +496,7 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph);
+        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
         assert_eq!(
             Some(SuccType::Branched {
                 sides: (1, 2),
@@ -643,7 +565,7 @@ mod tests {
             successors: vec![],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph);
+        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
         assert_eq!(
             Some(SuccType::Cycle {
                 inner: 1,
@@ -657,21 +579,41 @@ mod tests {
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Cycle { .. }));
+
+            let mut inner = match entry {
+                ChainEntry::Cycle { inner, .. } => inner,
+                _ => unreachable!("We previously asserted this"),
+            };
+
+            {
+                let raw_entry = inner.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 1))
+            }
+            {
+                let raw_entry = inner.next_entry();
+                assert!(raw_entry.is_none());
+            }
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_none());
         }
-
-        // TODO
     }
     #[test]
     fn cycle_graph_second_cycle() {
@@ -690,7 +632,7 @@ mod tests {
             successors: vec![0],
         });
 
-        let result = succ_type(graph.get_node(&0).unwrap(), &graph);
+        let result = succ_type(graph.get_node(&0).unwrap(), &graph, None);
         assert_eq!(
             Some(SuccType::Cycle {
                 inner: 2,
@@ -704,20 +646,40 @@ mod tests {
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Cycle { .. }));
+
+            let mut inner = match entry {
+                ChainEntry::Cycle { inner, .. } => inner,
+                _ => unreachable!("We just asserted this"),
+            };
+
+            {
+                let raw_entry = inner.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
+            }
+            {
+                let raw_entry = inner.next_entry();
+                assert!(raw_entry.is_none());
+            }
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 1));
         }
         {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_none());
         }
-
-        // TODO
     }
 }
