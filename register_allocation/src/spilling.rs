@@ -113,6 +113,7 @@ fn replace_operand(oper: &mut ir::Operand, previous: &ir::Variable, n_var: &ir::
 
 #[derive(Debug)]
 enum PrevDefinition {
+    None,
     Single(ir::Variable),
     Mutliple(Vec<(ir::Variable, ir::BasicBlock)>),
 }
@@ -138,6 +139,7 @@ where
 
     match core::cmp::Ord::cmp(&preds.len(), &1) {
         core::cmp::Ordering::Equal => {
+            // Find the
             let weak_pred = preds.iter().next().unwrap();
             let pred = weak_pred.upgrade().unwrap();
 
@@ -151,7 +153,7 @@ where
                 return pred_def;
             }
 
-            dbg!(&pred_def);
+            // dbg!(&pred_def);
 
             todo!("Find Variable in Single Predecessor");
         }
@@ -170,6 +172,7 @@ where
                     );
 
                     match pred_var {
+                        PrevDefinition::None => vec![],
                         PrevDefinition::Single(var) => vec![(var, pred)],
                         PrevDefinition::Mutliple(vars) => vars,
                     }
@@ -307,6 +310,9 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
                     &re_var.name,
                 );
                 match prev_def {
+                    PrevDefinition::None => {
+                        todo!()
+                    }
                     PrevDefinition::Single(n_var) => {
                         replace_used_variables(stmnt, &re_var, &n_var);
                     }

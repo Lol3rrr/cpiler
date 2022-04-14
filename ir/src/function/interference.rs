@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::VarError, panic};
+use std::collections::HashMap;
 
 use graphs::directed::{ChainEntry, DirectedChain, DirectedFlatChain, DirectedGraph};
 
@@ -6,36 +6,7 @@ use crate::{BasicBlock, InterferenceGraph, Statement, Variable};
 
 #[derive(Debug, PartialEq, Clone)]
 struct LiveVars {
-    vars: HashMap<Variable, VarUses>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-enum VarUses {
-    Defined(usize),
-    Undefined(usize),
-}
-
-impl VarUses {
-    fn saturating_sub(&self, other: usize) -> Self {
-        match self {
-            Self::Defined(v) => Self::Defined(v.saturating_sub(other)),
-            Self::Undefined(v) => todo!(),
-        }
-    }
-
-    fn empty(&self) -> bool {
-        match self {
-            Self::Defined(v) => *v == 0,
-            Self::Undefined(v) => todo!(),
-        }
-    }
-
-    fn count(&self) -> usize {
-        match self {
-            Self::Defined(v) => *v,
-            Self::Undefined(v) => todo!(),
-        }
-    }
+    vars: HashMap<Variable, usize>,
 }
 
 impl LiveVars {
@@ -48,25 +19,19 @@ impl LiveVars {
     /// Adds a new Variable to the Set of Live-Vars
     pub fn add_var(&mut self, var: Variable, uses: usize) {
         if uses == 0 {
-            println!("Var without uses: {:?}", var);
             return;
         }
 
-        self.vars.insert(var, VarUses::Defined(uses));
+        self.vars.insert(var, uses);
     }
 
     /// Decrements the use counter for the given Variable and removes it, if the count reaches 0
     pub fn used_var(&mut self, var: &Variable) {
-        let count = match self.vars.get_mut(var) {
-            Some(c) => c,
-            None => {
-                panic!("Used a Variable that is not known anymore: {:?}", var);
-            }
-        };
+        let uses = self.vars.get_mut(var).expect("");
 
-        *count = count.saturating_sub(1);
+        *uses = uses.saturating_sub(1);
 
-        if count.empty() {
+        if *uses == 0 {
             self.vars.remove(var);
         }
     }
@@ -76,17 +41,15 @@ impl LiveVars {
             .vars
             .iter()
             .filter_map(|(var, count)| {
-                let left_delta = count.saturating_sub(left.vars.get(var)?.count());
-                let right_delta = count.saturating_sub(right.vars.get(var)?.count());
+                let left_delta = count - left.vars.get(var)?;
+                let right_delta = count - right.vars.get(var)?;
 
-                let n_count = count
-                    .saturating_sub(left_delta.count())
-                    .saturating_sub(right_delta.count());
+                let n_count = count.saturating_sub(left_delta).saturating_sub(right_delta);
 
                 Some((var, n_count))
             })
             .map(|(v, c)| (Variable::clone(v), c))
-            .filter(|(_, c)| !c.empty())
+            .filter(|(_, c)| *c > 0)
             .collect();
 
         let left_exclusive = left
