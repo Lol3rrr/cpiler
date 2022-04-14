@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use graphs::directed::{ChainEntry, DirectedChain, DirectedFlatChain, DirectedGraph};
+use graphs::directed::{ChainEntry, DirectedChain, DirectedGraph};
 
 use crate::{BasicBlock, InterferenceGraph, Statement, Variable};
 
@@ -19,15 +19,21 @@ impl LiveVars {
     /// Adds a new Variable to the Set of Live-Vars
     pub fn add_var(&mut self, var: Variable, uses: usize) {
         if uses == 0 {
+            println!("Unused: {:?}", var);
             return;
         }
 
-        self.vars.insert(var, uses);
+        debug_assert!(self.vars.insert(var, uses).is_none());
     }
 
     /// Decrements the use counter for the given Variable and removes it, if the count reaches 0
     pub fn used_var(&mut self, var: &Variable) {
-        let uses = self.vars.get_mut(var).expect("");
+        let uses = match self.vars.get_mut(var) {
+            Some(u) => u,
+            None => {
+                panic!("Unknown Variable has been used: {:?}", var)
+            }
+        };
 
         *uses = uses.saturating_sub(1);
 
@@ -77,27 +83,6 @@ impl LiveVars {
     }
 }
 
-fn calc_uses<'g>(
-    current_chain: DirectedChain<'g, BasicBlock>,
-    var: &Variable,
-    outside_uses: &dyn Fn(&Variable) -> usize,
-) -> usize {
-    let mut chain_result = 0;
-    let mut flat_chain = DirectedFlatChain::new(current_chain);
-
-    while let Some(block) = flat_chain.next_entry() {
-        chain_result += block
-            .get_statements()
-            .into_iter()
-            .filter(|s| s.used_vars().contains(var))
-            .count();
-    }
-
-    let outside_result = outside_uses(var);
-
-    chain_result + outside_result
-}
-
 /// Constructs the Interference Graph of a single Chain of Blocks
 ///
 /// Params:
@@ -112,7 +97,6 @@ fn construct_chain<'c, I>(
 ) where
     I: InterferenceGraph,
 {
-    let mut prev_chain = chain.duplicate();
     while let Some(entry) = chain.next_entry() {
         match entry {
             ChainEntry::Node(block) => {
@@ -122,7 +106,7 @@ fn construct_chain<'c, I>(
                     }
 
                     if let Statement::Assignment { target, .. } = stmnt {
-                        let uses = calc_uses(prev_chain.duplicate(), &target, outside_uses);
+                        let uses = outside_uses(&target);
 
                         if uses > 0 {
                             live_vars.add_var(target.clone(), uses);
@@ -138,41 +122,46 @@ fn construct_chain<'c, I>(
                 }
             }
             ChainEntry::Branched {
-                sides: (mut left, mut right),
+                sides: (mut left, right),
                 ..
             } => {
-                let uses_func = |var: &Variable| {
-                    let mut check_chain = prev_chain.duplicate();
-                    let _ = check_chain.next_entry();
+                match right {
+                    Some(mut right) => {
+                        let mut left_vars = live_vars.clone();
+                        construct_chain(graph, &mut left, if_graph, &mut left_vars, outside_uses);
 
-                    calc_uses(check_chain, var, outside_uses)
+                        let mut right_vars = live_vars.clone();
+                        construct_chain(graph, &mut right, if_graph, &mut right_vars, outside_uses);
+
+                        live_vars.merge_branched(left_vars, right_vars);
+                    }
+                    None => {
+                        construct_chain(graph, &mut left, if_graph, live_vars, outside_uses);
+                    }
                 };
-
-                let mut left_vars = live_vars.clone();
-                construct_chain(graph, &mut left, if_graph, &mut left_vars, &uses_func);
-
-                let mut right_vars = live_vars.clone();
-                construct_chain(graph, &mut right, if_graph, &mut right_vars, &uses_func);
-
-                live_vars.merge_branched(left_vars, right_vars);
             }
             ChainEntry::Cycle { mut inner, .. } => {
-                let uses_func = |var: &Variable| {
-                    let mut check_chain = prev_chain.duplicate();
-                    let _ = check_chain.next_entry();
-
-                    calc_uses(check_chain, var, outside_uses)
-                };
-
                 let mut inner_vars = live_vars.clone();
-                construct_chain(graph, &mut inner, if_graph, &mut inner_vars, &uses_func);
+                construct_chain(graph, &mut inner, if_graph, &mut inner_vars, outside_uses);
 
                 *live_vars = inner_vars;
             }
         };
-
-        prev_chain = chain.duplicate();
     }
+}
+
+fn total_uses(root_chain: DirectedChain<'_, BasicBlock>) -> HashMap<Variable, usize> {
+    let mut result = HashMap::new();
+
+    for stmnt in root_chain.flatten().flat_map(|b| b.get_statements()) {
+        for used in stmnt.used_vars() {
+            let entry = result.entry(used);
+            let value = entry.or_default();
+            *value += 1;
+        }
+    }
+
+    result
 }
 
 /// Constructs the Interference Graph for the given Graph
@@ -182,6 +171,21 @@ where
 {
     let mut root_chain = graph.into();
     let graph = root_chain.graph();
+
+    let total_uses = total_uses(root_chain.duplicate());
+
     let mut live_vars = LiveVars::new();
-    construct_chain(graph, &mut root_chain, result, &mut live_vars, &|_| 0);
+    construct_chain(
+        graph,
+        &mut root_chain,
+        result,
+        &mut live_vars,
+        &|var| match total_uses.get(var) {
+            Some(u) => *u,
+            None => {
+                println!("Getting total uses for {:?}", var);
+                0
+            }
+        },
+    );
 }

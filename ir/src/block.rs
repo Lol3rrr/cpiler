@@ -132,6 +132,11 @@ impl BasicBlock {
         }))
     }
 
+    /// Gets the Description of the current Block
+    pub fn description(&self) -> Option<&String> {
+        self.0.description.as_ref()
+    }
+
     /// Returns an Iterator over all the Blocks that can be reached from this Block as the starting
     /// Point, including this Block itself
     pub fn block_iter(&self) -> BlockIter {

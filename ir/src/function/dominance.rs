@@ -21,10 +21,12 @@ fn generate_chain(mut chain: DirectedChain<'_, BasicBlock>) -> DominanceTree {
                 let current = tree.current_node();
 
                 let left_tree = generate_chain(left);
-                let right_tree = generate_chain(right);
 
                 tree.append_tree_to_node(&current, left_tree);
-                tree.append_tree_to_node(&current, right_tree);
+                if let Some(right) = right {
+                    let right_tree = generate_chain(right);
+                    tree.append_tree_to_node(&current, right_tree);
+                }
 
                 tree.move_to_node(current);
             }

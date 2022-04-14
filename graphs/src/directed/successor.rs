@@ -1,11 +1,14 @@
-use std::{collections::HashSet, fmt::Debug};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+};
 
 use super::{DirectedGraph, GraphNode};
 
 #[derive(Debug, PartialEq)]
 pub enum SuccType<I> {
     Single(I),
-    Branched { sides: (I, I), end: I },
+    Branched { sides: (I, Option<I>), end: I },
     Cycle { inner: I, following: Option<I> },
 }
 
@@ -39,16 +42,18 @@ where
 
     assert!(successors.next().is_none());
 
-    let mut first_ids: HashSet<N::Id> = HashSet::new();
+    let mut first_ids: HashMap<N::Id, usize> = HashMap::new();
     {
         let mut remaining = vec![first];
+        let mut index = 0;
         while let Some(id) = remaining.pop() {
             let tmp = graph.get_node(&id).unwrap();
 
-            first_ids.insert(id);
+            first_ids.insert(id, index);
+            index += 1;
             remaining.extend(
                 tmp.successors()
-                    .filter(|i| !first_ids.contains(i))
+                    .filter(|i| !first_ids.contains_key(i))
                     .filter(|i| match ctx {
                         Context::None => true,
                         Context::OuterGraph { head } => *i != head,
@@ -61,8 +66,9 @@ where
         let mut remaining = vec![start];
         let mut visited = HashSet::new();
         visited.insert(first);
+        let mut jumped_to_head = false;
         while let Some(id) = remaining.pop() {
-            if first_ids.contains(&id) {
+            if first_ids.contains_key(&id) {
                 if id == start {
                     match ctx {
                         Context::None => {
@@ -87,14 +93,31 @@ where
                     };
                 }
 
+                if first == id {
+                    return Some(SuccType::Branched {
+                        sides: (second, None),
+                        end: id,
+                    });
+                } else if second == id {
+                    return Some(SuccType::Branched {
+                        sides: (first, None),
+                        end: id,
+                    });
+                }
+
+                debug_assert_ne!(first, id);
+                debug_assert_ne!(second, id);
+
                 return Some(SuccType::Branched {
-                    sides: (first, second),
+                    sides: (first, Some(second)),
                     end: id,
                 });
             }
 
             let tmp = graph.get_node(&id).unwrap();
             visited.insert(id);
+
+            jumped_to_head |= tmp.successors().any(|s| start == s);
 
             remaining.extend(tmp.successors().filter(|i| !visited.contains(i)).filter(
                 |i| match ctx {
@@ -104,7 +127,7 @@ where
             ));
         }
 
-        if visited.contains(&start) {
+        if visited.contains(&start) && jumped_to_head {
             match ctx {
                 Context::None => {
                     return Some(SuccType::Cycle {
@@ -127,7 +150,14 @@ where
                 }
             };
         }
-    }
 
-    unreachable!()
+        if start_node.successors().any(|s| s == second) {
+            Some(SuccType::Branched {
+                sides: (second, None),
+                end: first,
+            })
+        } else {
+            todo!("Second is following")
+        }
+    }
 }

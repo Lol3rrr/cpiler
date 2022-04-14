@@ -148,7 +148,7 @@ where
         /// The Head of the Branch, i.e. the last shared Node before the Graph split
         head: N::Id,
         /// The two Sides of the Branch
-        sides: (DirectedChain<'n, N>, DirectedChain<'n, N>),
+        sides: (DirectedChain<'n, N>, Option<DirectedChain<'n, N>>),
     },
     /// The Graph has encountered a Cycle, contains the Chain to go over all the Entries in the
     /// Body of the Cycle
@@ -172,11 +172,27 @@ where
             Self::Node(n) => {
                 write!(f, "Node({:?})", n.id())
             }
-            Self::Branched { head, sides } => {
-                f.debug_struct("Branched").field("head", head).finish()
-            }
-            Self::Cycle { head, inner } => f.debug_struct("Cycle").field("head", head).finish(),
+            Self::Branched { head, sides } => f
+                .debug_struct("Branched")
+                .field("head", head)
+                .field("sides", sides)
+                .finish(),
+            Self::Cycle { head, inner } => f
+                .debug_struct("Cycle")
+                .field("head", head)
+                .field("inner", inner)
+                .finish(),
         }
+    }
+}
+
+impl<'g, N> Debug for DirectedChain<'g, N>
+where
+    N: GraphNode,
+    N::Id: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DirectedChain").finish()
     }
 }
 
@@ -189,12 +205,6 @@ where
     #[must_use]
     pub fn set_end(mut self, end: N::Id) -> Self {
         self.end = Some(end);
-        self
-    }
-
-    #[must_use]
-    pub fn set_head(mut self, head: N::Id) -> Self {
-        self.head = Some(head);
         self
     }
 
@@ -219,17 +229,16 @@ where
                         head: prev,
                         sides: (
                             self.graph.chain_from(sides.0).set_end(end),
-                            self.graph.chain_from(sides.1).set_end(end),
+                            sides
+                                .1
+                                .map(|right_id| self.graph.chain_from(right_id).set_end(end)),
                         ),
                     });
                 }
                 Some(SuccType::Cycle { inner, .. }) => {
                     self.next = next_id;
 
-                    let mut inner = self.graph.chain_from(inner).set_end(prev);
-                    if let Some(head) = self.end {
-                        inner = inner.set_head(head);
-                    }
+                    let inner = self.graph.chain_from(inner).set_end(prev);
 
                     return Some(ChainEntry::Cycle { head: prev, inner });
                 }
@@ -339,9 +348,11 @@ where
                     self.pending.push(b.id());
                 }
 
-                let mut right_flat = DirectedFlatChain::new(right);
-                while let Some(b) = right_flat.next_entry() {
-                    self.pending.push(b.id());
+                if let Some(right) = right {
+                    let mut right_flat = DirectedFlatChain::new(right);
+                    while let Some(b) = right_flat.next_entry() {
+                        self.pending.push(b.id());
+                    }
                 }
 
                 self.pending
@@ -525,7 +536,7 @@ mod tests {
         );
         assert_eq!(
             Some(SuccType::Branched {
-                sides: (1, 2),
+                sides: (1, Some(2)),
                 end: 3,
             }),
             result
@@ -541,12 +552,14 @@ mod tests {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
             let entry = raw_entry.unwrap();
-            let (head, mut left, mut right) = match entry {
+            let (head, mut left, right) = match entry {
                 ChainEntry::Branched { head, sides } => (head, sides.0, sides.1),
                 _ => {
                     panic!("Expected a Branched Entry");
                 }
             };
+
+            let mut right = right.unwrap();
 
             assert_eq!(0, head);
 
@@ -571,6 +584,125 @@ mod tests {
             let entry = chain.next_entry();
             assert!(entry.is_some());
             assert!(matches!(entry.unwrap(), ChainEntry::Node(n) if n.id() == 3));
+        }
+    }
+
+    #[test]
+    fn branched_only_left() {
+        let mut graph = DirectedGraph::new();
+
+        graph.add_node(mocks::MockNode {
+            id: 0,
+            successors: vec![1, 2],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 1,
+            successors: vec![2],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 2,
+            successors: vec![],
+        });
+
+        let mut root_chain = graph.chain_iter();
+
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Branched { .. }));
+
+            let (mut left, right) = match entry {
+                ChainEntry::Branched { sides, .. } => sides,
+                _ => unreachable!(),
+            };
+
+            assert!(right.is_none());
+
+            {
+                let raw_entry = left.next_entry();
+                assert!(raw_entry.is_some());
+            }
+            {
+                let raw_entry = left.next_entry();
+                assert!(raw_entry.is_none());
+            }
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_none());
+        }
+    }
+
+    #[test]
+    fn branched_only_right() {
+        let mut graph = DirectedGraph::new();
+
+        graph.add_node(mocks::MockNode {
+            id: 0,
+            successors: vec![2, 1],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 1,
+            successors: vec![2],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 2,
+            successors: vec![],
+        });
+
+        let mut root_chain = graph.chain_iter();
+
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            dbg!(&entry);
+            assert!(matches!(entry, ChainEntry::Branched { .. }));
+
+            let (mut left, right) = match entry {
+                ChainEntry::Branched { sides, .. } => sides,
+                _ => unreachable!(),
+            };
+
+            assert!(right.is_none());
+
+            {
+                let raw_entry = left.next_entry();
+                assert!(raw_entry.is_some());
+            }
+            {
+                let raw_entry = left.next_entry();
+                assert!(raw_entry.is_none());
+            }
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_none());
         }
     }
 
@@ -871,10 +1003,12 @@ mod tests {
                 let entry = raw_entry.unwrap();
                 assert!(matches!(entry, ChainEntry::Branched { .. }));
 
-                let (mut left, mut right) = match entry {
+                let (mut left, right) = match entry {
                     ChainEntry::Branched { sides, .. } => sides,
                     _ => unreachable!(),
                 };
+
+                let mut right = right.unwrap();
 
                 {
                     let raw_entry = left.next_entry();
