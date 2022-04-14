@@ -7,7 +7,7 @@ use std::{
 use crate::{
     comp::CompareGraph,
     dot::{Context, DrawnBlocks},
-    DominanceTree, PhiEntry, Statement, ToDot, Type, Value, Variable, VariableMetadata,
+    PhiEntry, Statement, ToDot, Type, Value, Variable, VariableMetadata,
 };
 
 mod inner;
@@ -474,66 +474,6 @@ impl BasicBlock {
         }
 
         None
-    }
-
-    /// This will generate the Dominance Tree for this Block and all its immediate Successors that
-    /// have not already been visited
-    pub fn dominance_tree(&self, visited: &mut HashSet<*const InnerBlock>) -> DominanceTree {
-        visited.insert(self.as_ptr());
-
-        let mut result = DominanceTree::new();
-
-        let statements = self.get_statements();
-        for stmnt in statements {
-            if let Statement::Assignment { target, .. } = stmnt {
-                result.append(target);
-            }
-        }
-
-        let succs = self.successors();
-
-        if succs.is_empty() {
-            return result;
-        }
-
-        if succs.len() == 1 {
-            let (_, succ) = succs.into_iter().next().unwrap();
-            if visited.contains(&succ.as_ptr()) {
-                return result;
-            }
-
-            let succ_tree = succ.dominance_tree(visited);
-
-            result.append_tree(succ_tree);
-
-            return result;
-        }
-
-        assert!(succs.len() == 2);
-
-        let current_node = result.current_node();
-
-        let mut succ_iter = succs.into_iter();
-        let (_, left_block) = succ_iter.next().unwrap();
-        let (_, right_block) = succ_iter.next().unwrap();
-
-        let common_block = left_block.earliest_common_block(&right_block).unwrap();
-        visited.insert(common_block.as_ptr());
-
-        if !visited.contains(&left_block.as_ptr()) {
-            let left_tree = left_block.dominance_tree(visited);
-            result.append_tree_to_node(&current_node, left_tree);
-        }
-        if !visited.contains(&right_block.as_ptr()) {
-            let right_tree = right_block.dominance_tree(visited);
-            result.append_tree_to_node(&current_node, right_tree);
-        }
-        visited.remove(&common_block.as_ptr());
-
-        let common_tree = common_block.dominance_tree(visited);
-        result.append_tree_to_node(&current_node, common_tree);
-
-        result
     }
 }
 

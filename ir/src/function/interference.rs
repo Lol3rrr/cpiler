@@ -1,4 +1,4 @@
-use std::{collections::HashMap, panic};
+use std::{collections::HashMap, env::VarError, panic};
 
 use graphs::directed::{ChainEntry, DirectedChain, DirectedFlatChain, DirectedGraph};
 
@@ -6,7 +6,36 @@ use crate::{BasicBlock, InterferenceGraph, Statement, Variable};
 
 #[derive(Debug, PartialEq, Clone)]
 struct LiveVars {
-    vars: HashMap<Variable, usize>,
+    vars: HashMap<Variable, VarUses>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum VarUses {
+    Defined(usize),
+    Undefined(usize),
+}
+
+impl VarUses {
+    fn saturating_sub(&self, other: usize) -> Self {
+        match self {
+            Self::Defined(v) => Self::Defined(v.saturating_sub(other)),
+            Self::Undefined(v) => todo!(),
+        }
+    }
+
+    fn empty(&self) -> bool {
+        match self {
+            Self::Defined(v) => *v == 0,
+            Self::Undefined(v) => todo!(),
+        }
+    }
+
+    fn count(&self) -> usize {
+        match self {
+            Self::Defined(v) => *v,
+            Self::Undefined(v) => todo!(),
+        }
+    }
 }
 
 impl LiveVars {
@@ -23,7 +52,7 @@ impl LiveVars {
             return;
         }
 
-        self.vars.insert(var, uses);
+        self.vars.insert(var, VarUses::Defined(uses));
     }
 
     /// Decrements the use counter for the given Variable and removes it, if the count reaches 0
@@ -37,7 +66,7 @@ impl LiveVars {
 
         *count = count.saturating_sub(1);
 
-        if *count == 0 {
+        if count.empty() {
             self.vars.remove(var);
         }
     }
@@ -47,15 +76,17 @@ impl LiveVars {
             .vars
             .iter()
             .filter_map(|(var, count)| {
-                let left_delta = count - left.vars.get(var)?;
-                let right_delta = count - right.vars.get(var)?;
+                let left_delta = count.saturating_sub(left.vars.get(var)?.count());
+                let right_delta = count.saturating_sub(right.vars.get(var)?.count());
 
-                let n_count = count - left_delta - right_delta;
+                let n_count = count
+                    .saturating_sub(left_delta.count())
+                    .saturating_sub(right_delta.count());
 
                 Some((var, n_count))
             })
             .map(|(v, c)| (Variable::clone(v), c))
-            .filter(|(_, c)| *c > 0)
+            .filter(|(_, c)| !c.empty())
             .collect();
 
         let left_exclusive = left

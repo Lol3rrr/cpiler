@@ -1,0 +1,3 @@
+fn g_init() -> Void
+  block 0x600001b8c190
+    Return

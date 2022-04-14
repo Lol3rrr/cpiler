@@ -1,10 +1,11 @@
-use std::{collections::HashSet, fmt::Debug};
+use std::fmt::Debug;
 
 use crate::{BasicBlock, DominanceTree, InterferenceGraph, ToDot, Type};
 
 mod debug;
 use debug::DebugBlocks;
 
+mod dominance;
 pub mod interference;
 
 /// A definition of a Function
@@ -75,7 +76,8 @@ impl FunctionDefinition {
 
     /// Generates the Dominance Tree for this Function
     pub fn dominance_tree(&self) -> DominanceTree {
-        self.block.dominance_tree(&mut HashSet::new())
+        let graph = self.to_directed_graph();
+        dominance::generate(&graph)
     }
 
     /// Converts the Function to a Directed Graph for easier Processing and handling

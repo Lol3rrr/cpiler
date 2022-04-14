@@ -173,7 +173,7 @@ where
                 write!(f, "Node({:?})", n.id())
             }
             Self::Branched { head, sides } => {
-                write!(f, "Branched")
+                f.debug_struct("Branched").field("head", head).finish()
             }
             Self::Cycle { head, inner } => f.debug_struct("Cycle").field("head", head).finish(),
         }
@@ -807,6 +807,116 @@ mod tests {
         }
         {
             let raw_entry = outer_chain.next_entry();
+            assert!(raw_entry.is_none());
+        }
+    }
+
+    #[test]
+    fn branch_in_cycle() {
+        let mut graph = DirectedGraph::new();
+
+        graph.add_node(mocks::MockNode {
+            id: 0,
+            successors: vec![1, 5],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 1,
+            successors: vec![2, 3],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 2,
+            successors: vec![4],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 3,
+            successors: vec![4],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 4,
+            successors: vec![0],
+        });
+        graph.add_node(mocks::MockNode {
+            id: 5,
+            successors: vec![],
+        });
+
+        let mut root_chain = graph.chain_iter();
+
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Cycle { .. }));
+
+            let mut inner_chain = match entry {
+                ChainEntry::Cycle { inner, .. } => inner,
+                _ => unreachable!(""),
+            };
+
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 1));
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Branched { .. }));
+
+                let (mut left, mut right) = match entry {
+                    ChainEntry::Branched { sides, .. } => sides,
+                    _ => unreachable!(),
+                };
+
+                {
+                    let raw_entry = left.next_entry();
+                    assert!(raw_entry.is_some());
+                    let entry = raw_entry.unwrap();
+                    assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
+                }
+                {
+                    let raw_entry = left.next_entry();
+                    assert!(raw_entry.is_none());
+                }
+
+                {
+                    let raw_entry = right.next_entry();
+                    assert!(raw_entry.is_some());
+                    let entry = raw_entry.unwrap();
+                    assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 3));
+                }
+                {
+                    let raw_entry = right.next_entry();
+                    assert!(raw_entry.is_none());
+                }
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 4));
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_none());
+            }
+        }
+        {
+            let raw_entry = root_chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 5));
+        }
+        {
+            let raw_entry = root_chain.next_entry();
             assert!(raw_entry.is_none());
         }
     }
