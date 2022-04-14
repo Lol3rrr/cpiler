@@ -781,6 +781,22 @@ impl AExpression {
 
                     ir::Operand::Variable(tmp_var)
                 }
+                ir::Expression::AdressOf { base } => {
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty())
+                        .set_description("Temp Variable for AdressOf");
+
+                    todo!("Generate Operand for AdressOf Operation")
+
+                    /*
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(base),
+                    };
+                    block.add_statement(assign_statement);
+
+                    ir::Operand::Variable(tmp_var)
+                    */
+                }
                 other => panic!("{:?} as Operand", other),
             },
         }

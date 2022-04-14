@@ -75,3 +75,4 @@ compile_testing!(pointer, "pointer.c", true, 0);
 compile_testing!(simple, "simple.c", true, 0);
 compile_testing!(spill_var, "spill_vars.c", true, 0);
 compile_testing!(factorial, "factorial.c", true, 6);
+compile_testing!(spilling, "spilling.c", true, 0);

@@ -121,8 +121,7 @@ pub fn load_var(
     let offset = match ctx.var.get(&var.name) {
         Some(o) => (*o).try_into().unwrap(),
         None => {
-            dbg!(&var);
-            panic!()
+            panic!("Unknown Offset for Variable: {:?}", var)
         }
     };
 

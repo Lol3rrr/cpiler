@@ -20,6 +20,9 @@ use limit::limit;
 
 mod loop_max_pressure;
 
+mod replace;
+use replace::replace_used_variables;
+
 fn inblock_distance(block: &ir::BasicBlock) -> (HashMap<ir::Variable, usize>, usize) {
     let statements = block.get_statements();
     (
@@ -102,15 +105,6 @@ pub struct Reload {
     position: usize,
 }
 
-fn replace_operand(oper: &mut ir::Operand, previous: &ir::Variable, n_var: &ir::Variable) {
-    match oper {
-        ir::Operand::Variable(var) if var == previous => {
-            *var = n_var.clone();
-        }
-        _ => {}
-    };
-}
-
 #[derive(Debug)]
 enum PrevDefinition {
     None,
@@ -187,92 +181,6 @@ where
     }
 }
 
-fn replace_used_variables(
-    stmnt: &mut ir::Statement,
-    previous: &ir::Variable,
-    n_var: &ir::Variable,
-) {
-    match stmnt {
-        ir::Statement::SaveVariable { var } if var == previous => {
-            *var = n_var.clone();
-        }
-        ir::Statement::SaveVariable { .. } => {}
-        ir::Statement::Assignment { value, .. } => {
-            match value {
-                ir::Value::Expression(exp) => {
-                    match exp {
-                        ir::Expression::BinaryOp { left, right, .. } => {
-                            replace_operand(left, previous, n_var);
-                            replace_operand(right, previous, n_var);
-                        }
-                        ir::Expression::Cast { base, .. } => {
-                            replace_operand(base, previous, n_var);
-                        }
-                        ir::Expression::UnaryOp { base, .. } => {
-                            replace_operand(base, previous, n_var);
-                        }
-                        ir::Expression::FunctionCall { arguments, .. } => {
-                            for arg in arguments {
-                                replace_operand(arg, previous, n_var);
-                            }
-                        }
-                        other => {
-                            dbg!(other);
-                            todo!()
-                        }
-                    };
-                }
-                ir::Value::Variable(var) if var == previous => {
-                    *var = n_var.clone();
-                }
-                ir::Value::Variable(_) => {}
-                ir::Value::Phi { sources } => {
-                    for src in sources.iter_mut() {
-                        if &src.var == previous {
-                            src.var = n_var.clone();
-                        }
-                    }
-
-                    let first = sources.first().expect("");
-                    if sources.iter().all(|v| first.var == v.var) {
-                        let var = first.var.clone();
-
-                        *value = ir::Value::Variable(var);
-                    }
-                }
-                ir::Value::Constant(_) => {}
-                ir::Value::Unknown => {}
-            };
-        }
-        ir::Statement::Return(Some(var)) if var == previous => {
-            *var = n_var.clone();
-        }
-        ir::Statement::Return(_) => {}
-        ir::Statement::Jump(_, _) => {}
-        ir::Statement::JumpTrue(var, _, _) if var == previous => {
-            *var = n_var.clone();
-        }
-        ir::Statement::JumpTrue(_, _, _) => {}
-        ir::Statement::SaveGlobalVariable { var } if var == previous => {
-            *var = n_var.clone();
-        }
-        ir::Statement::SaveGlobalVariable { .. } => {}
-        ir::Statement::WriteMemory { target, value } => {
-            replace_operand(target, previous, n_var);
-            replace_operand(value, previous, n_var);
-        }
-        ir::Statement::Call { arguments, .. } => {
-            for arg in arguments.iter_mut() {
-                replace_operand(arg, previous, n_var);
-            }
-        }
-        other => {
-            dbg!(&other);
-            todo!()
-        }
-    };
-}
-
 fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
     let reloads: Vec<_> = reloads
         .into_iter()
@@ -282,11 +190,6 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
         .iter()
         .map(|(_, r)| r.previous.name.clone())
         .collect();
-
-    dbg!(reloads
-        .iter()
-        .map(|(_, r)| r.clone())
-        .collect::<Vec<Reload>>());
 
     // Iterate over the current block and all the blocks that can be reached from it
     for tmp_b in block.block_iter() {
