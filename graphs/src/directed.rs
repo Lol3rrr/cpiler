@@ -1,6 +1,6 @@
 //! Contains an implementation for a DirectedGraph
 
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash, path::Prefix};
 
 mod successor;
 use successor::{succ_type, SuccType};
@@ -78,6 +78,7 @@ where
     {
         DirectedChain {
             previous: None,
+            n_previous: None,
             next: self.initial,
             end: None,
             head: None,
@@ -92,6 +93,7 @@ where
     {
         DirectedChain {
             previous: None,
+            n_previous: None,
             next: Some(id),
             end: None,
             head: None,
@@ -125,6 +127,7 @@ where
 {
     /// The ID of the last Entry we returned
     previous: Option<N::Id>,
+    n_previous: Option<PreviousSucc<N::Id>>,
     /// The ID of the next Entry we will return
     next: Option<N::Id>,
     /// The ID up until which  we should return Entries (exclusive)
@@ -133,6 +136,13 @@ where
     head: Option<N::Id>,
     /// The HashMap of Nodes in the Graph
     graph: &'g DirectedGraph<N>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum PreviousSucc<I> {
+    Node,
+    Branched { sides: (I, Option<I>), end: I },
+    Cycle { head: I, inner: I },
 }
 
 /// An Entry as returned by a Chain
@@ -145,8 +155,6 @@ where
     /// The Control-Flow has split into multiple Branches, contains a Vec of all the Chains to go over
     /// all the Entries in their respective Chains
     Branched {
-        /// The Head of the Branch, i.e. the last shared Node before the Graph split
-        head: N::Id,
         /// The two Sides of the Branch
         sides: (DirectedChain<'n, N>, Option<DirectedChain<'n, N>>),
     },
@@ -172,11 +180,7 @@ where
             Self::Node(n) => {
                 write!(f, "Node({:?})", n.id())
             }
-            Self::Branched { head, sides } => f
-                .debug_struct("Branched")
-                .field("head", head)
-                .field("sides", sides)
-                .finish(),
+            Self::Branched { sides } => f.debug_struct("Branched").field("sides", sides).finish(),
             Self::Cycle { head, inner } => f
                 .debug_struct("Cycle")
                 .field("head", head)
@@ -218,29 +222,25 @@ where
             successor::Context::None
         };
 
-        if let Some(prev) = self.previous.take() {
-            let prev_node = self.graph.get_node(&prev)?;
-            match succ_type(prev_node, self.graph, context) {
-                None => {}
-                Some(SuccType::Single(_)) => {}
-                Some(SuccType::Branched { sides, end }) => {
+        if let Some(prev) = self.n_previous.take() {
+            match prev {
+                PreviousSucc::Node => {}
+                PreviousSucc::Branched { sides, end } => {
                     self.next = next_id;
+
                     return Some(ChainEntry::Branched {
-                        head: prev,
                         sides: (
                             self.graph.chain_from(sides.0).set_end(end),
-                            sides
-                                .1
-                                .map(|right_id| self.graph.chain_from(right_id).set_end(end)),
+                            sides.1.map(|s| self.graph.chain_from(s).set_end(end)),
                         ),
                     });
                 }
-                Some(SuccType::Cycle { inner, .. }) => {
+                PreviousSucc::Cycle { head, inner } => {
                     self.next = next_id;
 
-                    let inner = self.graph.chain_from(inner).set_end(prev);
+                    let inner = self.graph.chain_from(inner).set_end(head);
 
-                    return Some(ChainEntry::Cycle { head: prev, inner });
+                    return Some(ChainEntry::Cycle { head, inner });
                 }
             };
         }
@@ -256,15 +256,24 @@ where
                     self.next = Some(succ_id);
                 }
 
-                Some(ChainEntry::Node(next_node))
-            }
-            Some(SuccType::Branched { end, .. }) => {
-                self.next = Some(end);
+                self.n_previous = Some(PreviousSucc::Node);
 
                 Some(ChainEntry::Node(next_node))
             }
-            Some(SuccType::Cycle { following, .. }) => {
+            Some(SuccType::Branched { end, sides }) => {
+                self.next = Some(end);
+
+                self.n_previous = Some(PreviousSucc::Branched { sides, end });
+
+                Some(ChainEntry::Node(next_node))
+            }
+            Some(SuccType::Cycle { following, inner }) => {
                 self.next = following;
+
+                self.n_previous = Some(PreviousSucc::Cycle {
+                    head: next_id,
+                    inner,
+                });
 
                 Some(ChainEntry::Node(next_node))
             }
@@ -276,6 +285,7 @@ where
     pub fn duplicate(&self) -> Self {
         Self {
             previous: self.previous,
+            n_previous: self.n_previous,
             next: self.next,
             end: self.end,
             head: self.head,
@@ -552,16 +562,14 @@ mod tests {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_some());
             let entry = raw_entry.unwrap();
-            let (head, mut left, right) = match entry {
-                ChainEntry::Branched { head, sides } => (head, sides.0, sides.1),
+            let (mut left, right) = match entry {
+                ChainEntry::Branched { sides } => (sides.0, sides.1),
                 _ => {
                     panic!("Expected a Branched Entry");
                 }
             };
 
             let mut right = right.unwrap();
-
-            assert_eq!(0, head);
 
             {
                 let raw_entry = left.next_entry();
