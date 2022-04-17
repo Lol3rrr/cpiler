@@ -3,6 +3,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     hash::Hash,
+    marker::PhantomData,
 };
 
 use register_allocation::Register;
@@ -82,36 +83,52 @@ pub struct StackAllocation<I> {
     pub allocations: HashMap<ir::Variable, isize>,
 }
 
+/// The Configuration to use for the Stack-Allocation procedure
+pub struct AllocateConfig<A, DA, SS, LS, TA, I, R>
+where
+    A: FnOnce(usize) -> Vec<I>,
+    DA: FnOnce(usize) -> Vec<I>,
+    SS: for<'r> Fn(&'r R, i16) -> Vec<I>,
+    LS: for<'r> Fn(&'r R, i16) -> Vec<I>,
+    TA: for<'t> Fn(&'t ir::Type) -> (usize, usize),
+{
+    /// Used for generating the Instructions to allocate the given space in Bytes on the Stack
+    pub alloc_space: A,
+    /// Used for generating the Instructions to deallocate the given Space in Bytes on the Stack
+    pub dealloc_space: DA,
+    /// Generates the Instructions to store the Register on the Stack at the provided Offset
+    pub store_on_stack: SS,
+    /// Generates the Instructions to load the Register from the Stack at the provided Offset
+    pub load_on_stack: LS,
+    /// Figures out the Size and Alignment for a given Type
+    pub type_align_size: TA,
+    /// TODO
+    /// Figure this out
+    pub stack_base: usize,
+    /// The Alignment for the Stack-Pointer
+    pub stack_alignment: usize,
+    /// Needed for the R-Type
+    pub _marker: PhantomData<R>,
+}
+
 /// This performs the corresponding allocation of the Stack for the given Function
 pub fn allocate_stack<I, R, ASF, DSF, SS, LS, TAS>(
     // The function
     func: &ir::FunctionDefinition,
     reg_map: &HashMap<ir::Variable, R>,
-    // A closure that returns the instructions for allocating the given space in bytes on the Stack
-    alloc_space: ASF,
-    // A closure that returns the instructions for deallocating the given space in bytes on the Stack
-    dealloc_space: DSF,
-    // A closure that returns the instructions to store a Register on the Stack at the given offset
-    store_on_stack: SS,
-    // A closure that returns the instructions to load a Value from the Stack into a Register
-    load_from_stack: LS,
-    // A closure that returns the alignment and size of the given Type
-    type_align_size: TAS,
-    // The Alignment that the stack needs on the Platform
-    stack_alignment: usize,
-    stack_base: usize,
+    conf: AllocateConfig<ASF, DSF, SS, LS, TAS, I, R>,
 ) -> StackAllocation<I>
 where
     R: Register + Hash + Eq,
     ASF: FnOnce(usize) -> Vec<I>,
     DSF: FnOnce(usize) -> Vec<I>,
-    SS: Fn(&R, i16) -> Vec<I>,
-    LS: Fn(&R, i16) -> Vec<I>,
-    TAS: Fn(&ir::Type) -> (usize, usize),
+    SS: for<'r> Fn(&'r R, i16) -> Vec<I>,
+    LS: for<'r> Fn(&'r R, i16) -> Vec<I>,
+    TAS: for<'t> Fn(&'t ir::Type) -> (usize, usize),
 {
     let used_registers: HashSet<_> = reg_map.iter().map(|(_, r)| r).collect();
 
-    let raw_vars = vars_used(&func.block, type_align_size);
+    let raw_vars = vars_used(&func.block, conf.type_align_size);
 
     let raw_allocations = allocations(&func.block);
 
@@ -129,16 +146,16 @@ where
                 .map(|(_, (alignment, size))| (*alignment, *size)),
         );
 
-    let stack_space = stack_space(alloc_iter, stack_base, stack_alignment);
+    let stack_space = stack_space(alloc_iter, conf.stack_base, conf.stack_alignment);
 
     let mut setup = Vec::new();
-    let stack_alloc = alloc_space(stack_space);
+    let stack_alloc = (conf.alloc_space)(stack_space);
     setup.extend(stack_alloc);
 
     let mut pre_ret_instr = Vec::new();
 
     let start_base = {
-        let mut current_base = stack_base as i16;
+        let mut current_base = conf.stack_base as i16;
         for (_, raw_reg) in used_registers.iter().enumerate() {
             let (reg_align, reg_size) = raw_reg.align_size();
             let (reg_align, reg_size) = (reg_align as i16, reg_size as i16);
@@ -147,8 +164,8 @@ where
                 current_base += reg_align - (current_base % reg_align);
             }
 
-            let store_instr = store_on_stack(raw_reg, current_base);
-            let load_instr = load_from_stack(raw_reg, current_base);
+            let store_instr = (conf.store_on_stack)(raw_reg, current_base);
+            let load_instr = (conf.load_on_stack)(raw_reg, current_base);
 
             setup.extend(store_instr);
             pre_ret_instr.extend(load_instr);
@@ -159,7 +176,7 @@ where
         current_base
     };
 
-    pre_ret_instr.extend(dealloc_space(stack_space));
+    pre_ret_instr.extend((conf.dealloc_space)(stack_space));
 
     let (var_offsets, start_base) = {
         let mut tmp = HashMap::new();

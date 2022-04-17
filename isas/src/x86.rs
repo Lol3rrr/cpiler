@@ -1,6 +1,6 @@
 pub struct Block {
-    name: String,
-    content: Vec<Instruction>,
+    pub name: String,
+    pub content: Vec<Instruction>,
 }
 
 pub enum Instruction {

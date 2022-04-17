@@ -5,7 +5,7 @@
 // Instructions: http://shared-ptr.com/sh_insns.html
 // General SH4: https://www.st.com/resource/en/user_manual/cd00147165-sh-4-32-bit-cpu-core-architecture-stmicroelectronics.pdf
 
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{assemblers, util};
 use isas::sh4a;
@@ -45,117 +45,120 @@ impl Backend {
         let stack_allocation = util::stack::allocate_stack(
             func,
             &register_map,
-            |space| {
-                let mut base = vec![sh4a::Instruction::PushPR];
+            util::stack::AllocateConfig {
+                alloc_space: |space| {
+                    let mut base = vec![sh4a::Instruction::PushPR];
 
-                let mut space_left = space;
-                while space_left > i8::MAX as usize {
+                    let mut space_left = space;
+                    while space_left > i8::MAX as usize {
+                        base.push(sh4a::Instruction::AddImmediate {
+                            reg: sh4a::GeneralPurposeRegister::stack_reg(),
+                            immediate: -i8::MAX,
+                        });
+                        space_left -= i8::MAX as usize;
+                    }
+
+                    let space_left: i8 = space_left.try_into().unwrap();
                     base.push(sh4a::Instruction::AddImmediate {
                         reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                        immediate: -i8::MAX,
+                        immediate: -space_left,
                     });
-                    space_left -= i8::MAX as usize;
-                }
 
-                let space_left: i8 = space_left.try_into().unwrap();
-                base.push(sh4a::Instruction::AddImmediate {
-                    reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                    immediate: -space_left,
-                });
+                    base
+                },
+                dealloc_space: |space| {
+                    let mut base_alloc = Vec::new();
+                    let mut space_left = space;
 
-                base
-            },
-            |space| {
-                let mut base_alloc = Vec::new();
-                let mut space_left = space;
+                    while space_left > i8::MAX as usize {
+                        base_alloc.push(sh4a::Instruction::AddImmediate {
+                            reg: sh4a::GeneralPurposeRegister::stack_reg(),
+                            immediate: i8::MAX,
+                        });
+                        space_left -= i8::MAX as usize;
+                    }
 
-                while space_left > i8::MAX as usize {
                     base_alloc.push(sh4a::Instruction::AddImmediate {
                         reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                        immediate: i8::MAX,
+                        immediate: space_left.try_into().unwrap(),
                     });
-                    space_left -= i8::MAX as usize;
-                }
 
-                base_alloc.push(sh4a::Instruction::AddImmediate {
-                    reg: sh4a::GeneralPurposeRegister::stack_reg(),
-                    immediate: space_left.try_into().unwrap(),
-                });
+                    base_alloc.push(sh4a::Instruction::PopPR);
 
-                base_alloc.push(sh4a::Instruction::PopPR);
+                    base_alloc
+                },
+                store_on_stack: |register, offset| {
+                    let write_offset = offset + 4;
 
-                base_alloc
-            },
-            |register, offset| {
-                let write_offset = offset + 4;
-
-                match register {
-                    sh4a::Register::GeneralPurpose(gp) => {
-                        vec![
-                            sh4a::Instruction::PushL {
-                                reg: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                            sh4a::Instruction::MovIR {
-                                immediate: write_offset as i8,
-                                dest: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                            sh4a::Instruction::MovLRR0PR {
-                                base: sh4a::GeneralPurposeRegister::stack_reg(),
-                                src: gp.clone(),
-                            },
-                            sh4a::Instruction::PopL {
-                                reg: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                        ]
+                    match register {
+                        sh4a::Register::GeneralPurpose(gp) => {
+                            vec![
+                                sh4a::Instruction::PushL {
+                                    reg: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                                sh4a::Instruction::MovIR {
+                                    immediate: write_offset as i8,
+                                    dest: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                                sh4a::Instruction::MovLRR0PR {
+                                    base: sh4a::GeneralPurposeRegister::stack_reg(),
+                                    src: gp.clone(),
+                                },
+                                sh4a::Instruction::PopL {
+                                    reg: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                            ]
+                        }
+                        sh4a::Register::FloatingPoint(_) => {
+                            todo!()
+                        }
+                        sh4a::Register::PR => {
+                            todo!()
+                        }
                     }
-                    sh4a::Register::FloatingPoint(_) => {
+                },
+                load_on_stack: |register, offset| {
+                    let read_offset = offset + 4;
+
+                    match register {
+                        sh4a::Register::GeneralPurpose(gp) => {
+                            vec![
+                                sh4a::Instruction::PushL {
+                                    reg: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                                sh4a::Instruction::MovIR {
+                                    immediate: read_offset as i8,
+                                    dest: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                                sh4a::Instruction::MovLR0PRR {
+                                    base: sh4a::GeneralPurposeRegister::stack_reg(),
+                                    target: gp.clone(),
+                                },
+                                sh4a::Instruction::PopL {
+                                    reg: sh4a::GeneralPurposeRegister::new(0),
+                                },
+                            ]
+                        }
+                        sh4a::Register::FloatingPoint(_) => {
+                            todo!()
+                        }
+                        sh4a::Register::PR => {
+                            todo!()
+                        }
+                    }
+                },
+                type_align_size: |ty| match ty {
+                    ir::Type::I64 | ir::Type::U64 => (8, 8),
+                    ir::Type::I32 | ir::Type::U32 | ir::Type::Pointer(_) => (4, 4),
+                    other => {
+                        dbg!(&other);
                         todo!()
                     }
-                    sh4a::Register::PR => {
-                        todo!()
-                    }
-                }
+                },
+                stack_alignment: 4,
+                stack_base: 0,
+                _marker: PhantomData {},
             },
-            |register, offset| {
-                let read_offset = offset + 4;
-
-                match register {
-                    sh4a::Register::GeneralPurpose(gp) => {
-                        vec![
-                            sh4a::Instruction::PushL {
-                                reg: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                            sh4a::Instruction::MovIR {
-                                immediate: read_offset as i8,
-                                dest: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                            sh4a::Instruction::MovLR0PRR {
-                                base: sh4a::GeneralPurposeRegister::stack_reg(),
-                                target: gp.clone(),
-                            },
-                            sh4a::Instruction::PopL {
-                                reg: sh4a::GeneralPurposeRegister::new(0),
-                            },
-                        ]
-                    }
-                    sh4a::Register::FloatingPoint(_) => {
-                        todo!()
-                    }
-                    sh4a::Register::PR => {
-                        todo!()
-                    }
-                }
-            },
-            |ty| match ty {
-                ir::Type::I64 | ir::Type::U64 => (8, 8),
-                ir::Type::I32 | ir::Type::U32 | ir::Type::Pointer(_) => (4, 4),
-                other => {
-                    dbg!(&other);
-                    todo!()
-                }
-            },
-            4,
-            0,
         );
 
         let ctx = codegen::Context {

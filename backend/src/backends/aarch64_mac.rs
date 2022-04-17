@@ -4,7 +4,7 @@
 // Call ABI: https://developer.arm.com/documentation/ihi0055/b/
 // https://stackoverflow.com/questions/65351533/apple-clang12-llvm-unknown-aarch64-fixup-kind
 
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, marker::PhantomData, process::Command};
 
 use ir::Variable;
 
@@ -12,7 +12,8 @@ use crate::{backends::aarch64_mac::codegen::ArgTarget, util};
 
 use super::{Target, TargetConfig};
 
-mod asm;
+use isas::armv8a as asm;
+
 mod codegen;
 
 pub struct Backend {}
@@ -97,63 +98,70 @@ impl Backend {
         let stack_allocation = util::stack::allocate_stack(
             func,
             &register_map,
-            |space| {
-                vec![asm::Instruction::StpPreIndex {
-                    first: asm::GPRegister::DWord(29),
-                    second: asm::GPRegister::DWord(30),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: -(space as i16),
-                }]
+            util::stack::AllocateConfig {
+                alloc_space: |space| {
+                    vec![asm::Instruction::StpPreIndex {
+                        first: asm::GPRegister::DWord(29),
+                        second: asm::GPRegister::DWord(30),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: -(space as i16),
+                    }]
+                },
+                dealloc_space: |space| {
+                    vec![asm::Instruction::LdpPostIndex {
+                        first: asm::GPRegister::DWord(29),
+                        second: asm::GPRegister::DWord(30),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: space as i16,
+                    }]
+                },
+                store_on_stack: |register, offset| match register {
+                    ArmRegister::GeneralPurpose(n) => {
+                        vec![asm::Instruction::StoreRegisterUnscaled {
+                            reg: asm::GPRegister::DWord(*n),
+                            base: asm::GpOrSpRegister::SP,
+                            offset: asm::Imm9Signed::new(offset).unwrap(),
+                        }]
+                    }
+                    ArmRegister::FloatingPoint(n) => vec![asm::Instruction::StoreFPUnscaled {
+                        reg: asm::FPRegister::DoublePrecision(*n),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
+                    }],
+                },
+                load_on_stack: |register, offset| match register {
+                    ArmRegister::GeneralPurpose(n) => {
+                        vec![asm::Instruction::LoadRegisterUnscaled {
+                            reg: asm::GPRegister::DWord(*n),
+                            base: asm::GpOrSpRegister::SP,
+                            offset: asm::Imm9Signed::new(offset).unwrap(),
+                        }]
+                    }
+                    ArmRegister::FloatingPoint(n) => vec![asm::Instruction::LoadFPUnscaled {
+                        reg: asm::FPRegister::DoublePrecision(*n),
+                        base: asm::GpOrSpRegister::SP,
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
+                    }],
+                },
+                type_align_size: |ty| match ty {
+                    ir::Type::I32 => (4, 4),
+                    ir::Type::I64 => (8, 8),
+                    ir::Type::Pointer(_) => (8, 8),
+                    ir::Type::Float => (4, 4),
+                    ir::Type::Void => {
+                        // TODO
+                        // This should probably not happen
+                        (1, 1)
+                    }
+                    other => {
+                        dbg!(&other);
+                        todo!()
+                    }
+                },
+                stack_alignment: 16,
+                stack_base: 16,
+                _marker: PhantomData {},
             },
-            |space| {
-                vec![asm::Instruction::LdpPostIndex {
-                    first: asm::GPRegister::DWord(29),
-                    second: asm::GPRegister::DWord(30),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: space as i16,
-                }]
-            },
-            |register, offset| match register {
-                ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::StoreRegisterUnscaled {
-                    reg: asm::GPRegister::DWord(*n),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset).unwrap(),
-                }],
-                ArmRegister::FloatingPoint(n) => vec![asm::Instruction::StoreFPUnscaled {
-                    reg: asm::FPRegister::DoublePrecision(*n),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset).unwrap(),
-                }],
-            },
-            |register, offset| match register {
-                ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::LoadRegisterUnscaled {
-                    reg: asm::GPRegister::DWord(*n),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset).unwrap(),
-                }],
-                ArmRegister::FloatingPoint(n) => vec![asm::Instruction::LoadFPUnscaled {
-                    reg: asm::FPRegister::DoublePrecision(*n),
-                    base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset).unwrap(),
-                }],
-            },
-            |ty| match ty {
-                ir::Type::I32 => (4, 4),
-                ir::Type::I64 => (8, 8),
-                ir::Type::Pointer(_) => (8, 8),
-                ir::Type::Float => (4, 4),
-                ir::Type::Void => {
-                    // TODO
-                    // This should probably not happen
-                    (1, 1)
-                }
-                other => {
-                    dbg!(&other);
-                    todo!()
-                }
-            },
-            16,
-            16,
         );
 
         let arg_moves = {
