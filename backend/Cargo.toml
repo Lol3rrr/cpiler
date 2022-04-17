@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 ir = { path = "../ir" }
+isas = { path = "../isas" }
 general = { path = "../general" }
 g3a = { path = "../g3a" }
 register_allocation = { path = "../register_allocation" }

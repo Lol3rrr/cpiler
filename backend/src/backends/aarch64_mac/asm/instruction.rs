@@ -107,7 +107,8 @@ pub enum Instruction {
         shift: Shift,
         amount: u8,
     },
-    /// Page: 1259
+    /// Page: 1707 C6.2.241
+    /// ORR (shifted register)
     BitwiseOrRegisterShifted {
         dest: GPRegister,
         src1: GPRegister,
@@ -399,6 +400,15 @@ impl Display for Instruction {
             }
             Self::Return => {
                 write!(f, "ret")
+            }
+            Self::BitwiseOrRegisterShifted {
+                dest,
+                src1,
+                src2,
+                shift,
+                amount,
+            } => {
+                write!(f, "orr {}, {}, {}, {} #{}", dest, src1, src2, shift, amount)
             }
             other => {
                 dbg!(&other);

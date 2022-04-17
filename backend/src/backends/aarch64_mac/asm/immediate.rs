@@ -5,12 +5,12 @@ pub struct Imm9(u16);
 pub struct Imm9Signed(i16);
 
 impl Imm9Signed {
-    pub fn new(val: i16) -> Self {
-        if val > 255 || val < -256 {
-            panic!("Attempted to construct Signed 9-Bit immediate: {}", val)
+    pub fn new(val: i16) -> Option<Self> {
+        if val > u8::MAX as i16 || val < -(u8::MAX as i16 - 1) {
+            return None;
         }
 
-        Self(val)
+        Some(Self(val))
     }
 
     pub fn fits(value: i16) -> bool {

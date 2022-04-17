@@ -56,6 +56,7 @@ dependencies = [
  "g3a",
  "general",
  "ir",
+ "isas",
  "register_allocation",
  "semantic",
  "syntax",
@@ -432,6 +433,13 @@ dependencies = [
  "semantic",
  "syntax",
  "tokenizer",
+]
+
+[[package]]
+name = "isas"
+version = "0.1.0"
+dependencies = [
+ "register_allocation",
 ]
 
 [[package]]

@@ -1,4 +1,5 @@
-use crate::{backends::sh4a_fxcg50::codegen, isas::sh4a};
+use crate::backends::sh4a_fxcg50::codegen;
+use isas::sh4a;
 
 #[derive(Debug)]
 pub struct Context {

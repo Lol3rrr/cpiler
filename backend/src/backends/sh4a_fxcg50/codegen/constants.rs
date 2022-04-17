@@ -1,5 +1,6 @@
-use crate::isas::sh4a;
+use isas::sh4a;
 
+#[allow(dead_code)]
 pub fn store_isize(register: sh4a::GeneralPurposeRegister, value: isize) -> Vec<sh4a::Instruction> {
     if (0..(i8::MAX as isize)).contains(&value) {
         return vec![sh4a::Instruction::MovIR {

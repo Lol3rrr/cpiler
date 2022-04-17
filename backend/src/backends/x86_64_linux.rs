@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::Target;
 use crate::{util, TargetConfig};
 
-use crate::isas::x86;
+use isas::x86;
 
 pub struct Backend {}
 

@@ -8,8 +8,9 @@ use std::{path::PathBuf, str::FromStr};
 use backends::TargetConfig;
 
 mod backends;
-mod isas;
 pub mod util;
+
+mod assemblers;
 
 /// The Config is used to specify certain Things that influence the way the Code will be generated,
 /// like the Target Architecture and Platform.

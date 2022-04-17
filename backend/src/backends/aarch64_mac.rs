@@ -117,24 +117,24 @@ impl Backend {
                 ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::StoreRegisterUnscaled {
                     reg: asm::GPRegister::DWord(*n),
                     base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset),
+                    offset: asm::Imm9Signed::new(offset).unwrap(),
                 }],
                 ArmRegister::FloatingPoint(n) => vec![asm::Instruction::StoreFPUnscaled {
                     reg: asm::FPRegister::DoublePrecision(*n),
                     base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset),
+                    offset: asm::Imm9Signed::new(offset).unwrap(),
                 }],
             },
             |register, offset| match register {
                 ArmRegister::GeneralPurpose(n) => vec![asm::Instruction::LoadRegisterUnscaled {
                     reg: asm::GPRegister::DWord(*n),
                     base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset),
+                    offset: asm::Imm9Signed::new(offset).unwrap(),
                 }],
                 ArmRegister::FloatingPoint(n) => vec![asm::Instruction::LoadFPUnscaled {
                     reg: asm::FPRegister::DoublePrecision(*n),
                     base: asm::GpOrSpRegister::SP,
-                    offset: asm::Imm9Signed::new(offset),
+                    offset: asm::Imm9Signed::new(offset).unwrap(),
                 }],
             },
             |ty| match ty {
@@ -180,7 +180,10 @@ impl Backend {
                     }
                     other => {
                         dbg!(&other);
-                        todo!()
+                        //todo!()
+                        // TODO
+                        // Figure out this part of the Code
+                        continue;
                     }
                 };
 

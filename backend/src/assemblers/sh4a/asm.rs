@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::isas::sh4a;
+use isas::sh4a;
 
 #[derive(Debug)]
 pub enum Instruction {

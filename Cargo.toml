@@ -1,2 +1,2 @@
 [workspace]
-members = ["general", "graphs", "tokenizer", "preprocessor", "syntax", "semantic", "ir", "optimizer", "register_allocation", "backend", "compiler", "g3a"]
+members = ["general", "graphs", "isas", "tokenizer", "preprocessor", "syntax", "semantic", "ir", "optimizer", "register_allocation", "backend", "compiler", "g3a"]

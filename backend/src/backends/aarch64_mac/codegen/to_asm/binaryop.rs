@@ -361,7 +361,18 @@ pub fn to_asm(
                     asm::Register::GeneralPurpose(t),
                     asm::Register::GeneralPurpose(f),
                     asm::Register::GeneralPurpose(s),
-                ) => (t, f, s),
+                ) => {
+                    let t_numb = match t {
+                        asm::GPRegister::Word(n) => n,
+                        asm::GPRegister::DWord(n) => n,
+                    };
+                    match &f {
+                        asm::GPRegister::Word(_) => (asm::GPRegister::Word(t_numb), f, s),
+                        asm::GPRegister::DWord(_) => {
+                            todo!()
+                        }
+                    }
+                }
                 other => {
                     dbg!(&other);
                     todo!()

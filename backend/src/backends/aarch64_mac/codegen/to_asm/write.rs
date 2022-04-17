@@ -43,7 +43,7 @@ fn write_var(
                 instr.push(asm::Instruction::StoreRegisterUnscaled {
                     reg: val_register,
                     base: asm::GpOrSpRegister::GP(base_reg),
-                    offset: asm::Imm9Signed::new(0),
+                    offset: asm::Imm9Signed::new(0).unwrap(),
                 });
             }
             ir::Constant::U8(val) => {
@@ -57,7 +57,7 @@ fn write_var(
                 instr.push(asm::Instruction::StoreRegisterUnscaled {
                     reg: val_register,
                     base: asm::GpOrSpRegister::GP(base_reg),
-                    offset: asm::Imm9Signed::new(0),
+                    offset: asm::Imm9Signed::new(0).unwrap(),
                 });
             }
             other => {
@@ -73,7 +73,7 @@ fn write_var(
                     instr.push(asm::Instruction::StoreRegisterUnscaled {
                         reg: value,
                         base: asm::GpOrSpRegister::GP(base_reg),
-                        offset: asm::Imm9Signed::new(0),
+                        offset: asm::Imm9Signed::new(0).unwrap(),
                     });
                 }
                 other_ty => {

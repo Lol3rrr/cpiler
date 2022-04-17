@@ -1,5 +1,6 @@
 use super::Context;
-use crate::{backends::sh4a_fxcg50::codegen::constants, isas::sh4a};
+use crate::backends::sh4a_fxcg50::codegen::constants;
+use isas::sh4a;
 
 fn oper_to_reg(
     operand: ir::Operand,

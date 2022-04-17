@@ -33,7 +33,7 @@ pub fn load(
                     let load_instr = asm::Instruction::LoadRegisterUnscaled {
                         reg: target_reg,
                         base,
-                        offset: asm::Imm9Signed::new(offset),
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
                     };
 
                     instr.push(load_instr);
@@ -49,7 +49,7 @@ pub fn load(
                             asm::Instruction::LoadSignedWordUnscaled {
                                 reg: correct_target_reg,
                                 base,
-                                offset: asm::Imm9Signed::new(offset),
+                                offset: asm::Imm9Signed::new(offset).unwrap(),
                             }
                         }
                         offset => {
@@ -64,28 +64,28 @@ pub fn load(
                     instr.push(asm::Instruction::LoadSignedHalfWordUnscaled {
                         reg: target_reg,
                         base,
-                        offset: asm::Imm9Signed::new(offset),
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
                     });
                 }
                 ir::Type::U16 => {
                     instr.push(asm::Instruction::LoadHalfWordUnscaled {
                         reg: target_reg,
                         base,
-                        offset: asm::Imm9Signed::new(offset),
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
                     });
                 }
                 ir::Type::I8 => {
                     instr.push(asm::Instruction::LoadSignedByteUnscaled {
                         reg: target_reg,
                         base,
-                        offset: asm::Imm9Signed::new(offset),
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
                     });
                 }
                 ir::Type::U8 => {
                     instr.push(asm::Instruction::LoadByteUnscaled {
                         reg: target_reg,
                         base,
-                        offset: asm::Imm9Signed::new(offset),
+                        offset: asm::Imm9Signed::new(offset).unwrap(),
                     });
                 }
                 _ => {}

@@ -7,7 +7,8 @@
 
 use std::collections::HashMap;
 
-use crate::{isas::sh4a, util};
+use crate::{assemblers, util};
+use isas::sh4a;
 
 use super::{Target, TargetConfig};
 
@@ -197,7 +198,7 @@ impl Target for Backend {
         let main_first_block = &main_func.block;
         let main_block_name = codegen::block_name(main_first_block);
 
-        let asm_code = sh4a::assembler::assemble(main_block_name, blocks);
+        let asm_code = assemblers::sh4a::assemble(main_block_name, blocks);
 
         let mut g3a_builder = g3a::FileBuilder::new(
             "testing".to_string(),

@@ -9,13 +9,14 @@
 //!
 //! # General
 //! * Big-Endian Mode
-
-pub mod assembler;
+//!
+//! Instructions: http://shared-ptr.com/sh_insns.html
+//! General SH4: https://www.st.com/resource/en/user_manual/cd00147165-sh-4-32-bit-cpu-core-architecture-stmicroelectronics.pdf
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
-    name: String,
-    instructions: Vec<Instruction>,
+    pub name: String,
+    pub instructions: Vec<Instruction>,
 }
 
 impl Block {

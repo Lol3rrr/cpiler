@@ -14,7 +14,7 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                 Some(vo) => *vo,
                 None => panic!("Missing Variable Offset for {:?}", var),
             };
-            let offset = asm::Imm9Signed::new(var_offset as i16);
+            let offset = asm::Imm9Signed::new(var_offset as i16).unwrap();
 
             match src_reg {
                 asm::Register::GeneralPurpose(gp) => match &var.ty {
@@ -89,7 +89,7 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                             instructions.push(asm::Instruction::StoreRegisterUnscaled {
                                 reg: gp,
                                 base: asm::GpOrSpRegister::GP(addr_reg),
-                                offset: asm::Imm9Signed::new(0),
+                                offset: asm::Imm9Signed::new(0).unwrap(),
                             });
                         }
                         other => {

@@ -183,7 +183,7 @@ pub fn convert_assigned(
                     instructions.push(asm::Instruction::LoadRegisterUnscaled {
                         reg: target,
                         base: asm::GpOrSpRegister::GP(addr_register),
-                        offset: asm::Imm9Signed::new(0),
+                        offset: asm::Imm9Signed::new(0).unwrap(),
                     });
                 }
                 other => {

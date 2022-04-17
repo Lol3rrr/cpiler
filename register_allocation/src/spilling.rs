@@ -133,9 +133,11 @@ where
 
     match core::cmp::Ord::cmp(&preds.len(), &1) {
         core::cmp::Ordering::Equal => {
-            // Find the
             let weak_pred = preds.iter().next().unwrap();
-            let pred = weak_pred.upgrade().unwrap();
+            let pred = match weak_pred.upgrade() {
+                Some(p) => p,
+                None => return PrevDefinition::None,
+            };
 
             let n_preds = pred.get_predecessors();
             let statements = pred.get_statements();

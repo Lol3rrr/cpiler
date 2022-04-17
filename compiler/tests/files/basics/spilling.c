@@ -1,20 +1,34 @@
-void outputMenu();
-void scanf(char* t, int* s);
-void printf(char* t);
-void addStudent();
-void addRemoveCourse();
-void searchStudent();
-void printFee();
+void outputMenu() {
+	return;
+}
+void scanf(char* t, int* s) {
+	return;
+}
+void printf(char* t) {
+	return;
+}
+void addStudent() {
+	return;
+}
+void addRemoveCourse() {
+	return;
+}
+void searchStudent() {
+	return;
+}
+void printFee() {
+	return;
+}
 
 int main() {
 	outputMenu();
 
-	int option;
+	int option = 2;
 	int* opt_ref = &option;
-	scanf("%d", opt_ref);
+	//scanf("%d", opt_ref);
 
 	if (option < 0 || option > 4) {
-		printf("Please select one of the options shown above above \n");
+		//printf("Please select one of the options shown above above \n");
 
 		return 0;
 	}
