@@ -151,6 +151,8 @@ where
 
             // dbg!(&pred_def);
 
+            dbg!(var_name);
+
             todo!("Find Variable in Single Predecessor");
         }
         core::cmp::Ordering::Greater => {
@@ -163,7 +165,7 @@ where
 
                     let pred_var = find_previous_definition(
                         &pred_preds,
-                        pred.get_statements().into_iter(),
+                        pred.get_statements().into_iter().rev(),
                         var_name,
                     );
 
@@ -211,7 +213,7 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
 
                 let prev_def = find_previous_definition(
                     &preds,
-                    search_statements.iter().take(index).cloned(),
+                    search_statements.iter().take(index - 1).cloned(),
                     &re_var.name,
                 );
                 match prev_def {

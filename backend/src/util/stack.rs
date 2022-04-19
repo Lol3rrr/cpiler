@@ -8,6 +8,7 @@ use std::{
 
 use register_allocation::Register;
 
+/// Determines the space needed on the Stack for the given Iterator of Allocations
 fn stack_space<ISI, IS>(allocations: ISI, base: usize, forced_alignment: usize) -> usize
 where
     ISI: IntoIterator<IntoIter = IS, Item = (usize, usize)>,
@@ -30,17 +31,34 @@ where
     }
 }
 
-fn vars_used<TAS>(start: &ir::BasicBlock, size_align: TAS) -> BTreeMap<String, (usize, usize)>
+/// Determines the Variables that need to be Allocate on the Space/need space on the Stack for
+/// spilling or the like
+fn vars_used<TAS>(
+    graph: &graphs::directed::DirectedGraph<ir::BasicBlock>,
+    size_align: TAS,
+) -> BTreeMap<String, (usize, usize)>
 where
     TAS: Fn(&ir::Type) -> (usize, usize),
 {
     let mut result = BTreeMap::new();
 
-    for block in start.block_iter() {
+    for block in graph.chain_iter().flatten() {
         let statements = block.get_statements();
 
         for stmnt in statements {
-            if let ir::Statement::SaveVariable { var } = stmnt {
+            let used_vars: Box<dyn Iterator<Item = ir::Variable>> = match stmnt {
+                ir::Statement::SaveVariable { var } => Box::new(std::iter::once(var)),
+                ir::Statement::Assignment {
+                    value: ir::Value::Unknown,
+                    target,
+                } => Box::new(std::iter::once(target)),
+                ir::Statement::Assignment {
+                    target,
+                    value: ir::Value::Phi { .. },
+                } => Box::new(std::iter::once(target)),
+                _ => Box::new(std::iter::empty()),
+            };
+            for var in used_vars {
                 result.insert(var.name, size_align(&var.ty));
             }
         }
@@ -49,10 +67,15 @@ where
     result
 }
 
-fn allocations(start: &ir::BasicBlock) -> BTreeMap<ir::Variable, (usize, usize)> {
+/// Determine the number of Allocations needed
+fn allocations(
+    graph: &graphs::directed::DirectedGraph<ir::BasicBlock>,
+) -> BTreeMap<ir::Variable, (usize, usize)> {
+    // The Resulting Map of Allocations
     let mut result = BTreeMap::new();
 
-    for block in start.block_iter() {
+    // Iterate over the Blocks in the Graph
+    for block in graph.chain_iter().flatten() {
         let statements = block.get_statements();
 
         for stmnt in statements {
@@ -113,7 +136,6 @@ where
 
 /// This performs the corresponding allocation of the Stack for the given Function
 pub fn allocate_stack<I, R, ASF, DSF, SS, LS, TAS>(
-    // The function
     func: &ir::FunctionDefinition,
     reg_map: &HashMap<ir::Variable, R>,
     conf: AllocateConfig<ASF, DSF, SS, LS, TAS, I, R>,
@@ -126,11 +148,16 @@ where
     LS: for<'r> Fn(&'r R, i16) -> Vec<I>,
     TAS: for<'t> Fn(&'t ir::Type) -> (usize, usize),
 {
+    let func_graph = func.to_directed_graph();
+
+    // Determine the used Registers
     let used_registers: HashSet<_> = reg_map.iter().map(|(_, r)| r).collect();
 
-    let raw_vars = vars_used(&func.block, conf.type_align_size);
+    // Determine the used Variables
+    let raw_vars = vars_used(&func_graph, conf.type_align_size);
 
-    let raw_allocations = allocations(&func.block);
+    // Determine the raw-number of allocations
+    let raw_allocations = allocations(&func_graph);
 
     let alloc_iter = used_registers
         .iter()
@@ -146,8 +173,10 @@ where
                 .map(|(_, (alignment, size))| (*alignment, *size)),
         );
 
+    // Determine the Space needed on the Stack for the provided Allocations
     let stack_space = stack_space(alloc_iter, conf.stack_base, conf.stack_alignment);
 
+    // Generate the correct Setup for the given Stack-Space
     let mut setup = Vec::new();
     let stack_alloc = (conf.alloc_space)(stack_space);
     setup.extend(stack_alloc);

@@ -14,7 +14,12 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                 Some(vo) => *vo,
                 None => panic!("Missing Variable Offset for {:?}", var),
             };
-            let offset = asm::Imm9Signed::new(var_offset as i16).unwrap();
+            let offset = match asm::Imm9Signed::new(var_offset as i16) {
+                Some(o) => o,
+                None => {
+                    todo!()
+                }
+            };
 
             match src_reg {
                 asm::Register::GeneralPurpose(gp) => match &var.ty {

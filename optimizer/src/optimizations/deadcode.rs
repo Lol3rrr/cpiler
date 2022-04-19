@@ -55,11 +55,12 @@ impl DeadCode {
         Self {}
     }
 
-    fn filter_functions<SI>(
+    fn filter_stmnts<SI>(
         &self,
         used_vars: &mut UseMap,
         const_vars: &HashMap<Variable, Constant>,
         stmnt_iter: SI,
+        block_id: ir::WeakBlockPtr,
     ) -> Vec<Statement>
     where
         SI: DoubleEndedIterator<Item = Statement>,
@@ -75,10 +76,13 @@ impl DeadCode {
                         used_vars.decrement(&u);
                     });
                 }
-                ir::Statement::JumpTrue(var, _, _) if const_vars.contains_key(var) => {
-                    let const_val = const_vars.get(var).unwrap();
+                ir::Statement::JumpTrue(var, target, _) if const_vars.contains_key(var) => {
+                    let const_val = const_vars
+                        .get(var)
+                        .expect("We checked that the Variable is a constant");
 
-                    let cond_res = !matches!(
+                    // Determine if the Constant is false
+                    let cond_res = matches!(
                         const_val,
                         Constant::I8(0)
                             | Constant::U8(0)
@@ -90,8 +94,22 @@ impl DeadCode {
                             | Constant::U64(0)
                     );
 
-                    if cond_res {
+                    if !cond_res {
+                        // If we dont know for sure that the Variable evaluates to false, then we
+                        // should just keep the JumpTrue Statement
                         result.push(stmnt);
+                    } else {
+                        // The Variable is definetly a "false" Constant
+
+                        // TODO
+                        // Remove the current Block from the targets Predecessors because we now
+                        // dont actually jump to it and are not an actual Predecessor anymore.
+                        // However Im not really sure that we can just remove a Predecessor as
+                        // there may be multiple Jumps from this Block to the other one?
+                        //
+                        // target.remove_predecessor(block_id.clone());
+                        let _ = block_id;
+                        let _ = target;
                     }
                 }
                 _ => result.push(stmnt),
@@ -117,40 +135,39 @@ impl OptimizationPass for DeadCode {
         let mut used_vars = UseMap::new();
         let mut const_vars = HashMap::new();
 
-        for block in ir.block.block_iter() {
-            let statements = block.get_statements();
-
-            for tmp_stmnt in statements {
-                let tmp_used = tmp_stmnt.used_vars();
-                for tmp in tmp_used.iter() {
-                    used_vars.increment(tmp.clone());
+        let graph = ir.to_directed_graph();
+        graph
+            .chain_iter()
+            .flatten()
+            .flat_map(|block| block.get_statements())
+            // Add all the Used-Variables
+            .inspect(|stmnt| {
+                for tmp in stmnt.used_vars() {
+                    used_vars.increment(tmp);
                 }
+            })
+            // Add all the Const-Variables
+            .inspect(|stmnt| {
+                if let ir::Statement::Assignment {
+                    target,
+                    value: ir::Value::Constant(con),
+                } = stmnt
+                {
+                    const_vars.insert(target.clone(), con.clone());
+                }
+            })
+            // This is only used for running the Iterator to completion
+            .count();
 
-                match tmp_stmnt {
-                    ir::Statement::Assignment {
-                        target,
-                        value: ir::Value::Constant(con),
-                    } => {
-                        const_vars.insert(target.clone(), con.clone());
-                    }
-                    ir::Statement::Assignment {
-                        target,
-                        value: ir::Value::Phi { sources },
-                    } => {
-                        if sources.iter().map(|e| &e.var).any(|v| v == &target) {
-                            used_vars.decrement(&target);
-                        }
-                    }
-                    _ => {}
-                };
-            }
-        }
-
-        for block in ir.block.block_iter() {
+        for block in graph.chain_iter().flatten() {
             let statements = block.get_statements();
 
-            let n_statments: Vec<_> =
-                self.filter_functions(&mut used_vars, &const_vars, statements.into_iter());
+            let n_statments: Vec<_> = self.filter_stmnts(
+                &mut used_vars,
+                &const_vars,
+                statements.into_iter(),
+                block.weak_ptr(),
+            );
 
             block.set_statements(n_statments);
         }

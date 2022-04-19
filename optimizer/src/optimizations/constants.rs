@@ -138,9 +138,11 @@ impl OptimizationPass for ConstantProp {
     }
 
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
-        for block in ir.block.block_iter() {
+        let mut const_vars: HashMap<Variable, Constant> = HashMap::new();
+
+        let graph = ir.to_directed_graph();
+        for block in graph.chain_iter().flatten() {
             let statements = block.get_statements();
-            let mut const_vars: HashMap<Variable, Constant> = HashMap::new();
 
             let n_statements = statements
                 .into_iter()
@@ -155,6 +157,7 @@ impl OptimizationPass for ConstantProp {
 
 #[cfg(test)]
 mod tests {
+
     use ir::{BasicBlock, BinaryArithmeticOp, BinaryOp, Expression, Operand, Type};
 
     use super::*;
@@ -259,5 +262,72 @@ mod tests {
         dbg!(&result);
 
         assert_eq!(expected_block, result.block);
+    }
+
+    #[test]
+    fn in_seperate_blocks() {
+        let c_var = Variable::new("testing", Type::U32);
+        let c_value = Constant::U32(13);
+        let t1 = Variable::new("other", Type::U32);
+
+        let start_block = BasicBlock::new(
+            vec![],
+            vec![ir::Statement::Assignment {
+                target: c_var.clone(),
+                value: ir::Value::Constant(c_value.clone()),
+            }],
+        );
+        let second_block = BasicBlock::new(
+            vec![start_block.weak_ptr()],
+            vec![ir::Statement::Assignment {
+                target: t1.clone(),
+                value: Value::Expression(Expression::BinaryOp {
+                    op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
+                    left: Operand::Variable(c_var.clone()),
+                    right: Operand::Constant(Constant::I64(13)),
+                }),
+            }],
+        );
+        start_block.add_statement(Statement::Jump(second_block, ir::JumpMetadata::Linear));
+
+        let ir_func = ir::FunctionDefinition {
+            name: "test".to_string(),
+            arguments: vec![],
+            return_ty: Type::Void,
+            block: start_block,
+        };
+
+        let expected_first = BasicBlock::new(
+            vec![],
+            vec![ir::Statement::Assignment {
+                target: c_var,
+                value: ir::Value::Constant(c_value.clone()),
+            }],
+        );
+        let expected_second = BasicBlock::new(
+            vec![expected_first.weak_ptr()],
+            vec![ir::Statement::Assignment {
+                target: t1,
+                value: Value::Expression(Expression::BinaryOp {
+                    op: BinaryOp::Arith(BinaryArithmeticOp::Multiply),
+                    left: Operand::Constant(c_value),
+                    right: Operand::Constant(Constant::I64(13)),
+                }),
+            }],
+        );
+        expected_first.add_statement(Statement::Jump(expected_second, ir::JumpMetadata::Linear));
+
+        let expected_func = ir::FunctionDefinition {
+            name: "test".to_string(),
+            arguments: vec![],
+            return_ty: Type::Void,
+            block: expected_first,
+        };
+
+        let pass = ConstantProp::new();
+        let result = pass.pass_function(ir_func);
+        dbg!(&result);
+
+        assert_eq!(expected_func, result);
     }
 }

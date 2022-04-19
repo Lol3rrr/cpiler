@@ -18,6 +18,7 @@ mod spilling;
 mod debug_ctx;
 use debug_ctx::DebugContext;
 
+/// The Statement to use for saving the provided Variable
 pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
         ir::Statement::SaveGlobalVariable { var }
@@ -26,6 +27,7 @@ pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     }
 }
 
+/// The Statement to use for loading the provided Variable
 pub(crate) fn load_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
         let global_name = var.name.clone();
@@ -85,6 +87,7 @@ pub struct AllocationCtx {
 /// The Mapping of Variables to Registers
 #[derive(Debug, PartialEq, Clone)]
 pub struct RegisterMapping<R> {
+    /// The internal Mapping from Variable to Register
     inner: HashMap<ir::Variable, R>,
 }
 
@@ -92,54 +95,20 @@ impl<R> RegisterMapping<R>
 where
     R: Clone + Hash + PartialEq + Eq + Register,
 {
-    /// Actually performs the Register allocation
-    pub fn allocate(func: &ir::FunctionDefinition, registers: &[R], ctx: AllocationCtx) -> Self {
-        println!("Allocating Function: {:?}", func.name);
-
-        let mut debug_context = DebugContext::new();
-        debug_context.add_state(func);
-
-        let float_registers = registers
-            .iter()
-            .filter(|r| matches!(r.reg_type(), RegisterType::FloatingPoint))
-            .count();
-        let general_registers = registers
-            .iter()
-            .filter(|r| matches!(r.reg_type(), RegisterType::GeneralPurpose))
-            .count();
-        spilling::spill(
-            func,
-            RegisterConfig {
-                general_purpose_count: general_registers.saturating_sub(1),
-                floating_point_count: float_registers.saturating_sub(1),
-            },
-            &mut debug_context,
-        );
-
-        let mut opt_config = optimizer::Config::new();
-        opt_config.add_pass(optimizer::optimizations::DeadCode::new());
-        let func = optimizer::optimize_func(func.clone(), &opt_config);
-
-        if let Some(dbg_path) = ctx.build_path.as_ref() {
-            let func_ir_text = ir::text_rep::generate_text_rep(&func);
-            let func_opt_path = dbg_path.join(format!("opt-{}-ir.ir", func.name));
-            std::fs::write(func_opt_path, func_ir_text).expect("Save optimized spilled IR to text");
-        }
-
-        /*
-        debug_context
-            .get_steps()
-            .for_each(|s| println!("{:?}\n", s));
-            */
-
+    fn color(
+        func: &ir::FunctionDefinition,
+        registers: &[R],
+        ctx: &AllocationCtx,
+    ) -> HashMap<ir::Variable, R> {
+        // Build an interference Graph for the final Function
         println!("After spilling");
         let mut interference_graph = ir::DefaultInterferenceGraph::new();
         func.interference_graph(&mut interference_graph);
 
+        // Build a dominance Tree for the final Function
         println!("Dominance Tree");
         let dominance_tree = func.dominance_tree();
 
-        //let mut groups: phi_classes::Groups<R> = phi_classes::Groups::new();
         let mut coloring = HashMap::new();
 
         for current in dominance_tree.post_order_iter() {
@@ -167,9 +136,9 @@ where
                     //dbg!(&current, &neighbours);
                     dbg!(current);
 
-                    eprintln!("{}", ir::text_rep::generate_text_rep(&func));
+                    eprintln!("{}", ir::text_rep::generate_text_rep(func));
 
-                    if let Some(dbg_path) = ctx.build_path {
+                    if let Some(dbg_path) = &ctx.build_path {
                         let mut debug_interference_g = ir::DefaultInterferenceGraph::new();
                         func.interference_graph(&mut debug_interference_g);
 
@@ -185,6 +154,57 @@ where
             coloring.insert(current.clone(), used_color.clone());
             //groups.set_group(current, used_color.clone());
         }
+
+        coloring
+    }
+
+    /// Actually performs the Register allocation
+    pub fn allocate(func: &ir::FunctionDefinition, registers: &[R], ctx: AllocationCtx) -> Self {
+        println!("Allocating Function: {:?}", func.name);
+
+        // Setup the Debug Context
+        let mut debug_context = DebugContext::new();
+        debug_context.add_state(func);
+
+        // Determine the Number of Floating-Point and General-Purpose Registers available to the Allocator
+        let float_registers = registers
+            .iter()
+            .filter(|r| matches!(r.reg_type(), RegisterType::FloatingPoint))
+            .count();
+        let general_registers = registers
+            .iter()
+            .filter(|r| matches!(r.reg_type(), RegisterType::GeneralPurpose))
+            .count();
+
+        // Perform the spilling for the Function to ensure that the number of Registers is not exceeded
+        spilling::spill(
+            func,
+            RegisterConfig {
+                general_purpose_count: general_registers.saturating_sub(1),
+                floating_point_count: float_registers.saturating_sub(1),
+            },
+            &mut debug_context,
+        );
+
+        // Run a single Optimizer-Pass to remove all unused Variables
+        let mut opt_config = optimizer::Config::new();
+        opt_config.add_pass(optimizer::optimizations::DeadCode::new());
+        let func = optimizer::optimize_func(func.clone(), &opt_config);
+
+        // Attempt to write the now cleaned up IR to a File in the Build-Directory
+        if let Some(dbg_path) = ctx.build_path.as_ref() {
+            let func_ir_text = ir::text_rep::generate_text_rep(&func);
+            let func_opt_path = dbg_path.join(format!("opt-{}-ir.ir", func.name));
+            std::fs::write(func_opt_path, func_ir_text).expect("Save optimized spilled IR to text");
+        }
+
+        /*
+        debug_context
+            .get_steps()
+            .for_each(|s| println!("{:?}\n", s));
+            */
+
+        let coloring = Self::color(&func, registers, &ctx);
 
         RegisterMapping { inner: coloring }
     }
