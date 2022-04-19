@@ -27,7 +27,7 @@ where
     fn pass_function(&self, ir: ir::FunctionDefinition) -> ir::FunctionDefinition {
         let mut ir = self.pass.pass_function(ir);
 
-        for _ in 0..(self.count - 1) {
+        for _ in 0..self.count {
             ir = self.pass.pass_function(ir);
         }
 
