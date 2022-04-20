@@ -153,6 +153,24 @@ where
     }
 }
 
+impl<'g, N> ChainEntry<'g, N>
+where
+    N: GraphNode,
+{
+    /// Checks if the Entry is a Node
+    pub fn is_node(&self) -> bool {
+        matches!(self, Self::Node { .. })
+    }
+    /// Checks if the Entry is a Branch
+    pub fn is_branch(&self) -> bool {
+        matches!(self, Self::Branched { .. })
+    }
+    /// Checks if the Entry is a Cycle
+    pub fn is_cycle(&self) -> bool {
+        matches!(self, Self::Cycle { .. })
+    }
+}
+
 /// A Chain that Flattens all control Structures in its root chain and therefore only returns
 /// entries
 pub struct DirectedFlatChain<'g, N>

@@ -1,33 +1,76 @@
 use std::collections::HashSet;
 
-use ir::InnerBlock;
+use graphs::directed::DirectedChain;
+use ir::{BasicBlock, Statement, Variable};
 
 use super::RegisterConfig;
 
+fn used_vars<I>(iter: I) -> HashSet<Variable>
+where
+    I: Iterator<Item = Statement>,
+{
+    iter.flat_map(|stmnt| stmnt.used_vars()).collect()
+}
+
 // TODO
 // This definetly needs more work on it
-pub fn max_pressure(func: &ir::FunctionDefinition, head: *const InnerBlock) -> RegisterConfig {
-    let graph = func.to_directed_graph();
+pub fn max_pressure(inner: DirectedChain<'_, BasicBlock>) -> RegisterConfig {
+    let inner_used_vars = used_vars(inner.duplicate().flatten().flat_map(|b| b.get_statements()));
+    dbg!(inner_used_vars);
 
-    let mut root_chain = graph.chain_from(head);
+    panic!("I dont know")
+}
 
-    let _ = root_chain.next_entry();
+#[cfg(test)]
+mod tests {
+    use general::{arch::Arch, Source, Span};
+    use graphs::directed::ChainEntry;
+    use ir::Program;
 
-    let inner = match root_chain.next_entry() {
-        Some(graphs::directed::ChainEntry::Cycle { inner, .. }) => inner,
-        _ => {
-            todo!("Unexpected ChainEntry")
+    use super::*;
+
+    #[test]
+    fn low_pressure() {
+        let content = "
+        long test() {
+            long outer = 13;
+
+            long i = 0;
+            while (i < 10) {
+                i++;
+            }
+
+            long other = outer + i;
+            return other;
         }
-    }
-    .flatten();
+        ";
 
-    let used_vars: HashSet<_> = inner
-        .flat_map(|b| b.get_statements())
-        .flat_map(|s| s.used_vars())
-        .collect();
+        let source = Source::new("test", content);
+        let span: Span = source.into();
+        let tokens = tokenizer::tokenize(span);
+        let ast = syntax::parse(tokens).unwrap();
+        let aast = semantic::parse(ast).unwrap();
+        let ir: Program = aast.convert_to_ir(Arch::X86_64);
 
-    RegisterConfig {
-        general_purpose_count: used_vars.iter().filter(|v| !v.ty.is_float()).count(),
-        floating_point_count: used_vars.iter().filter(|v| v.ty.is_float()).count(),
+        let test_func_ir = ir.functions.get("test").unwrap();
+        dbg!(&test_func_ir);
+
+        let graph = test_func_ir.to_directed_graph();
+        let mut chain = graph.chain_iter();
+
+        assert!(chain.next_entry().unwrap().is_node());
+        assert!(chain.next_entry().unwrap().is_node());
+        assert!(chain.next_entry().unwrap().is_node());
+
+        let inner_chain = match chain.next_entry() {
+            Some(ChainEntry::Cycle { inner, .. }) => inner,
+            Some(_) => todo!(""),
+            None => todo!(""),
+        };
+
+        let max_pressure = max_pressure(inner_chain);
+        dbg!(max_pressure);
+
+        todo!("Test")
     }
 }

@@ -321,11 +321,15 @@ fn connect_preds<'i, PI>(
     }
 }
 
+// TODO
+// Switch to using the Graph
 fn intialize_register_sets(
     func: &ir::FunctionDefinition,
     max_vars: RegisterConfig,
     dbg_ctx: &mut DebugContext,
 ) {
+    // let graph = func.to_directed_graph();
+
     let root = &func.block;
     let mut result: HashMap<_, BlockSpillingData> = root
         .get_predecessors()
@@ -335,12 +339,16 @@ fn intialize_register_sets(
         .collect();
     assert!(result.len() == 1);
 
+    // A List of all Reloads that need to be performed
     let mut reloads = ReloadList::new();
+    // The List of Blocks that still need to be processed again
     let mut pending_blocks = vec![root.clone()];
 
     let mut update_blocks = Vec::new();
 
     loop {
+        // Get a pending Block that either has all predecessors processed if any of them is available,
+        // otherwise just pick one that has most of its predecessors processed already
         let (current, needs_update) = match pending_blocks.iter().find(|b| {
             b.get_predecessors()
                 .into_iter()
@@ -369,9 +377,11 @@ fn intialize_register_sets(
             None => break,
         };
 
+        // Get the Predecessors and sucessors of the current Block
         let preds = current.get_predecessors();
         let succs = current.successors();
 
+        // Get the Data for the Predecessors that have already been processed
         let pred_data: BTreeMap<_, _> = preds
             .iter()
             .filter_map(|p| {
@@ -383,6 +393,7 @@ fn intialize_register_sets(
             .collect();
 
         let entry_vars = if succs.len() == 2 && preds.len() == 2 {
+            // We are in a Loop Header
             let live_in_from_pred: BTreeSet<ir::Variable> = preds
                 .iter()
                 .filter_map(|p| {
@@ -459,7 +470,7 @@ fn intialize_register_sets(
             let mut entry_vars = candidates;
 
             // Fill entry_vars with more candidates to increase efficiency
-            // let max_used_registers = loop_max_pressure::max_pressure(func, current.as_ptr());
+            // let max_used_registers = loop_max_pressure::max_pressure();
 
             // The number of still available Registers for other Variables to avoid spilling them
             //
@@ -490,6 +501,8 @@ fn intialize_register_sets(
 
             entry_vars
         } else {
+            // We are in a normal Block
+
             // Section 4.2 for normal Blocks
             let all = pred_data.values().cloned().map(|d| d.exit_vars).fold(
                 pred_data.values().next().cloned().unwrap().exit_vars,
