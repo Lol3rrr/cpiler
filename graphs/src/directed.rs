@@ -177,9 +177,10 @@ pub struct DirectedFlatChain<'g, N>
 where
     N: GraphNode,
 {
+    /// The Root-Chain which should be flattened
     root_chain: DirectedChain<'g, N>,
-    graph: &'g DirectedGraph<N>,
-    pending: Vec<N::Id>,
+    /// Stores the pending Chains that we found but still need to explore
+    pending: Vec<Self>,
 }
 
 impl<'g, N> DirectedFlatChain<'g, N>
@@ -189,7 +190,6 @@ where
     /// Creates a new Flat-Chain based on the given Chain
     pub fn new(chain: DirectedChain<'g, N>) -> Self {
         Self {
-            graph: chain.graph(),
             root_chain: chain,
             pending: Vec::new(),
         }
@@ -197,8 +197,14 @@ where
 
     /// Obtains the next Entry in the Chain
     pub fn next_entry(&mut self) -> Option<&'g N> {
-        if let Some(pended) = self.pending.pop() {
-            return self.graph.get_node(&pended);
+        while let Some(mut pended) = self.pending.pop() {
+            match pended.next_entry() {
+                Some(n) => {
+                    self.pending.push(pended);
+                    return Some(n);
+                }
+                None => continue,
+            };
         }
 
         let raw_next = self.root_chain.next_entry()?;
@@ -209,31 +215,36 @@ where
                 sides: (left, right),
                 ..
             } => {
-                let mut left_flat = DirectedFlatChain::new(left);
-                while let Some(b) = left_flat.next_entry() {
-                    self.pending.push(b.id());
-                }
+                self.pending.push(left.flatten());
 
                 if let Some(right) = right {
-                    let mut right_flat = DirectedFlatChain::new(right);
-                    while let Some(b) = right_flat.next_entry() {
-                        self.pending.push(b.id());
-                    }
+                    self.pending.push(right.flatten());
                 }
 
-                self.pending
-                    .pop()
-                    .map(|id| self.graph.get_node(&id).unwrap())
+                while let Some(mut pend) = self.pending.pop() {
+                    match pend.next_entry() {
+                        Some(n) => {
+                            self.pending.push(pend);
+                            return Some(n);
+                        }
+                        None => continue,
+                    };
+                }
+                None
             }
             ChainEntry::Cycle { inner, .. } => {
-                let mut inner_flat = DirectedFlatChain::new(inner);
-                while let Some(b) = inner_flat.next_entry() {
-                    self.pending.push(b.id());
-                }
+                self.pending.push(inner.flatten());
 
-                self.pending
-                    .pop()
-                    .map(|id| self.graph.get_node(&id).unwrap())
+                while let Some(mut pend) = self.pending.pop() {
+                    match pend.next_entry() {
+                        Some(n) => {
+                            self.pending.push(pend);
+                            return Some(n);
+                        }
+                        None => continue,
+                    };
+                }
+                None
             }
         }
     }
