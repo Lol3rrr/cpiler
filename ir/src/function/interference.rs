@@ -27,11 +27,11 @@ impl LiveVars {
     }
 
     /// Decrements the use counter for the given Variable and removes it, if the count reaches 0
-    pub fn used_var(&mut self, var: &Variable) {
+    pub fn used_var(&mut self, var: &Variable) -> Result<(), ()> {
         let uses = match self.vars.get_mut(var) {
             Some(u) => u,
             None => {
-                panic!("Unknown Variable has been used: {:?}", var)
+                return Err(());
             }
         };
 
@@ -40,6 +40,8 @@ impl LiveVars {
         if *uses == 0 {
             self.vars.remove(var);
         }
+
+        Ok(())
     }
 
     pub fn merge_branched(&mut self, left: Self, right: Self) {
@@ -83,6 +85,23 @@ impl LiveVars {
     }
 }
 
+/// Counts the Number of uses for the Variables found along the entire Chain
+fn count_uses(chain: DirectedChain<'_, BasicBlock>) -> HashMap<Variable, usize> {
+    let mut result = HashMap::new();
+
+    for block in chain.flatten() {
+        for stmnt in block.get_statements() {
+            for var in stmnt.used_vars() {
+                let entry = result.entry(var);
+                let value = entry.or_insert(0);
+                *value += 1;
+            }
+        }
+    }
+
+    result
+}
+
 /// Constructs the Interference Graph of a single Chain of Blocks
 ///
 /// Params:
@@ -102,19 +121,19 @@ fn construct_chain<'c, I>(
             ChainEntry::Node(block) => {
                 for stmnt in block.get_statements() {
                     for var in stmnt.used_vars() {
-                        live_vars.used_var(&var);
+                        live_vars.used_var(&var).unwrap();
                     }
 
                     if let Statement::Assignment { target, .. } = stmnt {
                         let uses = outside_uses(&target);
 
                         if uses > 0 {
-                            live_vars.add_var(target.clone(), uses);
-
                             if_graph.add_node(target.clone());
                             for other in live_vars.iter() {
                                 if_graph.add_edge(target.clone(), other.clone());
                             }
+
+                            live_vars.add_var(target.clone(), uses);
                         } else {
                             println!("Variable has no uses: {:?}", target);
                         }
@@ -127,10 +146,25 @@ fn construct_chain<'c, I>(
             } => {
                 match right {
                     Some(mut right) => {
+                        let left_uses = count_uses(left.duplicate());
+                        let right_uses = count_uses(right.duplicate());
+
+                        dbg!(&left_uses, &right_uses);
+
                         let mut left_vars = live_vars.clone();
+                        for (used, uses) in right_uses {
+                            for _ in 0..uses {
+                                let _ = left_vars.used_var(&used);
+                            }
+                        }
                         construct_chain(graph, &mut left, if_graph, &mut left_vars, outside_uses);
 
                         let mut right_vars = live_vars.clone();
+                        for (used, uses) in left_uses {
+                            for _ in 0..uses {
+                                let _ = right_vars.used_var(&used);
+                            }
+                        }
                         construct_chain(graph, &mut right, if_graph, &mut right_vars, outside_uses);
 
                         live_vars.merge_branched(left_vars, right_vars);

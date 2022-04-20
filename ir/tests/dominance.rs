@@ -14,7 +14,7 @@ long test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();
@@ -58,7 +58,7 @@ long test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();

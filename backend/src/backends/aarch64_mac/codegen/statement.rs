@@ -17,7 +17,10 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
             let offset = match asm::Imm9Signed::new(var_offset as i16) {
                 Some(o) => o,
                 None => {
-                    todo!()
+                    panic!(
+                        "Creating 9-bit signed Immedate with Value {} for Variable {:?}",
+                        var_offset, &var
+                    );
                 }
             };
 

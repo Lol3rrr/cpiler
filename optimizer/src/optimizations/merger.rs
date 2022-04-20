@@ -115,8 +115,9 @@ impl OptimizationPass for Merger {
 
         self.merge(&ir.block, &mut merge_mappings);
 
-        for tmp in ir.block.block_iter() {
-            self.phis(&tmp, &merge_mappings);
+        let graph = ir.to_directed_graph();
+        for tmp in graph.chain_iter().flatten() {
+            self.phis(tmp, &merge_mappings);
         }
 
         ir

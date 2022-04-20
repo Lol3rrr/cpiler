@@ -1,3 +1,5 @@
+use std::env::VarError;
+
 use general::{Source, Span};
 use ir::{DefaultInterferenceGraph, FunctionDefinition, InterferenceGraph, NodeId, Type, Variable};
 
@@ -14,7 +16,7 @@ long test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();
@@ -37,12 +39,12 @@ long test() {
     expected.add_node(NodeId::new(y_var.clone()));
     expected.add_node(NodeId::new(z_var.clone()));
     expected.add_node(NodeId::new(w_var.clone()));
-    expected.add_node(NodeId::new(tmp_var.clone()));
+    expected.add_node(NodeId::new(tmp_var));
 
-    expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(y_var.clone()));
-    expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(z_var.clone()));
+    expected.add_edge(NodeId::new(x_var.clone()), NodeId::new(y_var));
+    expected.add_edge(NodeId::new(x_var), NodeId::new(z_var.clone()));
 
-    expected.add_edge(NodeId::new(z_var.clone()), NodeId::new(w_var.clone()));
+    expected.add_edge(NodeId::new(z_var), NodeId::new(w_var));
 
     assert_eq!(expected, result_graph);
 }
@@ -66,7 +68,7 @@ long test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();
@@ -110,21 +112,21 @@ long test() {
     expected.add_edge(var_x.clone(), var_y.clone());
     expected.add_edge(var_x.clone(), var_tmp0.clone());
     expected.add_edge(var_x.clone(), var_z0.clone());
-    expected.add_edge(var_x.clone(), var_z1.clone());
+    expected.add_edge(var_x, var_z1.clone());
 
     expected.add_edge(var_y.clone(), var_w0.clone());
     expected.add_edge(var_y.clone(), var_z0.clone());
     expected.add_edge(var_y.clone(), var_z1.clone());
     expected.add_edge(var_y.clone(), var_w0.clone());
-    expected.add_edge(var_y.clone(), var_tmp0.clone());
+    expected.add_edge(var_y, var_tmp0.clone());
 
-    expected.add_edge(var_w0.clone(), var_w3.clone());
-    expected.add_edge(var_w0.clone(), var_w1.clone());
-    expected.add_edge(var_w0.clone(), var_tmp0.clone());
-    expected.add_edge(var_w0.clone(), var_w2.clone());
-    expected.add_edge(var_w0.clone(), var_z0.clone());
-    expected.add_edge(var_w0.clone(), var_z1.clone());
-    expected.add_edge(var_w0.clone(), var_tmp1.clone());
+    expected.add_edge(var_w0.clone(), var_w3);
+    expected.add_edge(var_w0.clone(), var_w1);
+    expected.add_edge(var_w0.clone(), var_tmp0);
+    expected.add_edge(var_w0.clone(), var_w2);
+    expected.add_edge(var_w0.clone(), var_z0);
+    expected.add_edge(var_w0.clone(), var_z1);
+    expected.add_edge(var_w0, var_tmp1);
 
     std::fs::write("./if_e_graph.dot", expected.to_dot()).unwrap();
 
@@ -146,7 +148,7 @@ long test() {
 }
         ";
     let source = Source::new("test", content);
-    let span: Span = source.clone().into();
+    let span: Span = source.into();
     let tokens = tokenizer::tokenize(span);
     let syntax_ast = syntax::parse(tokens).unwrap();
     let semantic_ast = semantic::parse(syntax_ast).unwrap();
@@ -186,20 +188,65 @@ long test() {
     expected.add_edge(var_y0.clone(), var_x0.clone());
 
     expected.add_edge(var_tmp0.clone(), var_y0.clone());
-    expected.add_edge(var_tmp0.clone(), var_x0.clone());
+    expected.add_edge(var_tmp0, var_x0.clone());
 
     expected.add_edge(var_x1.clone(), var_y0.clone());
-    expected.add_edge(var_x1.clone(), var_x0.clone());
+    expected.add_edge(var_x1.clone(), var_x0);
 
     expected.add_edge(var_y2.clone(), var_x1.clone());
-    expected.add_edge(var_y2.clone(), var_y0.clone());
+    expected.add_edge(var_y2.clone(), var_y0);
 
     expected.add_edge(var_y1.clone(), var_x1.clone());
     expected.add_edge(var_y1.clone(), var_y2.clone());
 
-    expected.add_edge(var_tmp1.clone(), var_x1.clone());
-    expected.add_edge(var_tmp1.clone(), var_y2.clone());
-    expected.add_edge(var_tmp1.clone(), var_y1.clone());
+    expected.add_edge(var_tmp1.clone(), var_x1);
+    expected.add_edge(var_tmp1.clone(), var_y2);
+    expected.add_edge(var_tmp1, var_y1);
 
     assert_eq!(expected, result_graph);
+}
+
+#[test]
+fn last_used_in_branch() {
+    let content = "
+void test() {
+    long x = 13;
+    
+    if (1) {
+        long y = 20;   
+    } else {
+        long z = 1;
+        long z2 = z + x;
+    }
+}
+    ";
+
+    let source = Source::new("test", content);
+    let span: Span = source.into();
+    let tokens = tokenizer::tokenize(span);
+    let syntax_ast = syntax::parse(tokens).unwrap();
+    let semantic_ast = semantic::parse(syntax_ast).unwrap();
+    let ir = semantic_ast.convert_to_ir(general::arch::Arch::X86_64);
+    let mut opt_config = optimizer::Config::new();
+    opt_config.add_pass(optimizer::optimizations::Merger::new());
+    let ir = optimizer::optimize(ir, opt_config);
+
+    let ir_func: &FunctionDefinition = ir.functions.get("test").unwrap();
+
+    let mut result_graph = DefaultInterferenceGraph::new();
+    ir_func.interference_graph(&mut result_graph);
+
+    let x_var = Variable::new("x_17563920617334630623", Type::I64);
+    let y_var = Variable::new("y_18215000407691070912", Type::I64);
+    let z_var = Variable::new("z_10436574507733404876", Type::I64);
+    let z2_var = Variable::new("z2_5437181333981288878", Type::I64);
+
+    {
+        let x_neighbours = result_graph.neighbours(x_var.clone());
+        dbg!(&x_neighbours);
+
+        assert!(!x_neighbours.contains(&NodeId::new(x_var.clone())));
+        assert!(!x_neighbours.contains(&NodeId::new(y_var.clone())));
+        assert!(x_neighbours.contains(&NodeId::new(z_var.clone())));
+    }
 }

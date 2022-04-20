@@ -139,10 +139,12 @@ impl BasicBlock {
 
     /// Returns an Iterator over all the Blocks that can be reached from this Block as the starting
     /// Point, including this Block itself
+    #[deprecated]
     pub fn block_iter(&self) -> BlockIter {
         BlockIter::new(self.0.clone())
     }
     /// A Linear Iterator
+    #[deprecated]
     pub fn linear_iter(&self) -> LinearIter {
         LinearIter::new(self.0.clone())
     }

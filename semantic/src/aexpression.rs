@@ -782,7 +782,7 @@ impl AExpression {
                     ir::Operand::Variable(tmp_var)
                 }
                 ir::Expression::AdressOf { base } => {
-                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty())
+                    let _tmp_var = ir::Variable::tmp(ctx.next_tmp(), base.ty())
                         .set_description("Temp Variable for AdressOf");
 
                     todo!("Generate Operand for AdressOf Operation")

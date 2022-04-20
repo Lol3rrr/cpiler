@@ -9,6 +9,7 @@ use std::{
 use crate::debug_ctx::DebugContext;
 
 mod min;
+use graphs::directed::DirectedGraph;
 use ir::{InnerBlock, WeakBlockPtr};
 use min::min_algorithm;
 
@@ -185,7 +186,8 @@ where
     }
 }
 
-fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
+/// Brings the given Function back into SSA form, which may not have been preserved during spilling
+fn reconstruct_ssa(graph: DirectedGraph<ir::BasicBlock>, reloads: ReloadList) {
     let reloads: Vec<_> = reloads
         .into_iter()
         .flat_map(|(b, vars)| vars.into_iter().map(move |v| (b.clone(), v)))
@@ -195,8 +197,7 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
         .map(|(_, r)| r.previous.name.clone())
         .collect();
 
-    // Iterate over the current block and all the blocks that can be reached from it
-    for tmp_b in block.block_iter() {
+    for tmp_b in graph.chain_iter().flatten() {
         let preds = tmp_b.get_predecessors();
         let mut search_statements = tmp_b.get_statements();
         let mut statements = tmp_b.get_statements();
@@ -213,7 +214,7 @@ fn reconstruct_ssa(block: &ir::BasicBlock, reloads: ReloadList) {
 
                 let prev_def = find_previous_definition(
                     &preds,
-                    search_statements.iter().take(index - 1).cloned(),
+                    search_statements.iter().take(index).cloned(),
                     &re_var.name,
                 );
                 match prev_def {
@@ -603,7 +604,7 @@ fn intialize_register_sets(
         );
     }
 
-    reconstruct_ssa(root, reloads);
+    reconstruct_ssa(func.to_directed_graph(), reloads);
 
     assert!(pending_blocks.is_empty());
 }

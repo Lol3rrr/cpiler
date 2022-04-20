@@ -21,7 +21,7 @@ fn single_block_itself() {
         vec![global.weak_ptr()],
         vec![
             Statement::Assignment {
-                target: x_var.clone(),
+                target: x_var,
                 value: Value::Constant(Constant::I8(13)),
             },
             Statement::Return(None),
