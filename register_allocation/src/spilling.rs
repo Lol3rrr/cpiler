@@ -9,7 +9,7 @@ use std::{
 use crate::debug_ctx::DebugContext;
 
 mod min;
-use graphs::directed::DirectedGraph;
+use graphs::directed::{ChainEntry, DirectedGraph};
 use ir::{InnerBlock, WeakBlockPtr};
 use min::min_algorithm;
 
@@ -321,215 +321,168 @@ fn connect_preds<'i, PI>(
     }
 }
 
-// TODO
-// Switch to using the Graph
-fn intialize_register_sets(
-    func: &ir::FunctionDefinition,
+fn init_reg_set_chain(
+    chain: graphs::directed::DirectedChain<'_, ir::BasicBlock>,
     max_vars: RegisterConfig,
-    dbg_ctx: &mut DebugContext,
+    spill_data: &mut HashMap<*const InnerBlock, BlockSpillingData>,
+    reloads: &mut ReloadList,
+    update_blocks: &mut Vec<ir::BasicBlock>,
 ) {
-    // let graph = func.to_directed_graph();
+    let mut peek_chain = chain.peekable();
 
-    let root = &func.block;
-    let mut result: HashMap<_, BlockSpillingData> = root
-        .get_predecessors()
-        .into_iter()
-        .map(|p| p.as_ptr())
-        .zip(std::iter::repeat(BlockSpillingData::default()))
-        .collect();
-    assert!(result.len() == 1);
+    while let Some(entry) = peek_chain.next() {
+        let (entry_vars, pred_data, preds, current) = match (entry, peek_chain.peek()) {
+            (ChainEntry::Node(node), Some(ChainEntry::Node(_)))
+            | (ChainEntry::Node(node), Some(ChainEntry::Branched { .. }))
+            | (ChainEntry::Node(node), None) => {
+                let preds = node.get_predecessors();
 
-    // A List of all Reloads that need to be performed
-    let mut reloads = ReloadList::new();
-    // The List of Blocks that still need to be processed again
-    let mut pending_blocks = vec![root.clone()];
-
-    let mut update_blocks = Vec::new();
-
-    loop {
-        // Get a pending Block that either has all predecessors processed if any of them is available,
-        // otherwise just pick one that has most of its predecessors processed already
-        let (current, needs_update) = match pending_blocks.iter().find(|b| {
-            b.get_predecessors()
-                .into_iter()
-                .all(|p| result.contains_key(&p.as_ptr()))
-        }) {
-            Some(c) => (c, false),
-            None if !pending_blocks.is_empty() => {
-                let best_fit = pending_blocks
+                // Get the Data for the Predecessors that have already been processed
+                let pred_data: BTreeMap<_, _> = preds
                     .iter()
-                    .max_by(|x, y| {
-                        x.get_predecessors()
-                            .into_iter()
-                            .filter(|p| result.contains_key(&p.as_ptr()))
-                            .count()
-                            .cmp(
-                                &y.get_predecessors()
-                                    .into_iter()
-                                    .filter(|p| result.contains_key(&p.as_ptr()))
-                                    .count(),
-                            )
+                    .filter_map(|p| {
+                        let ptr = p.as_ptr();
+                        let pred_vars = spill_data.get(&ptr).cloned()?;
+
+                        Some((ptr, pred_vars))
                     })
-                    .expect("There are pending Blocks so we should find a maximum even if they would have the same value");
+                    .collect();
 
-                (best_fit, true)
-            }
-            None => break,
-        };
+                // Section 4.2 for normal Blocks
+                let all = pred_data.values().cloned().map(|d| d.exit_vars).fold(
+                    pred_data.values().next().cloned().unwrap().exit_vars,
+                    |acc, current| acc.intersection(&current).cloned().collect(),
+                );
 
-        // Get the Predecessors and sucessors of the current Block
-        let preds = current.get_predecessors();
-        let succs = current.successors();
+                let some = pred_data
+                    .values()
+                    .cloned()
+                    .flat_map(|d| d.exit_vars)
+                    .filter(|v| !all.contains(v))
+                    .fold(BTreeSet::new(), |mut acc, current| {
+                        acc.insert(current);
+                        acc
+                    });
 
-        // Get the Data for the Predecessors that have already been processed
-        let pred_data: BTreeMap<_, _> = preds
-            .iter()
-            .filter_map(|p| {
-                let ptr = p.as_ptr();
-                let pred_vars = result.get(&ptr).cloned()?;
-
-                Some((ptr, pred_vars))
-            })
-            .collect();
-
-        let entry_vars = if succs.len() == 2 && preds.len() == 2 {
-            // We are in a Loop Header
-            let live_in_from_pred: BTreeSet<ir::Variable> = preds
-                .iter()
-                .filter_map(|p| {
-                    let data = result.get(&p.as_ptr())?;
-                    Some(data.exit_vars.clone())
-                })
-                .flatten()
-                .collect();
-            let live_in_from_phis: BTreeSet<ir::Variable> = current
-                .get_statements()
-                .into_iter()
-                .filter_map(|s| match s {
-                    ir::Statement::Assignment {
-                        target,
-                        value: ir::Value::Phi { .. },
-                    } => Some(target),
-                    _ => None,
-                })
-                .collect();
-            let i_b = {
-                let mut tmp = live_in_from_pred;
-                tmp.extend(live_in_from_phis);
-                tmp
-            };
-
-            let vars_used_in_loop = {
-                let loop_block = if succs
-                    .iter()
-                    .next()
-                    .unwrap()
-                    .1
-                    .predecessor_iter()
-                    .any(|p| p.as_ptr() == current.as_ptr())
+                let mut entry_vars = all;
+                // Fill entry_vars with more variables for better efficiency
+                for (_, ent) in (0..(max_vars
+                    .general_purpose_count
+                    .saturating_sub(entry_vars.len())))
+                    .zip(some)
                 {
-                    succs.iter().next().unwrap().1.clone()
-                } else {
-                    succs.iter().nth(1).unwrap().1.clone()
+                    entry_vars.insert(ent);
+                }
+
+                (entry_vars, pred_data, preds, node)
+            }
+            (ChainEntry::Node(node), Some(ChainEntry::Cycle { inner, .. })) => {
+                update_blocks.push(node.clone());
+
+                let preds = node.get_predecessors();
+
+                // Get the Data for the Predecessors that have already been processed
+                let pred_data: BTreeMap<_, _> = preds
+                    .iter()
+                    .filter_map(|p| {
+                        let ptr = p.as_ptr();
+                        let pred_vars = spill_data.get(&ptr).cloned()?;
+
+                        Some((ptr, pred_vars))
+                    })
+                    .collect();
+
+                let live_in_from_pred: BTreeSet<ir::Variable> = preds
+                    .iter()
+                    .filter_map(|p| {
+                        let data = spill_data.get(&p.as_ptr())?;
+                        Some(data.exit_vars.clone())
+                    })
+                    .flatten()
+                    .collect();
+                let live_in_from_phis: BTreeSet<ir::Variable> = node
+                    .get_statements()
+                    .into_iter()
+                    .filter_map(|s| match s {
+                        ir::Statement::Assignment {
+                            target,
+                            value: ir::Value::Phi { .. },
+                        } => Some(target),
+                        _ => None,
+                    })
+                    .collect();
+                let i_b = {
+                    let mut tmp = live_in_from_pred;
+                    tmp.extend(live_in_from_phis);
+                    tmp
                 };
 
-                let mut result = BTreeSet::new();
-                let mut pending = vec![loop_block];
-                let mut visited = BTreeSet::new();
-                while let Some(pend) = pending.pop() {
-                    visited.insert(pend.as_ptr());
-                    result.extend(pend.get_statements().into_iter().flat_map(|s| {
-                        let mut tmp = s.used_vars();
-                        if let ir::Statement::Assignment { target, .. } = s {
-                            tmp.push(target);
-                        }
+                let vars_used_in_loop: BTreeSet<ir::Variable> = inner
+                    .duplicate()
+                    .flatten()
+                    .flat_map(|b| b.get_statements())
+                    .flat_map(|s| s.used_vars())
+                    .collect();
 
-                        tmp
-                    }));
+                // The Candidates are the highest Priority to NOT spill
+                let candidates: BTreeSet<_> =
+                    i_b.intersection(&vars_used_in_loop).cloned().collect();
 
-                    pending.extend(
-                        pend.successors()
-                            .into_iter()
-                            .filter(|(_, s)| s.as_ptr() != current.as_ptr())
-                            .filter(|(_, s)| !visited.contains(&s.as_ptr()))
-                            .map(|(_, s)| s)
-                            .inspect(|p| {
-                                println!("Pending: {:p}", p.as_ptr());
-                            }),
-                    );
-                }
+                assert!(candidates.len() <= max_vars.total());
 
-                result
-            };
+                let mut entry_vars = candidates;
 
-            // The Candidates are the highest Priority to NOT spill
-            let candidates: BTreeSet<_> = i_b.intersection(&vars_used_in_loop).cloned().collect();
-
-            assert!(candidates.len() <= max_vars.total());
-
-            let mut entry_vars = candidates;
-
-            // Fill entry_vars with more candidates to increase efficiency
-            // let max_used_registers = loop_max_pressure::max_pressure();
-
-            // The number of still available Registers for other Variables to avoid spilling them
-            //
-            // This is currently not used because for some reason it does not really work as intended
-            // and needs more investigation on why that is the case
-            // let mut fill_count = max_vars - max_used_registers;
-            let mut fill_count = RegisterConfig {
-                general_purpose_count: 0,
-                floating_point_count: 0,
-            };
-
-            // This closure will return true for Variables as long as they will fit into the "Budget"
-            // defined using the fill_count variable
-            let filter_closure = |v: &ir::Variable| {
-                if v.ty.is_float() {
-                    let prev = fill_count.floating_point_count;
-                    fill_count.floating_point_count = prev.saturating_sub(1);
-                    prev > 0
-                } else {
-                    let prev = fill_count.general_purpose_count;
-                    fill_count.general_purpose_count = prev.saturating_sub(1);
-                    prev > 0
-                }
-            };
-            for ent in i_b.into_iter().filter(filter_closure) {
-                entry_vars.insert(ent);
-            }
-
-            entry_vars
-        } else {
-            // We are in a normal Block
-
-            // Section 4.2 for normal Blocks
-            let all = pred_data.values().cloned().map(|d| d.exit_vars).fold(
-                pred_data.values().next().cloned().unwrap().exit_vars,
-                |acc, current| acc.intersection(&current).cloned().collect(),
-            );
-
-            let some = pred_data
-                .values()
-                .cloned()
-                .flat_map(|d| d.exit_vars)
-                .filter(|v| !all.contains(v))
-                .fold(BTreeSet::new(), |mut acc, current| {
-                    acc.insert(current);
-                    acc
+                // Fill entry_vars with more candidates to increase efficiency
+                /*
+                let max_used_registers =
+                loop_max_pressure::max_pressure(node.clone(), inner.duplicate(), |var| {
+                    inner
+                        .duplicate()
+                        .flatten()
+                        .skip(1)
+                        .flat_map(|b| b.get_statements())
+                        .flat_map(|s| s.used_vars())
+                        .any(|v| &v == var)
                 });
+                */
+                //dbg!(max_used_registers);
 
-            let mut entry_vars = all;
-            // Fill entry_vars with more variables for better efficiency
-            for (_, ent) in (0..(max_vars
-                .general_purpose_count
-                .saturating_sub(entry_vars.len())))
-                .zip(some)
-            {
-                entry_vars.insert(ent);
+                // The number of still available Registers for other Variables to avoid spilling them
+                //
+                // This is currently not used because for some reason it does not really work as intended
+                // and needs more investigation on why that is the case
+                //let mut fill_count = max_vars - max_used_registers;
+
+                let mut fill_count = RegisterConfig {
+                    general_purpose_count: 0,
+                    floating_point_count: 0,
+                };
+
+                // This closure will return true for Variables as long as they will fit into the "Budget"
+                // defined using the fill_count variable
+                let filter_closure = |v: &ir::Variable| {
+                    if v.ty.is_float() {
+                        let prev = fill_count.floating_point_count;
+                        fill_count.floating_point_count = prev.saturating_sub(1);
+                        prev > 0
+                    } else {
+                        let prev = fill_count.general_purpose_count;
+                        fill_count.general_purpose_count = prev.saturating_sub(1);
+                        prev > 0
+                    }
+                };
+                for ent in i_b.into_iter().filter(filter_closure) {
+                    entry_vars.insert(ent);
+                }
+
+                (entry_vars, pred_data, preds, node)
             }
-
-            entry_vars
+            (ChainEntry::Branched { .. }, _) => {
+                unreachable!("Found Branched");
+            }
+            (ChainEntry::Cycle { .. }, _) => {
+                unreachable!("Found Cycle")
+            }
         };
 
         // Section 4.3
@@ -550,12 +503,8 @@ fn intialize_register_sets(
             &pred_data,
             &entry_vars,
             &entry_spilled,
-            &mut reloads,
+            reloads,
         );
-
-        if needs_update {
-            update_blocks.push(current.clone());
-        }
 
         let mut exit_vars = entry_vars.clone();
         let mut exit_spilled = entry_spilled.clone();
@@ -579,7 +528,7 @@ fn intialize_register_sets(
 
         reloads.add(current.clone(), min_reloads);
 
-        result.insert(
+        spill_data.insert(
             current.as_ptr(),
             BlockSpillingData {
                 entry_vars,
@@ -589,10 +538,76 @@ fn intialize_register_sets(
             },
         );
 
-        let succ_blocks = current.successors().into_iter().map(|(_, b)| b);
-        pending_blocks.extend(succ_blocks);
-        pending_blocks.retain(|b| !result.contains_key(&b.as_ptr()));
+        match peek_chain.peek() {
+            Some(ChainEntry::Node(_)) => {}
+            Some(ChainEntry::Branched {
+                sides: (left, right),
+            }) => {
+                init_reg_set_chain(
+                    left.duplicate(),
+                    max_vars,
+                    spill_data,
+                    reloads,
+                    update_blocks,
+                );
+
+                if let Some(right) = right {
+                    init_reg_set_chain(
+                        right.duplicate(),
+                        max_vars,
+                        spill_data,
+                        reloads,
+                        update_blocks,
+                    );
+                }
+
+                let _ = peek_chain.next();
+            }
+            Some(ChainEntry::Cycle { inner, .. }) => {
+                init_reg_set_chain(
+                    inner.duplicate(),
+                    max_vars,
+                    spill_data,
+                    reloads,
+                    update_blocks,
+                );
+
+                let _ = peek_chain.next();
+            }
+            None => {}
+        };
     }
+}
+
+// TODO
+// Switch to using the Graph
+fn intialize_register_sets(
+    func: &ir::FunctionDefinition,
+    max_vars: RegisterConfig,
+    dbg_ctx: &mut DebugContext,
+) {
+    let root = &func.block;
+    let mut result: HashMap<_, BlockSpillingData> = root
+        .get_predecessors()
+        .into_iter()
+        .map(|p| p.as_ptr())
+        .zip(std::iter::repeat(BlockSpillingData::default()))
+        .collect();
+    assert!(result.len() == 1);
+
+    // A List of all Reloads that need to be performed
+    let mut reloads = ReloadList::new();
+
+    let mut update_blocks = Vec::new();
+
+    let graph = func.to_directed_graph();
+    init_reg_set_chain(
+        graph.chain_iter(),
+        max_vars,
+        &mut result,
+        &mut reloads,
+        &mut update_blocks,
+    );
 
     for update_block in update_blocks {
         let prev_spill_data = result.get(&update_block.as_ptr()).unwrap();
@@ -618,8 +633,6 @@ fn intialize_register_sets(
     }
 
     reconstruct_ssa(func.to_directed_graph(), reloads);
-
-    assert!(pending_blocks.is_empty());
 }
 
 #[derive(Debug, Clone, Copy)]

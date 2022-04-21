@@ -121,6 +121,7 @@ fn construct_chain<'c, I>(
             ChainEntry::Node(block) => {
                 for stmnt in block.get_statements() {
                     for var in stmnt.used_vars() {
+                        dbg!(&var);
                         live_vars.used_var(&var).unwrap();
                     }
 
