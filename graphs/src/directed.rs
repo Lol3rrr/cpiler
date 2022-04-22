@@ -180,7 +180,7 @@ where
     /// The Root-Chain which should be flattened
     root_chain: DirectedChain<'g, N>,
     /// Stores the pending Chains that we found but still need to explore
-    pending: Vec<Self>,
+    pending: Vec<DirectedChain<'g, N>>,
 }
 
 impl<'g, N> DirectedFlatChain<'g, N>
@@ -195,56 +195,69 @@ where
         }
     }
 
-    /// Obtains the next Entry in the Chain
-    pub fn next_entry(&mut self) -> Option<&'g N> {
+    fn get_from_pending(&mut self) -> Option<&'g N> {
         while let Some(mut pended) = self.pending.pop() {
-            match pended.next_entry() {
-                Some(n) => {
+            let entry = match pended.next_entry() {
+                Some(e) => {
                     self.pending.push(pended);
-                    return Some(n);
+                    e
                 }
                 None => continue,
             };
+
+            match entry {
+                ChainEntry::Node(n) => return Some(n),
+                ChainEntry::Branched {
+                    sides: (left, right),
+                } => {
+                    self.pending.push(left);
+
+                    if let Some(right) = right {
+                        self.pending.push(right);
+                    }
+                }
+                ChainEntry::Cycle { inner, .. } => {
+                    self.pending.push(inner);
+                    continue;
+                }
+            };
         }
 
-        let raw_next = self.root_chain.next_entry()?;
+        None
+    }
 
-        match raw_next {
-            ChainEntry::Node(n) => Some(n),
-            ChainEntry::Branched {
-                sides: (left, right),
-                ..
-            } => {
-                self.pending.push(left.flatten());
+    /// Obtains the next Entry in the Chain
+    pub fn next_entry(&mut self) -> Option<&'g N> {
+        if let Some(n) = self.get_from_pending() {
+            return Some(n);
+        }
 
-                if let Some(right) = right {
-                    self.pending.push(right.flatten());
+        loop {
+            let raw_next = self.root_chain.next_entry()?;
+
+            match raw_next {
+                ChainEntry::Node(n) => return Some(n),
+                ChainEntry::Branched {
+                    sides: (left, right),
+                    ..
+                } => {
+                    self.pending.push(left);
+
+                    if let Some(right) = right {
+                        self.pending.push(right);
+                    }
+
+                    if let Some(n) = self.get_from_pending() {
+                        return Some(n);
+                    }
                 }
+                ChainEntry::Cycle { inner, .. } => {
+                    self.pending.push(inner);
 
-                while let Some(mut pend) = self.pending.pop() {
-                    match pend.next_entry() {
-                        Some(n) => {
-                            self.pending.push(pend);
-                            return Some(n);
-                        }
-                        None => continue,
-                    };
+                    if let Some(n) = self.get_from_pending() {
+                        return Some(n);
+                    }
                 }
-                None
-            }
-            ChainEntry::Cycle { inner, .. } => {
-                self.pending.push(inner.flatten());
-
-                while let Some(mut pend) = self.pending.pop() {
-                    match pend.next_entry() {
-                        Some(n) => {
-                            self.pending.push(pend);
-                            return Some(n);
-                        }
-                        None => continue,
-                    };
-                }
-                None
             }
         }
     }
@@ -385,6 +398,20 @@ mod tests {
             let entry = chain.next_entry();
             assert!(entry.is_none());
         }
+
+        let mut flat_chain = graph.chain_iter().flatten();
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_none());
+        }
     }
 
     #[test]
@@ -461,6 +488,28 @@ mod tests {
             let entry = chain.next_entry();
             assert!(entry.is_some());
             assert!(matches!(entry.unwrap(), ChainEntry::Node(n) if n.id() == 3));
+        }
+
+        let mut flat_chain = graph.chain_iter().flatten();
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_none());
         }
     }
 
@@ -653,6 +702,24 @@ mod tests {
             let raw_entry = chain.next_entry();
             assert!(raw_entry.is_none());
         }
+
+        let mut flat_chain = graph.chain_iter().flatten();
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_none());
+        }
     }
     #[test]
     fn cycle_graph_second_cycle() {
@@ -815,6 +882,28 @@ mod tests {
             let raw_entry = outer_chain.next_entry();
             assert!(raw_entry.is_none());
         }
+
+        let mut flat_chain = graph.chain_iter().flatten();
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_none());
+        }
     }
 
     #[test]
@@ -926,6 +1015,36 @@ mod tests {
         {
             let raw_entry = root_chain.next_entry();
             assert!(raw_entry.is_none());
+        }
+
+        let mut flat_chain = graph.chain_iter().flatten();
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_some());
+        }
+        {
+            let entry = flat_chain.next_entry();
+            assert!(entry.is_none());
         }
     }
 }
