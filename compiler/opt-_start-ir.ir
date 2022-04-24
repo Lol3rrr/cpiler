@@ -1,5 +1,0 @@
-fn _start() -> Void
-  block 0x600001b88190
-    Call { name: "g_init", arguments: [] }
-    main_res@0(I32) = FunctionCall { name: "main", arguments: [], return_ty: I32 }
-    Return main_res@0(I32)
