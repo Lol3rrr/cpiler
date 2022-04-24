@@ -17,8 +17,6 @@ pub fn block_name(block: &BasicBlock) -> String {
 pub fn block_to_asm(block: BasicBlock, ctx: &Context) -> asm::Block {
     let statements = block.get_statements();
 
-    dbg!(&statements);
-
     let name = block_name(&block);
     let mut instructions = Vec::new();
 

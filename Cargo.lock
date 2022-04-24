@@ -361,6 +361,11 @@ name = "graphs"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "general",
+ "ir",
+ "semantic",
+ "syntax",
+ "tokenizer",
 ]
 
 [[package]]

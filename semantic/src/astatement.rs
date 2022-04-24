@@ -426,8 +426,6 @@ impl AStatement {
 
                 let inner_scope = AScope::parse(parse_state, scope)?;
 
-                // TODO
-                // Parse Elses
                 let else_block = match elses {
                     Some(else_inner) => {
                         let else_scope = AScope::parse(parse_state, else_inner)?;
@@ -776,14 +774,14 @@ impl AStatement {
                 let end_true_body = body.to_ir(&true_block, ctx);
                 end_true_body.add_statement(ir::Statement::Jump(
                     end_block.clone(),
-                    ir::JumpMetadata::Linear,
+                    ir::JumpMetadata::Branch,
                 ));
                 end_block.add_predecessor(end_true_body.weak_ptr());
 
                 block.add_statement(ir::Statement::JumpTrue(
                     cond_var,
                     true_block,
-                    ir::JumpMetadata::Linear,
+                    ir::JumpMetadata::Branch,
                 ));
 
                 if let Some(else_) = else_ {
@@ -793,18 +791,18 @@ impl AStatement {
                     let end_false_block = else_.to_ir(&false_block, ctx);
                     end_false_block.add_statement(ir::Statement::Jump(
                         end_block.clone(),
-                        ir::JumpMetadata::Linear,
+                        ir::JumpMetadata::Branch,
                     ));
                     block.add_statement(ir::Statement::Jump(
                         end_false_block.clone(),
-                        ir::JumpMetadata::Linear,
+                        ir::JumpMetadata::Branch,
                     ));
                     end_block.add_predecessor(end_false_block.weak_ptr());
                 } else {
                     // Jump to the end Block directly
                     block.add_statement(ir::Statement::Jump(
                         end_block.clone(),
-                        ir::JumpMetadata::Linear,
+                        ir::JumpMetadata::Branch,
                     ));
                     end_block.add_predecessor(block.weak_ptr());
                 }

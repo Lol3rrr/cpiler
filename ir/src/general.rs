@@ -11,6 +11,8 @@ pub use statement::*;
 pub enum JumpMetadata {
     /// A Linear Jump between two Blocks
     Linear,
+    /// A Branch
+    Branch,
     /// A Jump into a loop, either from the start or from the end back to the start
     Loop,
     /// A Jump out of a loop

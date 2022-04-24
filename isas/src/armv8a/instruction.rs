@@ -140,11 +140,23 @@ pub enum Instruction {
         base: GpOrSpRegister,
         offset: Imm9Signed,
     },
+    /// Page: 1874
+    /// STR (register) C6.2.323
+    StoreRegisterRegisterOffset {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: GPRegister,
+    },
     /// Page: 2290
     StoreFPUnscaled {
         reg: FPRegister,
         base: GpOrSpRegister,
         offset: Imm9Signed,
+    },
+    StoreFPRegisterOffset {
+        reg: FPRegister,
+        base: GpOrSpRegister,
+        offset: GPRegister,
     },
     StpPreIndex {
         first: GPRegister,
@@ -158,11 +170,25 @@ pub enum Instruction {
         base: GpOrSpRegister,
         offset: Imm9Signed,
     },
+    /// Page: 1558
+    /// LDR (register) C6.2.168
+    LoadRegisterRegisterOffset {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset: GPRegister,
+    },
     /// Page: 1198
     LoadSignedWordUnscaled {
         reg: GPRegister,
         base: GpOrSpRegister,
         offset: Imm9Signed,
+    },
+    /// Page: 1588
+    /// LDRSW (register) C6.2.180
+    LoadSignedWordRegisterOffset {
+        reg: GPRegister,
+        base: GpOrSpRegister,
+        offset_reg: GPRegister,
     },
     /// Page: 1193
     LoadHalfWordUnscaled {

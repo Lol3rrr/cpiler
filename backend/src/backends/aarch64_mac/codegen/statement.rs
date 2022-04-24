@@ -1,6 +1,10 @@
 use ir::{Constant, Statement, Value};
 
-use crate::backends::aarch64_mac::asm::{self, FloatImm8};
+use crate::backends::aarch64_mac::{
+    self,
+    asm::{self, FloatImm8},
+    ArmRegister,
+};
 
 use super::{block_name, expression, function_call, load, write, Context};
 
@@ -14,61 +18,108 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                 Some(vo) => *vo,
                 None => panic!("Missing Variable Offset for {:?}", var),
             };
-            let offset = match asm::Imm9Signed::new(var_offset as i16) {
-                Some(o) => o,
-                None => {
-                    panic!(
-                        "Creating 9-bit signed Immedate with Value {} for Variable {:?}",
-                        var_offset, &var
-                    );
+            match asm::Imm9Signed::new(var_offset as i16) {
+                Some(offset) => {
+                    match src_reg {
+                        asm::Register::GeneralPurpose(gp) => match &var.ty {
+                            ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                                instructions.push(asm::Instruction::StoreRegisterUnscaled {
+                                    reg: gp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset,
+                                });
+                            }
+                            ir::Type::I32 | ir::Type::U32 => {
+                                instructions.push(asm::Instruction::StoreRegisterUnscaled {
+                                    reg: gp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset,
+                                });
+                            }
+                            ir::Type::Void => {
+                                // TODO
+                                // We should never have to save a Void-Variable
+                            }
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                        asm::Register::FloatingPoint(fp) => match var.ty {
+                            ir::Type::Float => {
+                                instructions.push(asm::Instruction::StoreFPUnscaled {
+                                    reg: fp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset,
+                                });
+                            }
+                            ir::Type::Double => {
+                                instructions.push(asm::Instruction::StoreFPUnscaled {
+                                    reg: fp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset,
+                                });
+                            }
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                    };
                 }
-            };
+                None => {
+                    let reg_numb = match aarch64_mac::Backend::offset_register() {
+                        ArmRegister::GeneralPurpose(n) => n,
+                        ArmRegister::FloatingPoint(_) => unreachable!(""),
+                    };
 
-            match src_reg {
-                asm::Register::GeneralPurpose(gp) => match &var.ty {
-                    ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
-                        instructions.push(asm::Instruction::StoreRegisterUnscaled {
-                            reg: gp,
-                            base: asm::GpOrSpRegister::SP,
-                            offset,
-                        });
-                    }
-                    ir::Type::I32 | ir::Type::U32 => {
-                        instructions.push(asm::Instruction::StoreRegisterUnscaled {
-                            reg: gp,
-                            base: asm::GpOrSpRegister::SP,
-                            offset,
-                        });
-                    }
-                    ir::Type::Void => {
-                        // TODO
-                        // We should never have to save a Void-Variable
-                    }
-                    other => {
-                        dbg!(&other);
-                        todo!()
-                    }
-                },
-                asm::Register::FloatingPoint(fp) => match var.ty {
-                    ir::Type::Float => {
-                        instructions.push(asm::Instruction::StoreFPUnscaled {
-                            reg: fp,
-                            base: asm::GpOrSpRegister::SP,
-                            offset,
-                        });
-                    }
-                    ir::Type::Double => {
-                        instructions.push(asm::Instruction::StoreFPUnscaled {
-                            reg: fp,
-                            base: asm::GpOrSpRegister::SP,
-                            offset,
-                        });
-                    }
-                    other => {
-                        dbg!(&other);
-                        todo!()
-                    }
-                },
+                    let offset_reg = asm::GPRegister::DWord(reg_numb);
+                    let store_instr = asm::Instruction::MovI64 {
+                        dest: offset_reg.clone(),
+                        value: var_offset as i64,
+                    };
+                    instructions.push(store_instr);
+
+                    match src_reg {
+                        asm::Register::GeneralPurpose(gp) => match &var.ty {
+                            ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) => {
+                                instructions.push(asm::Instruction::StoreRegisterRegisterOffset {
+                                    reg: gp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset: offset_reg,
+                                });
+                            }
+                            ir::Type::I32 | ir::Type::U32 => {
+                                instructions.push(asm::Instruction::StoreRegisterRegisterOffset {
+                                    reg: gp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset: offset_reg,
+                                });
+                            }
+                            ir::Type::Void => {
+                                // TODO
+                                // We should never have to save a Void-Variable
+                            }
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                        asm::Register::FloatingPoint(fp) => match var.ty {
+                            ir::Type::Float => {
+                                instructions.push(asm::Instruction::StoreFPRegisterOffset {
+                                    reg: fp,
+                                    base: asm::GpOrSpRegister::SP,
+                                    offset: offset_reg,
+                                });
+                            }
+                            other => {
+                                dbg!(&other);
+                                todo!()
+                            }
+                        },
+                    };
+                }
             };
         }
         Statement::SaveGlobalVariable { var } => {

@@ -23,8 +23,12 @@ impl Backend {
         Self {}
     }
 
+    fn offset_register() -> ArmRegister {
+        ArmRegister::GeneralPurpose(19)
+    }
+
     /// General Purpose Registers
-    fn registers() -> [ArmRegister; 34] {
+    fn registers() -> [ArmRegister; 33] {
         [
             //ArmRegister::GeneralPurpose(8),
             /*
@@ -39,7 +43,7 @@ impl Backend {
             //ArmRegister::GeneralPurpose(16),
             //ArmRegister::GeneralPurpose(17),
             //ArmRegister::GeneralPurpose(18),
-            ArmRegister::GeneralPurpose(19),
+            // ArmRegister::GeneralPurpose(19), // This will be used for Offset
             ArmRegister::GeneralPurpose(20),
             ArmRegister::GeneralPurpose(21),
             ArmRegister::GeneralPurpose(22),
@@ -95,6 +99,11 @@ impl Backend {
         func: &ir::FunctionDefinition,
         register_map: HashMap<Variable, ArmRegister>,
     ) -> Vec<asm::Block> {
+        let func_graph = func.to_directed_graph();
+        let func_dot = func_graph.to_graphviz();
+
+        std::fs::write(format!("./{}.dot", func.name), func_dot);
+
         let stack_allocation = util::stack::allocate_stack(
             func,
             &register_map,

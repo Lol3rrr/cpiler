@@ -110,6 +110,38 @@ impl graphs::directed::GraphNode for BasicBlock {
     }
 }
 
+impl graphs::directed::GraphVisual for BasicBlock {
+    fn node_attributes(&self) -> Option<HashMap<String, String>> {
+        let mut result = HashMap::new();
+
+        if let Some(desc) = self.description() {
+            result.insert(
+                "label".to_string(),
+                format!("\"node_{}\n{}\"", self.as_ptr() as usize, desc),
+            );
+        }
+
+        Some(result)
+    }
+
+    fn edge_attributes(&self, succ: Self::Id) -> Option<HashMap<String, String>> {
+        let mut result = HashMap::new();
+
+        let stmnts = self.0.parts.read().unwrap();
+        let res = stmnts.iter().find_map(|s| match s {
+            Statement::Jump(target, meta) if target.as_ptr() == succ => Some(meta),
+            Statement::JumpTrue(_, target, meta) if target.as_ptr() == succ => Some(meta),
+            _ => None,
+        });
+
+        if let Some(desc) = res {
+            result.insert("label".to_string(), format!("\"{:?}\"", desc));
+        }
+
+        Some(result)
+    }
+}
+
 impl From<Arc<InnerBlock>> for BasicBlock {
     fn from(inner: Arc<InnerBlock>) -> Self {
         Self(inner)

@@ -1,6 +1,8 @@
 use crate::backends::aarch64_mac::{
+    self,
     asm::{self},
     codegen::Context,
+    ArmRegister,
 };
 
 pub fn load(
@@ -30,13 +32,39 @@ pub fn load(
 
             match &read_ty {
                 ir::Type::I64 | ir::Type::U64 | ir::Type::Pointer(_) | ir::Type::U32 => {
-                    let load_instr = asm::Instruction::LoadRegisterUnscaled {
-                        reg: target_reg,
-                        base,
-                        offset: asm::Imm9Signed::new(offset).unwrap(),
-                    };
+                    match offset {
+                        offset if asm::Imm9Signed::fits(offset) => {
+                            let load_instr = asm::Instruction::LoadRegisterUnscaled {
+                                reg: target_reg,
+                                base,
+                                offset: asm::Imm9Signed::new(offset).unwrap(),
+                            };
 
-                    instr.push(load_instr);
+                            instr.push(load_instr);
+                        }
+                        offset => {
+                            let reg_number = match aarch64_mac::Backend::offset_register() {
+                                ArmRegister::GeneralPurpose(n) => n,
+                                ArmRegister::FloatingPoint(_) => {
+                                    unreachable!("Got Floating-Point Register as Offset-Register");
+                                }
+                            };
+                            let offset_reg = asm::GPRegister::DWord(reg_number);
+                            let store_offset = asm::Instruction::MovI64 {
+                                dest: offset_reg.clone(),
+                                value: offset as i64,
+                            };
+
+                            let load_instr = asm::Instruction::LoadRegisterRegisterOffset {
+                                reg: target_reg,
+                                base,
+                                offset: offset_reg,
+                            };
+
+                            instr.push(store_offset);
+                            instr.push(load_instr);
+                        }
+                    };
                 }
                 ir::Type::I32 => {
                     let correct_target_reg = match target_reg {
@@ -44,21 +72,39 @@ pub fn load(
                         asm::GPRegister::Word(n) => asm::GPRegister::DWord(n),
                     };
 
-                    let load_instr = match offset {
+                    match offset {
                         offset if asm::Imm9Signed::fits(offset) => {
-                            asm::Instruction::LoadSignedWordUnscaled {
+                            let load_instr = asm::Instruction::LoadSignedWordUnscaled {
                                 reg: correct_target_reg,
                                 base,
                                 offset: asm::Imm9Signed::new(offset).unwrap(),
-                            }
+                            };
+
+                            instr.push(load_instr);
                         }
                         offset => {
-                            dbg!(offset);
-                            todo!()
+                            let reg_number = match aarch64_mac::Backend::offset_register() {
+                                ArmRegister::GeneralPurpose(n) => n,
+                                ArmRegister::FloatingPoint(_) => {
+                                    unreachable!("Got Floating-Point Register as Offset-Register");
+                                }
+                            };
+                            let offset_reg = asm::GPRegister::DWord(reg_number);
+                            let store_offset = asm::Instruction::MovI64 {
+                                dest: offset_reg.clone(),
+                                value: offset as i64,
+                            };
+
+                            let load_instr = asm::Instruction::LoadSignedWordRegisterOffset {
+                                reg: correct_target_reg,
+                                base,
+                                offset_reg,
+                            };
+
+                            instr.push(store_offset);
+                            instr.push(load_instr);
                         }
                     };
-
-                    instr.push(load_instr);
                 }
                 ir::Type::I16 => {
                     instr.push(asm::Instruction::LoadSignedHalfWordUnscaled {

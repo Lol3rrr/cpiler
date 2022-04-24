@@ -121,8 +121,9 @@ fn construct_chain<'c, I>(
             ChainEntry::Node(block) => {
                 for stmnt in block.get_statements() {
                     for var in stmnt.used_vars() {
-                        dbg!(&var);
-                        live_vars.used_var(&var).unwrap();
+                        if let Err(e) = live_vars.used_var(&var) {
+                            dbg!(&var);
+                        }
                     }
 
                     if let Statement::Assignment { target, .. } = stmnt {
