@@ -6,6 +6,8 @@ mod successor;
 
 mod chain;
 pub use chain::DirectedChain;
+mod flatchain;
+pub use flatchain::DirectedFlatChain;
 
 mod mocks;
 
@@ -31,6 +33,27 @@ pub trait GraphNode {
     fn id(&self) -> Self::Id;
     /// An Iterator over the Successors of this Node
     fn successors(&self) -> Self::SuccessorIterator;
+}
+
+/// This trait should be implemented to allow for Visualizing the Graph
+pub trait GraphVisual
+where
+    Self: GraphNode,
+{
+    /// The Name that should be used to display the Node in a Visualization
+    fn name(&self) -> String {
+        format!("node_{:?}", self.id())
+    }
+
+    /// The Attributes that should be added to the Node for visualization
+    fn node_attributes(&self) -> Option<HashMap<String, String>> {
+        None
+    }
+    /// The Attributes that should be added to the Edge from the current Node to the given
+    /// Sucessor
+    fn edge_attributes(&self, _succ: Self::Id) -> Option<HashMap<String, String>> {
+        None
+    }
 }
 
 impl<N> DirectedGraph<N>
@@ -82,11 +105,52 @@ where
     }
 
     /// Returns a Chain like [`chain_iter`], which starts at the Node with the given id
-    pub fn chain_from<'g, 'c>(&'g self, id: N::Id) -> DirectedChain<'c, N>
+    pub(crate) fn chain_from<'g, 'c>(&'g self, id: N::Id) -> DirectedChain<'c, N>
     where
         'g: 'c,
     {
         DirectedChain::new(self, Some(id))
+    }
+}
+
+impl<N> DirectedGraph<N>
+where
+    N: GraphNode + GraphVisual,
+{
+    /// Used to generate a Graphviz representation of the Graph itself
+    pub fn to_graphviz(&self) -> String {
+        let mut result = "digraph D {".to_string();
+
+        for (_, node) in self.nodes.iter() {
+            let node_name = node.name();
+
+            let mut attribute_str = String::new();
+            if let Some(attributes) = node.node_attributes() {
+                for (attr_name, attr_value) in attributes {
+                    let line = format!("{}={}", attr_name, attr_value);
+                    attribute_str.push_str(&line);
+                }
+            }
+
+            let node_line = format!("{}[{}];", node_name, attribute_str);
+            result.push_str(&node_line);
+
+            for succ in node.successors().map(|id| self.nodes.get(&id).unwrap()) {
+                let mut attribute_str = String::new();
+                if let Some(attributes) = node.edge_attributes(succ.id()) {
+                    for (attr_name, attr_value) in attributes {
+                        let line = format!("{}={}", attr_name, attr_value);
+                        attribute_str.push_str(&line);
+                    }
+                }
+
+                let line = format!("{} -> {} [{}];", node_name, succ.name(), attribute_str);
+                result.push_str(&line);
+            }
+        }
+
+        result.push('}');
+        result
     }
 }
 
@@ -171,108 +235,6 @@ where
     }
 }
 
-/// A Chain that Flattens all control Structures in its root chain and therefore only returns
-/// entries
-pub struct DirectedFlatChain<'g, N>
-where
-    N: GraphNode,
-{
-    /// The Root-Chain which should be flattened
-    root_chain: DirectedChain<'g, N>,
-    /// Stores the pending Chains that we found but still need to explore
-    pending: Vec<DirectedChain<'g, N>>,
-}
-
-impl<'g, N> DirectedFlatChain<'g, N>
-where
-    N: GraphNode,
-{
-    /// Creates a new Flat-Chain based on the given Chain
-    pub fn new(chain: DirectedChain<'g, N>) -> Self {
-        Self {
-            root_chain: chain,
-            pending: Vec::new(),
-        }
-    }
-
-    fn get_from_pending(&mut self) -> Option<&'g N> {
-        while let Some(mut pended) = self.pending.pop() {
-            let entry = match pended.next_entry() {
-                Some(e) => {
-                    self.pending.push(pended);
-                    e
-                }
-                None => continue,
-            };
-
-            match entry {
-                ChainEntry::Node(n) => return Some(n),
-                ChainEntry::Branched {
-                    sides: (left, right),
-                } => {
-                    self.pending.push(left);
-
-                    if let Some(right) = right {
-                        self.pending.push(right);
-                    }
-                }
-                ChainEntry::Cycle { inner, .. } => {
-                    self.pending.push(inner);
-                    continue;
-                }
-            };
-        }
-
-        None
-    }
-
-    /// Obtains the next Entry in the Chain
-    pub fn next_entry(&mut self) -> Option<&'g N> {
-        if let Some(n) = self.get_from_pending() {
-            return Some(n);
-        }
-
-        loop {
-            let raw_next = self.root_chain.next_entry()?;
-
-            match raw_next {
-                ChainEntry::Node(n) => return Some(n),
-                ChainEntry::Branched {
-                    sides: (left, right),
-                    ..
-                } => {
-                    self.pending.push(left);
-
-                    if let Some(right) = right {
-                        self.pending.push(right);
-                    }
-
-                    if let Some(n) = self.get_from_pending() {
-                        return Some(n);
-                    }
-                }
-                ChainEntry::Cycle { inner, .. } => {
-                    self.pending.push(inner);
-
-                    if let Some(n) = self.get_from_pending() {
-                        return Some(n);
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl<'g, N> Iterator for DirectedFlatChain<'g, N>
-where
-    N: GraphNode,
-{
-    type Item = &'g N;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_entry()
-    }
-}
 enum InnerChained {
     First,
     Second,
@@ -337,7 +299,7 @@ mod tests {
 
     use crate::directed::successor::{succ_type, SuccType};
 
-    use super::*;
+    use super::{mocks::MockNode, *};
 
     #[test]
     fn new() {
@@ -1046,5 +1008,121 @@ mod tests {
             let entry = flat_chain.next_entry();
             assert!(entry.is_none());
         }
+    }
+
+    #[test]
+    fn cycle_with_conditional_break() {
+        let mut graph = DirectedGraph::new();
+
+        graph.add_node(MockNode {
+            id: 0,
+            successors: vec![1],
+        });
+        // Loop Head
+        graph.add_node(MockNode {
+            id: 1,
+            successors: vec![2, 10],
+        });
+        // After Loop
+        graph.add_node(MockNode {
+            id: 10,
+            successors: vec![],
+        });
+        // Branch Head
+        graph.add_node(MockNode {
+            id: 2,
+            successors: vec![3, 4],
+        });
+        // After Branch
+        graph.add_node(MockNode {
+            id: 3,
+            successors: vec![1],
+        });
+        // Inner Branched side with Break
+        graph.add_node(MockNode {
+            id: 4,
+            successors: vec![3, 10],
+        });
+
+        let mut chain = graph.chain_iter();
+        {
+            let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 0));
+        }
+        {
+            let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 1));
+        }
+        {
+            let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            let mut inner_chain = match entry {
+                ChainEntry::Cycle { inner, head } => {
+                    assert_eq!(head, 1);
+                    inner
+                }
+                _ => unreachable!(),
+            };
+
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 2));
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                let (mut left, right) = match entry {
+                    ChainEntry::Branched { sides } => sides,
+                    _ => unreachable!(),
+                };
+
+                assert!(right.is_none());
+
+                {
+                    let raw_entry = left.next_entry();
+                    assert!(raw_entry.is_some());
+                }
+                {
+                    let raw_entry = left.next_entry();
+                    dbg!(&raw_entry);
+                    assert!(raw_entry.is_none());
+                }
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_some());
+                let entry = raw_entry.unwrap();
+                assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 3));
+            }
+            {
+                let raw_entry = inner_chain.next_entry();
+                assert!(raw_entry.is_none());
+            }
+        }
+        {
+            let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_some());
+            let entry = raw_entry.unwrap();
+            assert!(matches!(entry, ChainEntry::Node(n) if n.id() == 10));
+        }
+        {
+            let raw_entry = chain.next_entry();
+            assert!(raw_entry.is_none());
+        }
+
+        let flat_chain = graph.chain_iter().flatten();
+        for b in flat_chain {
+            dbg!(b.id());
+        }
+
+        // panic!("")
     }
 }

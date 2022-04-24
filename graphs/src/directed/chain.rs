@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{
-    successor::{self, succ_type, SuccType},
+    successor::{succ_type, Context, SuccType},
     ChainEntry, DirectedFlatChain, DirectedGraph, GraphNode,
 };
 
@@ -16,6 +16,8 @@ where
     next: Option<N::Id>,
     /// The ID up until which  we should return Entries (exclusive)
     end: Option<N::Id>,
+    /// The current Context
+    context: Context<N::Id>,
     /// The ID of the Head if we are in a Cycle
     head: Option<N::Id>,
     /// The HashMap of Nodes in the Graph
@@ -31,7 +33,7 @@ enum PreviousSucc<I> {
     /// After the current Entry we hit a Branch
     Branched { sides: (I, Option<I>), end: I },
     /// After the current Entry we hit a Cycle
-    Cycle { head: I, inner: I },
+    Cycle { head: I, after: Option<I>, inner: I },
 }
 
 impl<'g, N> DirectedChain<'g, N>
@@ -43,6 +45,7 @@ where
             next: start,
             n_previous: None,
             end: None,
+            context: Context::None,
             head: None,
             graph,
         }
@@ -56,15 +59,16 @@ where
         self
     }
 
+    fn set_ctx(mut self, ctx: Context<N::Id>) -> Self {
+        self.context = ctx;
+        self
+    }
+
     /// Gets the next Entry in the current Chain of Nodes, which may be an actual Node or a Split in the Control-Flow
     pub fn next_entry(&mut self) -> Option<ChainEntry<'g, N>> {
         let next_id = self.next.take();
 
-        let context = if let Some(end) = self.end {
-            successor::Context::OuterGraph { head: end }
-        } else {
-            successor::Context::None
-        };
+        let context = self.context;
 
         if let Some(prev) = self.n_previous.take() {
             match prev {
@@ -74,15 +78,27 @@ where
 
                     return Some(ChainEntry::Branched {
                         sides: (
-                            self.graph.chain_from(sides.0).set_end(end),
-                            sides.1.map(|s| self.graph.chain_from(s).set_end(end)),
+                            self.graph
+                                .chain_from(sides.0)
+                                .set_end(end)
+                                .set_ctx(self.context),
+                            sides.1.map(|s| {
+                                self.graph.chain_from(s).set_end(end).set_ctx(self.context)
+                            }),
                         ),
                     });
                 }
-                PreviousSucc::Cycle { head, inner } => {
+                PreviousSucc::Cycle { head, after, inner } => {
                     self.next = next_id;
 
-                    let inner = self.graph.chain_from(inner).set_end(head);
+                    let inner =
+                        self.graph
+                            .chain_from(inner)
+                            .set_end(head)
+                            .set_ctx(Context::OuterGraph {
+                                head,
+                                following: after,
+                            });
 
                     return Some(ChainEntry::Cycle { head, inner });
                 }
@@ -116,6 +132,7 @@ where
                 self.n_previous = Some(PreviousSucc::Cycle {
                     head: next_id,
                     inner,
+                    after: following,
                 });
 
                 Some(ChainEntry::Node(next_node))
@@ -130,6 +147,7 @@ where
             n_previous: self.n_previous,
             next: self.next,
             end: self.end,
+            context: self.context,
             head: self.head,
             graph: self.graph,
         }

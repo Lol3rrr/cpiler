@@ -9,6 +9,11 @@ edition = "2021"
 
 [dev-dependencies]
 criterion = "0.3"
+general = { path = "../general" }
+tokenizer = { path = "../tokenizer" }
+syntax = { path = "../syntax" }
+semantic = { path = "../semantic" }
+ir = { path = "../ir" }
 
 [[bench]]
 name = "benchmark"
