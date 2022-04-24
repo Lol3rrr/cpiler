@@ -3,3 +3,4 @@ target/
 *.png
 compiler/code
 compiler/test-builds
+.DS_Store
