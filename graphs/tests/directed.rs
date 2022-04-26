@@ -108,3 +108,37 @@ fn loop_with_break() {
         }
     }
 }
+
+#[test]
+fn nested_loops_with_break() {
+    let content = "
+  void test() {
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            if (i == j) {
+                break;
+            }
+        }
+    }
+  }
+  ";
+    let source = Source::new("test", content);
+    let span: Span = source.into();
+    let tokens = tokenizer::tokenize(span);
+    let ast = syntax::parse(tokens).unwrap();
+    let aast = semantic::parse(ast).unwrap();
+    let ir_program: Program = aast.convert_to_ir(Arch::AArch64);
+
+    let ir_func = ir_program.functions.get("test").unwrap();
+
+    let func_graph = ir_func.to_directed_graph();
+
+    {
+        let flat_chain = func_graph.chain_iter().flatten();
+        let mut tmp = HashSet::new();
+        for b in flat_chain {
+            dbg!(b.as_ptr());
+            assert!(tmp.insert(b.as_ptr()));
+        }
+    }
+}
