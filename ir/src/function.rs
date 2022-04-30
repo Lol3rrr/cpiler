@@ -8,6 +8,8 @@ use debug::DebugBlocks;
 mod dominance;
 pub mod interference;
 
+mod verify;
+
 /// A definition of a Function
 #[derive(Clone, PartialEq)]
 pub struct FunctionDefinition {
@@ -89,5 +91,10 @@ impl FunctionDefinition {
         }
 
         graph
+    }
+
+    pub fn verify(&self) {
+        let graph = self.to_directed_graph();
+        verify::verify(graph);
     }
 }

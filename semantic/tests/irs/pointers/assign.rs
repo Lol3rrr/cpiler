@@ -84,7 +84,7 @@ void test() {
     let x_var = Variable::new("x_973384018644274198", Type::I32);
     let y_var = Variable::new("y_2817108257342626404", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::VarPointer {
-            var: Box::new(x_var.name.clone()),
+            var: Box::new(x_var.name().to_string()),
         });
 
     let func_inner = BasicBlock::new(
@@ -157,7 +157,7 @@ void test() {
         .set_meta(VariableMetadata::Pointer);
     let x_var = Variable::new("x_1617816566900823775", Type::I32);
     let y1_var = y0_var.next_gen().set_meta(VariableMetadata::VarPointer {
-        var: Box::new(x_var.name.clone()),
+        var: Box::new(x_var.name().to_string()),
     });
     let y2_var = y1_var.next_gen().set_meta(VariableMetadata::Pointer);
 

@@ -1,4 +1,4 @@
-use crate::{Constant, Type, Variable};
+use crate::{general::UsedVariableIter, Constant, Type, Variable};
 
 mod unary;
 pub use unary::*;
@@ -25,10 +25,10 @@ impl Operand {
     }
 
     /// Gets a list of Variables used by this Operand
-    pub fn used_vars(&self) -> Vec<Variable> {
+    pub fn used_vars(&self) -> UsedVariableIter {
         match self {
-            Self::Variable(var) => vec![var.clone()],
-            Self::Constant(_) => Vec::new(),
+            Self::Variable(var) => UsedVariableIter::Single(std::iter::once(var.clone())),
+            Self::Constant(_) => UsedVariableIter::Empty,
         }
     }
 }
@@ -97,28 +97,25 @@ pub enum Expression {
 
 impl Expression {
     /// Gets a list of Variables that are used by this Expression
-    pub fn used_vars(&self) -> Vec<Variable> {
+    pub fn used_vars(&self) -> UsedVariableIter {
         match self {
             Self::BinaryOp { left, right, .. } => {
-                let mut tmp = left.used_vars();
-                tmp.extend(right.used_vars());
-                tmp
+                let left_iter = left.used_vars();
+                let right_iter = right.used_vars();
+
+                UsedVariableIter::VarLength(Box::new(left_iter.chain(right_iter)))
             }
             Self::UnaryOp { base, .. } => base.used_vars(),
             Self::Cast { base, .. } => base.used_vars(),
             Self::AdressOf { base } => base.used_vars(),
             Self::ReadMemory { address, .. } => address.used_vars(),
-            Self::ReadGlobalVariable { .. } => Vec::new(),
+            Self::ReadGlobalVariable { .. } => UsedVariableIter::Empty,
             Self::FunctionCall { arguments, .. } => {
-                let mut tmp = Vec::new();
+                let owned = arguments.clone();
 
-                for arg in arguments {
-                    tmp.extend(arg.used_vars());
-                }
-
-                tmp
+                UsedVariableIter::VarLength(Box::new(owned.into_iter().flat_map(|a| a.used_vars())))
             }
-            Self::StackAlloc { .. } => Vec::new(),
+            Self::StackAlloc { .. } => UsedVariableIter::Empty,
         }
     }
 

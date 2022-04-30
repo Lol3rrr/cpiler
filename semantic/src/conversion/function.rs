@@ -4,7 +4,7 @@ use super::ConvertContext;
 
 pub fn convert(
     global: &ir::BasicBlock,
-    _global_vars: Vec<ir::Variable>,
+    global_vars: Vec<ir::Variable>,
     _name: String,
     func_dec: FunctionDeclaration,
     inner_scope: AScope,
@@ -49,7 +49,13 @@ pub fn convert(
     let global_weak = global.weak_ptr();
     let head_block = ir::BasicBlock::new(vec![global_weak], init_statements);
 
-    let context = ConvertContext::base(arch);
+    let context = ConvertContext::base(
+        arch,
+        global_vars
+            .into_iter()
+            .map(|v| (v.name().to_string(), v))
+            .collect(),
+    );
 
     let head_weak = head_block.weak_ptr();
     let func_block = ir::BasicBlock::new(vec![head_weak], vec![]);

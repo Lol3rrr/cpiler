@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{atomic, Arc};
 
 use general::arch::Arch;
@@ -9,15 +10,17 @@ pub struct ConvertContext {
     loop_ctx: Option<(BasicBlock, BasicBlock)>,
     current_tmp: Arc<atomic::AtomicUsize>,
     global: bool,
+    global_vars: HashMap<String, ir::Variable>,
 }
 
 impl ConvertContext {
-    pub fn base(arch: Arch) -> Self {
+    pub fn base(arch: Arch, globals: HashMap<String, ir::Variable>) -> Self {
         Self {
             arch,
             loop_ctx: None,
             current_tmp: Arc::new(atomic::AtomicUsize::new(0)),
             global: false,
+            global_vars: globals,
         }
     }
 
@@ -76,6 +79,11 @@ impl ConvertContext {
             loop_ctx: Some((start, end)),
             current_tmp: self.current_tmp.clone(),
             global: self.global,
+            global_vars: self.global_vars.clone(),
         }
+    }
+
+    pub fn get_global(&self, name: &str) -> Option<&ir::Variable> {
+        self.global_vars.get(name)
     }
 }

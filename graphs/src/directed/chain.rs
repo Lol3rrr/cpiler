@@ -184,3 +184,12 @@ where
         self.next_entry()
     }
 }
+
+impl<'g, N> Clone for DirectedChain<'g, N>
+where
+    N: GraphNode,
+{
+    fn clone(&self) -> Self {
+        self.duplicate()
+    }
+}

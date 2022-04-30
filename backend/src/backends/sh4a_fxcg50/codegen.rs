@@ -91,7 +91,7 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
                 dbg!(&target);
 
                 let target_reg = ctx.registers.get(&target).unwrap().clone();
-                let stack_offset = ctx.var_offsets.get(&target.name).unwrap();
+                let stack_offset = ctx.var_offsets.get(target.name()).unwrap();
 
                 instructions.push(sh4a::Instruction::PushL {
                     reg: sh4a::GeneralPurposeRegister::new(0),
@@ -125,7 +125,7 @@ pub fn block_to_asm(block: ir::BasicBlock, ctx: &Context) -> sh4a::Block {
             ir::Statement::SaveVariable { var } => {
                 let var_reg = ctx.registers.get(&var).unwrap().clone();
 
-                let stack_offset = ctx.var_offsets.get(&var.name).unwrap();
+                let stack_offset = ctx.var_offsets.get(var.name()).unwrap();
 
                 // Save R0 as we use this for address calcuations
                 instructions.push(sh4a::Instruction::PushL {

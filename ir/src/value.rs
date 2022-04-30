@@ -18,7 +18,7 @@ impl Value {
                 }),
                 _,
             ) => VariableMetadata::VarPointer {
-                var: Box::new(base_var.name.clone()),
+                var: Box::new(base_var.name().to_string()),
             },
             (_, VariableMetadata::VarPointer { .. }) => VariableMetadata::Pointer,
             _ => target_meta.clone(),

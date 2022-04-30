@@ -1,6 +1,8 @@
 //! The Textual representation for the IR
 
-use crate::{Expression, FunctionDefinition, Operand, Program, Statement, Value, Variable};
+use crate::{
+    BasicBlock, Expression, FunctionDefinition, Operand, Program, Statement, Value, Variable,
+};
 
 /// Generates a basic textual represenatation for the given Program
 pub fn program_text_rep(prog: &Program) -> String {
@@ -16,23 +18,26 @@ pub fn program_text_rep(prog: &Program) -> String {
 pub fn generate_text_rep(func: &FunctionDefinition) -> String {
     let func_header = format!("fn {}() -> {:?}", func.name, func.return_ty);
 
+    let padding = "  ".to_string();
     let block_content = func
         .block
         .block_iter()
-        .map(|b| {
-            let b_header = format!("  block 0x{:x}", b.as_ptr() as usize);
-            let b_content = b
-                .get_statements()
-                .into_iter()
-                .map(|s| format!("    {}", statement_content(&s)))
-                .collect::<Vec<_>>()
-                .join("\n");
-            format!("{}\n{}", b_header, b_content)
-        })
+        .map(|b| block_text_rep(&b, padding.clone()))
         .collect::<Vec<_>>()
         .join("\n\n");
 
     format!("{}\n{}", func_header, block_content)
+}
+
+pub fn block_text_rep(block: &BasicBlock, padding: String) -> String {
+    let b_header = format!("{}block 0x{:x}", padding, block.as_ptr() as usize);
+    let b_content = block
+        .get_statements()
+        .into_iter()
+        .map(|s| format!("{}  {}", padding, statement_content(&s)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{}\n{}", b_header, b_content)
 }
 
 fn statement_content(stmnt: &Statement) -> String {
@@ -61,7 +66,7 @@ fn operand_content(oper: &Operand) -> String {
 }
 
 fn variable_content(var: &Variable) -> String {
-    format!("{}@{}({:?})", var.name, var.generation(), var.ty)
+    format!("{}@{}({:?})", var.name(), var.generation(), var.ty)
 }
 
 fn value_content(value: &Value) -> String {

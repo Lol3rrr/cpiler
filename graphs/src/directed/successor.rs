@@ -42,8 +42,6 @@ where
         None => return Some(SuccType::Single(first)),
     };
 
-    dbg!(first, second, ctx);
-
     #[allow(clippy::single_match)]
     match ctx {
         Context::OuterGraph {
@@ -121,13 +119,11 @@ where
                 }
 
                 if first == id {
-                    println!("1");
                     return Some(SuccType::Branched {
                         sides: (second, None),
                         end: id,
                     });
                 } else if second == id {
-                    println!("2");
                     return Some(SuccType::Branched {
                         sides: (first, None),
                         end: id,
@@ -137,7 +133,6 @@ where
                 debug_assert_ne!(first, id);
                 debug_assert_ne!(second, id);
 
-                println!("3");
                 return Some(SuccType::Branched {
                     sides: (first, Some(second)),
                     end: id,

@@ -88,7 +88,7 @@ pub fn convert_assigned(
         } => {
             dbg!(&var);
 
-            let offset = *ctx.var.get(&var.name).unwrap();
+            let offset = *ctx.var.get(var.name()).unwrap();
             dbg!(&offset);
 
             let t_reg = match t_reg {

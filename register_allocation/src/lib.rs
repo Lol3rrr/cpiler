@@ -15,6 +15,8 @@ mod spilling;
 
 // mod phi_classes;
 
+mod reconstruct;
+
 mod debug_ctx;
 use debug_ctx::DebugContext;
 
@@ -30,7 +32,7 @@ pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
 /// The Statement to use for loading the provided Variable
 pub(crate) fn load_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        let global_name = var.name.clone();
+        let global_name = var.name().to_string();
         ir::Statement::Assignment {
             target: var,
             value: ir::Value::Expression(ir::Expression::ReadGlobalVariable { name: global_name }),
@@ -133,8 +135,7 @@ where
             let used_color = match avail_colors.next() {
                 Some(c) => c,
                 None => {
-                    //dbg!(&current, &neighbours);
-                    dbg!(current);
+                    dbg!(&current, &neighbours);
 
                     eprintln!("{}", ir::text_rep::generate_text_rep(func));
 
@@ -185,6 +186,12 @@ where
             },
             &mut debug_context,
         );
+
+        // TODO
+        // For testing currently
+        func.verify();
+
+        eprintln!("{}", ir::text_rep::generate_text_rep(func));
 
         // Run a single Optimizer-Pass to remove all unused Variables
         let mut opt_config = optimizer::Config::new();

@@ -14,7 +14,7 @@ mod function;
 pub fn convert(ast: AAST, arch: general::arch::Arch) -> Program {
     let (global_block, global_vars) = convert_global(
         ast.global_scope.0.clone(),
-        ConvertContext::base(arch.clone()),
+        ConvertContext::base(arch.clone(), HashMap::new()),
     );
 
     let mut functions = HashMap::new();
@@ -77,7 +77,7 @@ fn convert_global(raw_global: AScope, mut ctx: ConvertContext) -> (BasicBlock, V
             ir::Statement::Assignment { target, .. } => Some(target),
             _ => None,
         })
-        .map(|var| (var.name.clone(), var))
+        .map(|var| (var.name().to_string(), var))
         .collect();
 
     result_block.add_statement(ir::Statement::Return(None));

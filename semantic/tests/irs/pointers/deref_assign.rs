@@ -105,7 +105,7 @@ void test() {
     let y1_var = y0_var.next_gen();
     let x_var = Variable::new("x_5934430639642140251", Type::Pointer(Box::new(Type::I32)))
         .set_meta(VariableMetadata::VarPointer {
-            var: Box::new(y0_var.name.clone()),
+            var: Box::new(y0_var.name().to_string()),
         });
     let t0_var = Variable::tmp(0, Type::I32);
 

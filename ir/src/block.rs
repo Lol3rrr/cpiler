@@ -248,7 +248,7 @@ impl BasicBlock {
         let tmp = self.0.parts.read().unwrap();
 
         tmp.iter().rev().find_map(|stmnt| match stmnt {
-            Statement::Assignment { target, .. } if target.name == name => Some(target.clone()),
+            Statement::Assignment { target, .. } if target.name() == name => Some(target.clone()),
             _ => None,
         })
     }
@@ -271,6 +271,7 @@ impl BasicBlock {
         }
 
         if let Some(var) = self.local_definition(name) {
+            debug_assert!(!var.global());
             return Some(var);
         }
 
@@ -287,7 +288,8 @@ impl BasicBlock {
             };
         }
 
-        let tmp_var = Variable::new(name, Type::Void).set_meta(VariableMetadata::Temporary);
+        let tmp_var =
+            Variable::new(name.to_string(), Type::Void).set_meta(VariableMetadata::Temporary);
         let phi_stmnt = Statement::Assignment {
             target: tmp_var,
             value: Value::Phi { sources: vec![] },
@@ -327,6 +329,7 @@ impl BasicBlock {
 
         let var = sources.get(0).unwrap().var.clone();
         if sources.iter().all(|s| s.var == var) && sources.len() > 1 {
+            debug_assert!(!var.global());
             return Some(var);
         }
 
@@ -357,6 +360,7 @@ impl BasicBlock {
             tmp.insert(index, tmp_stmnt);
         }
 
+        debug_assert!(!final_var.global());
         Some(final_var)
     }
 
@@ -385,7 +389,7 @@ impl BasicBlock {
                     None => continue,
                 };
 
-                if let Some(var) = pred.definition(&target.name, &|| panic!(), Some(self.as_ptr()))
+                if let Some(var) = pred.definition(target.name(), &|| panic!(), Some(self.as_ptr()))
                 {
                     sources.push(PhiEntry { var, block: c_pred });
                 }

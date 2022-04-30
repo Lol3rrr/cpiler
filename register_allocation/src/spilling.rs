@@ -6,7 +6,7 @@ use std::{
     vec,
 };
 
-use crate::debug_ctx::DebugContext;
+use crate::{debug_ctx::DebugContext, reconstruct};
 
 mod min;
 use graphs::directed::{ChainEntry, DirectedGraph};
@@ -14,7 +14,7 @@ use ir::{InnerBlock, WeakBlockPtr};
 use min::min_algorithm;
 
 mod reload_list;
-use self::reload_list::ReloadList;
+pub(crate) use self::reload_list::ReloadList;
 
 mod limit;
 use limit::limit;
@@ -102,8 +102,8 @@ fn next_use_distances(
 #[derive(Debug, Clone)]
 pub struct Reload {
     previous: ir::Variable,
-    var: ir::Variable,
-    position: usize,
+    pub var: ir::Variable,
+    pub position: usize,
 }
 
 #[derive(Debug)]
@@ -123,7 +123,7 @@ where
     let mut last_def = None;
     for stmnt in statements {
         if let ir::Statement::Assignment { target, .. } = stmnt {
-            if target.name == var_name {
+            if target.name() == var_name {
                 last_def = Some(target.clone());
             }
         }
@@ -146,15 +146,11 @@ where
             let pred_def =
                 find_previous_definition(&n_preds, statements.into_iter().rev(), var_name);
 
-            if let PrevDefinition::Single(_) = &pred_def {
-                return pred_def;
+            match &pred_def {
+                PrevDefinition::Single(_) => pred_def,
+                PrevDefinition::Mutliple(s) => pred_def,
+                PrevDefinition::None => pred_def,
             }
-
-            // dbg!(&pred_def);
-
-            dbg!(var_name);
-
-            todo!("Find Variable in Single Predecessor");
         }
         core::cmp::Ordering::Greater => {
             let found_vars = preds
@@ -192,9 +188,9 @@ fn reconstruct_ssa(graph: DirectedGraph<ir::BasicBlock>, reloads: ReloadList) {
         .into_iter()
         .flat_map(|(b, vars)| vars.into_iter().map(move |v| (b.clone(), v)))
         .collect();
-    let reloaded_vars: HashSet<_> = reloads
+    let reloaded_vars: HashMap<_, _> = reloads
         .iter()
-        .map(|(_, r)| r.previous.name.clone())
+        .map(|(_, r)| (r.previous.name().to_string(), r.previous.clone()))
         .collect();
 
     for tmp_b in graph.chain_iter().flatten() {
@@ -207,15 +203,34 @@ fn reconstruct_ssa(graph: DirectedGraph<ir::BasicBlock>, reloads: ReloadList) {
             let s_vars = stmnt.used_vars();
             let s_re_vars = s_vars
                 .into_iter()
-                .filter(|v| reloaded_vars.contains(&v.name));
+                .filter(|v| reloaded_vars.contains_key(v.name()));
+
+            let mut prev_loads = Vec::new();
 
             for re_var in s_re_vars {
                 let stmnt = statements.get_mut(index).unwrap();
 
+                if re_var.global() {
+                    let next_var = reloaded_vars.get(re_var.name()).unwrap().next_gen();
+                    dbg!(&next_var);
+
+                    let load_statement = ir::Statement::Assignment {
+                        target: next_var.clone(),
+                        value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
+                            name: next_var.name().to_string(),
+                        }),
+                    };
+
+                    prev_loads.push(load_statement);
+
+                    replace_used_variables(stmnt, &re_var, &next_var);
+                    continue;
+                }
+
                 let prev_def = find_previous_definition(
                     &preds,
                     search_statements.iter().take(index).cloned(),
-                    &re_var.name,
+                    re_var.name(),
                 );
                 match prev_def {
                     PrevDefinition::None => {
@@ -226,6 +241,7 @@ fn reconstruct_ssa(graph: DirectedGraph<ir::BasicBlock>, reloads: ReloadList) {
                     }
                     PrevDefinition::Mutliple(vars) => {
                         let n_var = vars.get(0).unwrap().0.next_gen();
+                        dbg!(&n_var);
 
                         let n_var_assign = ir::Statement::Assignment {
                             target: n_var.clone(),
@@ -249,6 +265,12 @@ fn reconstruct_ssa(graph: DirectedGraph<ir::BasicBlock>, reloads: ReloadList) {
                     }
                 };
             }
+
+            for prev in prev_loads {
+                statements.insert(index, prev);
+                index += 1;
+            }
+            search_statements = statements.clone();
 
             index += 1;
         }
@@ -632,7 +654,15 @@ fn intialize_register_sets(
         );
     }
 
-    reconstruct_ssa(func.to_directed_graph(), reloads);
+    let reloaded_groups: HashSet<_> = reloads
+        .clone()
+        .into_iter()
+        .flat_map(|(_, r)| r)
+        .map(|r| ir::VariableGroup::from(r.var))
+        .collect();
+
+    // reconstruct_ssa(func.to_directed_graph(), reloads);
+    reconstruct::reconstruct(func, |var| reloaded_groups.contains(&var.into()), reloads);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -667,7 +697,7 @@ pub fn spill(
     available_registers: RegisterConfig,
     dbg_ctx: &mut DebugContext,
 ) {
-    // TODO
-    // Handle the max register Count correctly
     intialize_register_sets(func, available_registers, dbg_ctx);
+
+    println!("Done spilling")
 }

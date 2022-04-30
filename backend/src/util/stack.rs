@@ -59,7 +59,7 @@ where
                 _ => Box::new(std::iter::empty()),
             };
             for var in used_vars {
-                result.insert(var.name, size_align(&var.ty));
+                result.insert(var.name().to_string(), size_align(&var.ty));
             }
         }
     }

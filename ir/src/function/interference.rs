@@ -23,21 +23,25 @@ impl LiveVars {
             return;
         }
 
-        debug_assert!(self.vars.insert(var, uses).is_none());
+        #[cfg(debug_assertions)]
+        if self.vars.contains_key(&var) {
+            panic!(
+                "Tried to insert into the Interference Graph again: {:?}",
+                var
+            );
+        }
+
+        let insert_res = self.vars.insert(var, uses);
+        assert!(insert_res.is_none());
     }
 
     /// Decrements the use counter for the given Variable and removes it, if the count reaches 0
     pub fn used_var(&mut self, var: &Variable) -> Result<(), ()> {
-        let uses = match self.vars.get_mut(var) {
-            Some(u) => u,
-            None => {
-                return Err(());
-            }
-        };
+        let remaining = self.vars.get_mut(var).ok_or(())?;
 
-        *uses = uses.saturating_sub(1);
+        *remaining = remaining.saturating_sub(1);
 
-        if *uses == 0 {
+        if *remaining == 0 {
             self.vars.remove(var);
         }
 
@@ -80,6 +84,7 @@ impl LiveVars {
         self.vars = n_vars;
     }
 
+    /// Returns an iterator over the currently live Variables
     pub fn iter(&self) -> impl Iterator<Item = &Variable> + '_ {
         self.vars.keys()
     }
@@ -121,7 +126,7 @@ fn construct_chain<'c, I>(
             ChainEntry::Node(block) => {
                 for stmnt in block.get_statements() {
                     for var in stmnt.used_vars() {
-                        if let Err(e) = live_vars.used_var(&var) {
+                        if live_vars.used_var(&var).is_err() {
                             dbg!(&var);
                         }
                     }
@@ -150,8 +155,6 @@ fn construct_chain<'c, I>(
                     Some(mut right) => {
                         let left_uses = count_uses(left.duplicate());
                         let right_uses = count_uses(right.duplicate());
-
-                        dbg!(&left_uses, &right_uses);
 
                         let mut left_vars = live_vars.clone();
                         for (used, uses) in right_uses {

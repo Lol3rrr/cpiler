@@ -164,7 +164,7 @@ pub fn load_var(
     };
 
     let base = asm::GpOrSpRegister::SP;
-    let offset = match ctx.var.get(&var.name) {
+    let offset = match ctx.var.get(var.name()) {
         Some(o) => (*o).try_into().unwrap(),
         None => {
             panic!("Unknown Offset for Variable: {:?}", var)

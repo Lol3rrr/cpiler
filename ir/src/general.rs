@@ -67,15 +67,21 @@ impl<WB> PartialEq for Value<WB> {
         }
     }
 }
-impl<WB> Value<WB> {
+impl<WB> Value<WB>
+where
+    WB: Clone + 'static,
+{
     /// Returns a list of all the Variables used by this Value
-    pub fn used_vars(&self) -> Vec<Variable> {
+    pub fn used_vars(&self) -> UsedVariableIter {
         match self {
-            Self::Unknown => Vec::new(),
-            Self::Constant(_) => Vec::new(),
+            Self::Unknown => UsedVariableIter::Empty,
+            Self::Constant(_) => UsedVariableIter::Empty,
             Self::Expression(exp) => exp.used_vars(),
-            Self::Variable(var) => vec![var.clone()],
-            Self::Phi { sources } => sources.iter().map(|entry| entry.var.clone()).collect(),
+            Self::Variable(var) => UsedVariableIter::Single(std::iter::once(var.clone())),
+            Self::Phi { sources } => {
+                let owned: Vec<_> = sources.clone();
+                UsedVariableIter::VarLength(Box::new(owned.into_iter().map(|entry| entry.var)))
+            }
         }
     }
 }

@@ -78,7 +78,7 @@ impl DefaultInterferenceGraph {
         let mut cons = HashMap::new();
 
         for node in self.nodes.iter() {
-            let name = format!("{}_{}", node.var.name, node.var.generation());
+            let name = format!("{}_{}", node.var.name(), node.var.generation());
 
             graph.add_node(graphviz::Node::new(name));
 
@@ -96,8 +96,8 @@ impl DefaultInterferenceGraph {
                 continue;
             }
 
-            let first_name = format!("{}_{}", first.var.name, first.var.generation());
-            let second_name = format!("{}_{}", second.var.name, second.var.generation());
+            let first_name = format!("{}_{}", first.var.name(), first.var.generation());
+            let second_name = format!("{}_{}", second.var.name(), second.var.generation());
 
             graph.add_edge(graphviz::Edge::new(&first_name, &second_name).add_label("dir", "none"));
 

@@ -181,42 +181,66 @@ where
     }
 }
 
-impl<B, WB> Statement<B, WB> {
+impl<B, WB> Statement<B, WB>
+where
+    WB: Clone + 'static,
+{
     /// Returns a list of all the used Variables in this Statement
     ///
     /// # Note
     /// This does not contain the Targets of Assignment Statements
-    pub fn used_vars(&self) -> Vec<Variable> {
+    pub fn used_vars(&self) -> UsedVariableIter {
         match self {
             Self::Assignment { value, .. } => value.used_vars(),
-            Self::SaveVariable { var } => vec![var.clone()],
-            Self::SaveGlobalVariable { var } => vec![var.clone()],
+            Self::SaveVariable { var } => var.clone().into(),
+            Self::SaveGlobalVariable { var } => var.clone().into(),
             Self::WriteMemory { target, value } => {
-                let mut tmp = target.used_vars();
-                tmp.extend(value.used_vars());
-                tmp
+                let target_iter = target.used_vars();
+                let value_iter = value.used_vars();
+
+                UsedVariableIter::VarLength(Box::new(target_iter.chain(value_iter)))
             }
             Self::Call { arguments, .. } => {
-                let mut tmp = Vec::new();
-                for arg in arguments {
-                    tmp.extend(arg.used_vars());
-                }
-                tmp
+                let owned = arguments.clone();
+
+                UsedVariableIter::VarLength(Box::new(owned.into_iter().flat_map(|a| a.used_vars())))
             }
             Self::InlineAsm { inputs, output, .. } => {
-                let mut result = Vec::new();
+                let inputs_iter = inputs.clone().into_iter();
+                let output_iter = output.clone().into_iter();
 
-                result.extend(inputs.clone());
-                if let Some(out) = output {
-                    result.push(out.clone());
-                }
-
-                result
+                UsedVariableIter::VarLength(Box::new(inputs_iter.chain(output_iter)))
             }
-            Self::Return(None) => Vec::new(),
-            Self::Return(Some(var)) => vec![var.clone()],
-            Self::Jump(_, _) => Vec::new(),
-            Self::JumpTrue(var, _, _) => vec![var.clone()],
+            Self::Return(None) => UsedVariableIter::Empty,
+            Self::Return(Some(var)) => var.clone().into(),
+            Self::Jump(_, _) => UsedVariableIter::Empty,
+            Self::JumpTrue(var, _, _) => var.clone().into(),
         }
+    }
+}
+
+pub enum UsedVariableIter {
+    Empty,
+    Single(std::iter::Once<Variable>),
+    Double(std::iter::Chain<std::iter::Once<Variable>, std::iter::Once<Variable>>),
+    VarLength(Box<dyn Iterator<Item = Variable>>),
+}
+
+impl Iterator for UsedVariableIter {
+    type Item = Variable;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Empty => None,
+            Self::Single(iter) => iter.next(),
+            Self::Double(iter) => iter.next(),
+            Self::VarLength(iter) => iter.next(),
+        }
+    }
+}
+
+impl From<Variable> for UsedVariableIter {
+    fn from(other: Variable) -> Self {
+        Self::Single(std::iter::once(other))
     }
 }

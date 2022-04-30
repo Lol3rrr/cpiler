@@ -580,10 +580,17 @@ impl AStatement {
 
                 match target {
                     AAssignTarget::Variable { name, ty_info, .. } => {
+                        if let Some(global) = ctx.get_global(&name) {
+                            dbg!(&global);
+                            todo!("Assign to Global");
+                        }
+
                         let next_var = match block.definition(&name, &|| ctx.next_tmp(), None) {
                             Some(var) => var.next_gen(),
                             None => {
                                 let target_ty = ty_info.data.to_ir();
+
+                                debug_assert_ne!(target_ty, ir::Type::Void);
 
                                 let n_var = ir::Variable::new(name.clone(), target_ty);
                                 let tmp = n_var.is_tmp();
@@ -626,6 +633,8 @@ impl AStatement {
                             if let ir::VariableMetadata::VarPointer { var: var_name } =
                                 target_var.meta()
                             {
+                                debug_assert!(ctx.get_global(target_var.name()).is_none());
+
                                 let var = block
                                     .definition(var_name, &|| ctx.next_tmp(), None)
                                     .unwrap();
@@ -816,6 +825,11 @@ impl AStatement {
                 start_block.add_predecessor(inner_block.weak_ptr());
 
                 for var in condition.used_variables() {
+                    if let Some(global) = ctx.get_global(&var) {
+                        todo!("Global Variable in Condition");
+                    }
+
+                    debug_assert!(ctx.get_global(&var).is_none());
                     let definition: ir::Variable = start_block
                         .definition(&var, &|| ctx.next_tmp(), None)
                         .unwrap();

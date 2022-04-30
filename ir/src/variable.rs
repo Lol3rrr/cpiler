@@ -21,11 +21,41 @@ pub enum VariableMetadata {
     Temporary,
 }
 
+/// The Group of Variables
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub struct VariableGroup {
+    /// The shared Name
+    name: Arc<String>,
+}
+
+impl VariableGroup {
+    /// Checks if the given Variable is a Part of the Variable Group
+    pub fn contains<V>(&self, var: V) -> bool
+    where
+        V: AsRef<Variable>,
+    {
+        var.as_ref().name == self.name
+    }
+}
+
+impl From<Variable> for VariableGroup {
+    fn from(other: Variable) -> Self {
+        Self { name: other.name }
+    }
+}
+impl From<&Variable> for VariableGroup {
+    fn from(other: &Variable) -> Self {
+        Self {
+            name: other.name.clone(),
+        }
+    }
+}
+
 /// A single Variable that will only ever be assigned to once
 #[derive(Debug, Clone)]
 pub struct Variable {
     /// The Name of the Variable
-    pub name: String,
+    name: Arc<String>,
     /// The current "Generation" of this Variable Instance
     generation: usize,
     /// The Type of this Variable
@@ -54,7 +84,7 @@ impl Variable {
         };
 
         Self {
-            name: name.into(),
+            name: Arc::new(name.into()),
             generation: 0,
             ty,
             meta,
@@ -62,6 +92,11 @@ impl Variable {
             description: None,
             current_version: Arc::new(atomic::AtomicUsize::new(1)),
         }
+    }
+
+    /// The Name of the Variable
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
     /// Creates a new Temporary Variable with the given number
@@ -174,5 +209,11 @@ impl Hash for Variable {
         state.write_usize(self.generation);
         self.ty.hash(state);
         self.meta.hash(state);
+    }
+}
+
+impl AsRef<Variable> for Variable {
+    fn as_ref(&self) -> &Variable {
+        self
     }
 }

@@ -797,6 +797,18 @@ impl AExpression {
                     ir::Operand::Variable(tmp_var)
                     */
                 }
+                ir::Expression::ReadGlobalVariable { name } => {
+                    let global_var = ctx.get_global(name).unwrap();
+                    let tmp_var = ir::Variable::tmp(ctx.next_tmp(), global_var.ty.clone());
+
+                    let assign_statement = ir::Statement::Assignment {
+                        target: tmp_var.clone(),
+                        value: Value::Expression(exp),
+                    };
+                    block.add_statement(assign_statement);
+
+                    ir::Operand::Variable(tmp_var)
+                }
                 other => panic!("{:?} as Operand", other),
             },
         }
@@ -807,18 +819,12 @@ impl AExpression {
         match self {
             AExpression::Literal(lit) => lit.to_value(block, ctx),
             AExpression::Variable { name, .. } => {
-                let var = block.definition(&name, &|| ctx.next_tmp(), None).unwrap();
-                if var.global() {
-                    let next_var = var.next_gen();
-                    block.add_statement(ir::Statement::Assignment {
-                        target: next_var.clone(),
-                        value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
-                            name: var.name,
-                        }),
-                    });
-
-                    return Value::Variable(next_var);
+                if ctx.get_global(&name).is_some() {
+                    return Value::Expression(ir::Expression::ReadGlobalVariable { name });
                 }
+
+                let var = block.definition(&name, &|| ctx.next_tmp(), None).unwrap();
+                debug_assert!(!var.global());
 
                 Value::Variable(var)
             }
@@ -959,7 +965,11 @@ impl AExpression {
             Self::Variable {
                 ref name, ref ty, ..
             } => {
-                let var = block.definition(name, &|| ctx.next_tmp(), None).unwrap();
+                let var = match ctx.get_global(name) {
+                    Some(g) => g.clone(),
+                    None => block.definition(name, &|| ctx.next_tmp(), None).unwrap(),
+                };
+
                 match ty.data.clone().ty() {
                     AType::Pointer(_) | AType::Array(_) | AType::Struct { .. } => {
                         if var.global() {
@@ -967,7 +977,7 @@ impl AExpression {
                             block.add_statement(ir::Statement::Assignment {
                                 target: next_var.clone(),
                                 value: ir::Value::Expression(ir::Expression::ReadGlobalVariable {
-                                    name: var.name,
+                                    name: var.name().to_string(),
                                 }),
                             });
 

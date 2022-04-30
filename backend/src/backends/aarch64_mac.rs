@@ -187,7 +187,7 @@ impl Backend {
             {
                 let target_reg = match s {
                     ir::Statement::Assignment { target, value } => {
-                        assert_eq!(arg.0, target.name);
+                        assert_eq!(arg.0, target.name());
                         assert_eq!(value, ir::Value::Unknown);
 
                         match register_map.get(&target).unwrap() {
@@ -282,7 +282,7 @@ impl Backend {
                 ir::Statement::Assignment { target, .. } => Some(target),
                 _ => None,
             })
-            .map(|v| (v.name, v.ty))
+            .map(|v| (v.name().to_string(), v.ty))
             .collect();
 
         let name = "g_init".to_string();

@@ -14,7 +14,7 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
     match stmnt {
         Statement::SaveVariable { var } => {
             let src_reg = ctx.registers.get_reg(&var).unwrap();
-            let var_offset = match ctx.var.get(&var.name) {
+            let var_offset = match ctx.var.get(var.name()) {
                 Some(vo) => *vo,
                 None => panic!("Missing Variable Offset for {:?}", var),
             };
@@ -129,11 +129,14 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
 
                     instructions.push(asm::Instruction::Literal(format!(
                         "adrp {}, {}@PAGE",
-                        addr_reg, var.name,
+                        addr_reg,
+                        var.name(),
                     )));
                     instructions.push(asm::Instruction::Literal(format!(
                         "add {}, {}, {}@PAGEOFF",
-                        addr_reg, addr_reg, var.name
+                        addr_reg,
+                        addr_reg,
+                        var.name()
                     )));
 
                     match var.ty {

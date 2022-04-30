@@ -3,6 +3,7 @@ mod arrays;
 mod controlflow;
 mod example_code;
 mod function_call;
+mod globals;
 mod pointers;
 mod scalar;
 mod structs;
