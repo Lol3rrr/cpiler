@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn simple_scalar() {
     let content = "
 void test() {
@@ -90,6 +91,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn scalar_with_args() {
     let input = "
 void test(int arg) {

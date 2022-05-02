@@ -23,7 +23,8 @@ use debug_ctx::DebugContext;
 /// The Statement to use for saving the provided Variable
 pub(crate) fn save_statement(var: ir::Variable) -> ir::Statement {
     if var.global() {
-        ir::Statement::SaveGlobalVariable { var }
+        dbg!(&var);
+        todo!()
     } else {
         ir::Statement::SaveVariable { var }
     }

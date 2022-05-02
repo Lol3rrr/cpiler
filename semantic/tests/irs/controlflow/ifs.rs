@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn single_if() {
     let content = "
 void test() {
@@ -132,6 +133,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn if_else_blocks() {
     let content = "
 void test() {

@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn function_call_no_args() {
     let content = "
 int other();
@@ -70,6 +71,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn call_with_scalar_args() {
     let content = "
 int other(int first, int second);
@@ -155,6 +157,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn call_with_ptr_arg() {
     let content = "
 int other(int* first);
@@ -238,6 +241,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn raw_function_call_no_args() {
     let content = "
 int other();

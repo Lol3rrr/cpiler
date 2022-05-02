@@ -7,6 +7,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn simple_while_loop() {
     let input = "
 void test() {
@@ -278,6 +279,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn while_loop_with_break() {
     let input = "
 void test() {
@@ -389,6 +391,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn while_loop_with_continue() {
     let input = "
 void test() {

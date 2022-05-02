@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn standalone_suffix_increment() {
     let content = "
 void test() {
@@ -77,6 +78,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn assign_suffix_increment() {
     let content = "
 void test() {

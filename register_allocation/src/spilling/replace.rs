@@ -82,8 +82,8 @@ pub fn replace_used_variables(
             *var = n_var.clone();
         }
         ir::Statement::JumpTrue(_, _, _) => {}
-        ir::Statement::SaveGlobalVariable { var } if var == previous => {
-            *var = n_var.clone();
+        ir::Statement::SaveGlobalVariable { value, .. } if value == previous => {
+            *value = n_var.clone();
         }
         ir::Statement::SaveGlobalVariable { .. } => {}
         ir::Statement::WriteMemory { target, value } => {

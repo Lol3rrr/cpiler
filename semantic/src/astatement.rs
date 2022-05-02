@@ -580,6 +580,22 @@ impl AStatement {
 
                 match target {
                     AAssignTarget::Variable { name, ty_info, .. } => {
+                        if ctx.global() {
+                            let target_ty = ty_info.data.to_ir();
+                            let target = ir::Variable::new(name.clone(), target_ty);
+
+                            block.add_statement(ir::Statement::Assignment {
+                                target: target.clone(),
+                                value: value_exp,
+                            });
+                            block.add_statement(ir::Statement::SaveGlobalVariable {
+                                name,
+                                value: target,
+                            });
+
+                            return;
+                        }
+
                         if let Some(global) = ctx.get_global(&name) {
                             dbg!(&global);
                             todo!("Assign to Global");
@@ -601,18 +617,13 @@ impl AStatement {
                         let target_meta = value_exp.assign_meta(&next_var);
                         let target_var = next_var.set_meta(target_meta);
 
+                        debug_assert!(!target_var.global());
+
                         block.add_statement(ir::Statement::Assignment {
                             target: target_var.clone(),
                             value: value_exp,
                         });
-
-                        if target_var.global() {
-                            block.add_statement(ir::Statement::SaveGlobalVariable {
-                                var: target_var,
-                            });
-                        } else {
-                            block.add_statement(ir::Statement::SaveVariable { var: target_var });
-                        }
+                        block.add_statement(ir::Statement::SaveVariable { var: target_var });
                     }
                     AAssignTarget::Deref { exp, .. } => {
                         let address_value = exp.to_ir(block, ctx);

@@ -1,6 +1,7 @@
 use general::{Source, Span};
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn read_global() {
     let input = "
 int global = 0;
@@ -12,7 +13,7 @@ void test() {
         ";
 
     let input_source = Source::new("test", input);
-    let input_span: Span = input_source.clone().into();
+    let input_span: Span = input_source.into();
     let input_tokens = tokenizer::tokenize(input_span);
     let input_ast = syntax::parse(input_tokens).unwrap();
 

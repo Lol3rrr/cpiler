@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn random_ptr_deref() {
     let content = "
 void test() {
@@ -80,6 +81,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn var_ptr_deref() {
     let content = "
 void test() {

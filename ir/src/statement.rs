@@ -62,8 +62,11 @@ impl ToDot for Statement {
 
                 lines.add_edge(graphviz::Edge::new(src, &name));
             }
-            Self::SaveGlobalVariable { var } => {
-                let content = format!("SaveGlobalVariable {:?}", var);
+            Self::SaveGlobalVariable {
+                name: g_name,
+                value,
+            } => {
+                let content = format!("SaveGlobalVariable {:?} -> {}", value, g_name);
                 lines.add_node(
                     graphviz::Node::new(&name).add_label("label", content.replace('"', "\\\"")),
                 );

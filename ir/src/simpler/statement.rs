@@ -23,7 +23,9 @@ impl Statement {
             }
             crate::Statement::WriteMemory { target, value } => Self::WriteMemory { target, value },
             crate::Statement::SaveVariable { var } => Self::SaveVariable { var },
-            crate::Statement::SaveGlobalVariable { var } => Self::SaveGlobalVariable { var },
+            crate::Statement::SaveGlobalVariable { name, value } => {
+                Self::SaveGlobalVariable { name, value }
+            }
             crate::Statement::InlineAsm {
                 template,
                 inputs,

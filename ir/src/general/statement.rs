@@ -34,8 +34,10 @@ pub enum Statement<B, WB> {
     },
     /// Indicates that the Global Variable should be saved, globally
     SaveGlobalVariable {
-        /// The Variable to save globally
-        var: Variable,
+        /// The Name of the Global Variable to save
+        name: String,
+        /// The Variable that contains the Data to save
+        value: Variable,
     },
     /// Some inline assembly statements that will be handled by the Backend
     InlineAsm {
@@ -146,9 +148,10 @@ where
                 .field("value", value)
                 .finish(),
             Self::SaveVariable { var } => f.debug_struct("SaveVariable").field("var", var).finish(),
-            Self::SaveGlobalVariable { var } => f
+            Self::SaveGlobalVariable { name, value } => f
                 .debug_struct("SaveGlobalVariable")
-                .field("var", var)
+                .field("name", name)
+                .field("value", value)
                 .finish(),
             Self::WriteMemory { target, value } => f
                 .debug_struct("WriteMemory")
@@ -193,7 +196,7 @@ where
         match self {
             Self::Assignment { value, .. } => value.used_vars(),
             Self::SaveVariable { var } => var.clone().into(),
-            Self::SaveGlobalVariable { var } => var.clone().into(),
+            Self::SaveGlobalVariable { value, .. } => value.clone().into(),
             Self::WriteMemory { target, value } => {
                 let target_iter = target.used_vars();
                 let value_iter = value.used_vars();

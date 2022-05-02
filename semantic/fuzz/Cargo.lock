@@ -43,6 +43,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphs"
+version = "0.1.0"
+
+[[package]]
 name = "graphviz"
 version = "0.1.0"
 
@@ -50,6 +54,7 @@ version = "0.1.0"
 name = "ir"
 version = "0.1.0"
 dependencies = [
+ "graphs",
  "graphviz",
 ]
 

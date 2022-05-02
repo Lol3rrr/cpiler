@@ -122,24 +122,23 @@ pub fn to_asm(stmnt: ir::Statement, ctx: &Context) -> Vec<asm::Instruction> {
                 }
             };
         }
-        Statement::SaveGlobalVariable { var } => {
-            match ctx.registers.get_reg(&var).unwrap() {
+        Statement::SaveGlobalVariable { name, value } => {
+            todo!();
+
+            match ctx.registers.get_reg(&value).unwrap() {
                 asm::Register::GeneralPurpose(gp) => {
                     let addr_reg = asm::GPRegister::DWord(9);
 
                     instructions.push(asm::Instruction::Literal(format!(
                         "adrp {}, {}@PAGE",
-                        addr_reg,
-                        var.name(),
+                        addr_reg, name,
                     )));
                     instructions.push(asm::Instruction::Literal(format!(
                         "add {}, {}, {}@PAGEOFF",
-                        addr_reg,
-                        addr_reg,
-                        var.name()
+                        addr_reg, addr_reg, name
                     )));
 
-                    match var.ty {
+                    match value.ty {
                         ir::Type::Pointer(_)
                         | ir::Type::U64
                         | ir::Type::I64

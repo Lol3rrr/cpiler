@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn simple_array() {
     let content = "
 void test() {
@@ -129,6 +130,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn array_suffix_increment_decrement() {
     let content = "
 void test() {

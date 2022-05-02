@@ -292,7 +292,13 @@ fn replace(stmnt: &mut Statement, defs: &LastDefinition) {
         // TODO
         Statement::SaveVariable { var } => {}
         // TODO
-        Statement::SaveGlobalVariable { var } => {}
+        Statement::SaveGlobalVariable { name, value } => {
+            let n_var = match defs.get_last(&value) {
+                Some(LastDef::Single(d, _)) => d,
+                _ => panic!(),
+            };
+            *value = n_var.clone();
+        }
         Statement::WriteMemory { target, value } => {
             replace_oper(target, defs);
             replace_oper(value, defs);

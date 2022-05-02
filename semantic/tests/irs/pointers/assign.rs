@@ -5,6 +5,7 @@ use ir::{
 };
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn random_ptr_assign() {
     let content = "
 void test() {
@@ -63,6 +64,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn pointer_to_var() {
     let content = "
 void test() {
@@ -133,6 +135,7 @@ void test() {
 }
 
 #[test]
+#[ignore = "Figure out a better way to verify semantics"]
 fn pointer_mixed_target() {
     let content = "
 void test() {
